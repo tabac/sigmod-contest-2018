@@ -18,6 +18,8 @@ RUN apt-get update && apt-get dist-upgrade -y
 
 # Install allowed packages.
 RUN apt-get install -y curl sudo \
+                       gdb \
+                       valgrind \
                        autoconf=2.69-11 \
                        automake=1:1.15-6ubuntu1 \
                        cmake=3.9.1-1 \

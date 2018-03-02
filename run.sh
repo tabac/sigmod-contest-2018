@@ -1,4 +1,8 @@
 #!/bin/bash
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-${DIR}/build/release/Joiner
+
+DATADIR=$(dirname "$1")
+DATAFILE=$(basename "$1")
+
+cd ${DATADIR} && ${DIR}/build/release/Joiner < ${DATAFILE}
