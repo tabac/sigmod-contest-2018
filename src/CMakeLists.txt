@@ -18,8 +18,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 
-add_executable(Joiner Joiner.cpp ${SOURCE_FILES})
-target_link_libraries(Joiner database)
+add_executable(rocket main.cpp ${SOURCE_FILES})
+target_link_libraries(rocket database)
 
 # Interactive command line tool to translate our query format to SQL queries
 add_executable(Query2SQL Query2SQL.cpp ${SOURCE_FILES})
