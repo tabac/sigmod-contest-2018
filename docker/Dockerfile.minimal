@@ -1,0 +1,30 @@
+FROM ubuntu:17.10
+
+# Declare `localuser` as build arg.
+ARG localuser
+
+# Create host user.
+RUN useradd -mU $localuser
+
+# Create user with home directory.
+RUN useradd -mU sut
+RUN useradd -mG sut contest
+
+# Create code folder.
+RUN mkdir /code
+RUN chown -R $localuser:$localuser /code
+
+RUN apt-get update
+
+RUN apt-get install -y curl \
+                       sudo \
+                       gdb \
+                       valgrind \
+                       autoconf=2.69-11 \
+                       automake=1:1.15-6ubuntu1 \
+                       cmake=3.9.1-1 \
+                       gcc=4:7.2.0-1ubuntu1 \
+                       g++=4:7.2.0-1ubuntu1 \
+                       libjemalloc-dev=3.6.0-10 \
+					   libboost-dev=1.62.0.1 \
+                       libtbb-dev=2017~U7-6 \

@@ -6,10 +6,9 @@
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 class Joiner {
+  public:
   /// The relations that might be joined
   std::vector<Relation> relations;
-
-  public:
   /// Add relation
   void addRelation(const char* fileName);
   /// Get relation
