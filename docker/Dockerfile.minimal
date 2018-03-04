@@ -6,16 +6,14 @@ ARG localuser
 # Create host user.
 RUN useradd -mU $localuser
 
-# Create user with home directory.
-RUN useradd -mU sut
-RUN useradd -mG sut contest
-
 # Create code folder.
 RUN mkdir /code
 RUN chown -R $localuser:$localuser /code
 
+# Update packages.
 RUN apt-get update
 
+# Install minimal allowed packages.
 RUN apt-get install -y curl \
                        sudo \
                        gdb \
@@ -27,4 +25,4 @@ RUN apt-get install -y curl \
                        g++=4:7.2.0-1ubuntu1 \
                        libjemalloc-dev=3.6.0-10 \
 					   libboost-dev=1.62.0.1 \
-                       libtbb-dev=2017~U7-6 \
+                       libtbb-dev=2017~U7-6
