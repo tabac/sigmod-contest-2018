@@ -10,12 +10,12 @@ class Planner {
     /// All available relations.
     vector<Relation> relations;
 
-    /// Adds a relation.
+    /// Loads a relation from disk.
     void addRelation(const char* fileName);
-    /// Gets a relation by `id`.
+    /// Returns a reference to a Relation by id.
     Relation& getRelation(unsigned id);
 
-    /// Generates plan for query `QueryInfo`.
+    /// Generates a plan for query `QueryInfo`.
     static Plan &generatePlan(QueryInfo &query);
     /// Generates all plans for queries in `vector<QueryInfo>`.
     static Plan &generateAllPlans(vector<QueryInfo> queries);

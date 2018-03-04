@@ -1,10 +1,12 @@
 #include <iostream>
 #include "Planner.hpp"
+#include "Executor.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
 int main(int argc, char* argv[]) {
     Planner planner;
+    Executor executor;
 
     // Read join relations
     string line;
@@ -20,15 +22,24 @@ int main(int argc, char* argv[]) {
     // The test harness will send the first query after 1 second.
 
     vector<QueryInfo> queries;
+    vector<ResultInfo> resultsInfo;
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         do {
             queries.emplace_back().parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
-        // Process next query batch.
+        // Generate an execution plan for all `queries`.
+        Plan &plan = planner.generateAllPlans(queries);
 
-        // Clear query vector before loading next query batch.
+        // Execute the generated plan.
+        resultsInfo = executor.executePlan(plan);
+
+        // Print results.
+        ResultInfo::printResults(resultsInfo);
+
+        // Clear info before loading next query batch.
+        resultsInfo.clear();
         queries.clear();
     }
 

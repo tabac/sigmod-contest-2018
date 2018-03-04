@@ -5,9 +5,13 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-struct ResultInfo {
-    /// Query results ordered by `QueryInfo` index.
-    vector<vector<uint64_t>> results;
+class ResultInfo {
+    public:
+    /// Query results.
+    vector<uint64_t> results;
+
+    /// Prints the `ResultInfo` vector to stdout.
+    static void printResults(vector<ResultInfo> resultsInfo);
 };
 //---------------------------------------------------------------------------
 class Executor {

@@ -6,13 +6,13 @@
 using namespace std;
 //---------------------------------------------------------------------------
 void Planner::addRelation(const char* fileName)
-// Loads a relation from disk
+// Loads a relation from disk.
 {
    this->relations.emplace_back(fileName);
 }
 //---------------------------------------------------------------------------
 Relation& Planner::getRelation(unsigned relationId)
-// Loads a relation from disk
+// Returns a reference to a Relation by id.
 {
     if (relationId >= this->relations.size()) {
         cerr << "Relation with id: " << relationId << " does not exist" << endl;
@@ -22,6 +22,7 @@ Relation& Planner::getRelation(unsigned relationId)
 }
 //---------------------------------------------------------------------------
 Plan& Planner::generatePlan(QueryInfo &query)
+// Generates a plan for query `QueryInfo`.
 {
     Plan *p = new Plan();
 
@@ -29,6 +30,7 @@ Plan& Planner::generatePlan(QueryInfo &query)
 }
 //---------------------------------------------------------------------------
 Plan& Planner::generateAllPlans(vector<QueryInfo> queries)
+// Generates all plans for queries in `vector<QueryInfo>`.
 {
     Plan *p = new Plan();
 
