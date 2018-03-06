@@ -17,6 +17,7 @@ RUN apt-get update
 RUN apt-get install -y curl \
                        sudo \
                        gdb \
+                       git \
                        valgrind \
                        autoconf=2.69-11 \
                        automake=1:1.15-6ubuntu1 \

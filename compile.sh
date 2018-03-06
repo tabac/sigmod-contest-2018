@@ -3,7 +3,17 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 cd "$DIR"
-mkdir -p build/release
-cd build/release
-cmake -DCMAKE_BUILD_TYPE=Release -DFORCE_TESTS=OFF ../..
+
+if [ "$#" == "1" -a "$1" == "--release" ]
+then
+    BUILDDIR="build/release"
+    BUILDTYPE="Release"
+else
+    BUILDDIR="build/debug"
+    BUILDTYPE="Debug"
+fi
+
+mkdir -p "${BUILDDIR}"
+cd "${BUILDDIR}"
+cmake -DCMAKE_BUILD_TYPE="${BUILDTYPE}" -DFORCE_TESTS=OFF ../..
 make -j8
