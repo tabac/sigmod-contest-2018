@@ -11,7 +11,7 @@ class Executor {
     /// Executes the given `Plan`, stores results in `resultsInfo`.
     static void executePlan(Plan &plan, vector<ResultInfo> &resultsInfo);
     /// Executes the operator of an `OperatorNode`.
-    static void executeOperator(AbstractOperatorNode *node);
+    static void executeOperator(AbstractNode *node);
 };
 //---------------------------------------------------------------------------
 

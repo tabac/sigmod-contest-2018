@@ -41,7 +41,9 @@ class AbstractNode {
     bool isStatusProcessing() { return status == processing; };
     bool isStatusProcessed() { return status == processed; };
 
-    /// Pure-virtual destructor.
+    /// Constructor.
+    AbstractNode() : status(fresh), visited(0) { }
+    /// Virtual destructor.
     virtual ~AbstractNode() { }
 
     /////////////////////////////////////////////////////////////////////////
