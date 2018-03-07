@@ -4,15 +4,15 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-class AbstractPlanNode {
+class AbstractNode {
     public:
     ///In-edge adjacency list.
-    vector<AbstractPlanNode *> inAdjacencyList;
+    vector<AbstractNode *> inAdjacencyList;
     ///Out-edge adjacency list.
-    vector<AbstractPlanNode *> outAdjacencyList;
+    vector<AbstractNode *> outAdjacencyList;
 };
 //---------------------------------------------------------------------------
-class DataPlanNode : public AbstractPlanNode {
+class DataNode : public AbstractNode {
     public:
     /// A vector of pairs of `{relationId,numberOfColumns}` entries
     /// appearing in the `data` vector.
@@ -23,13 +23,14 @@ class DataPlanNode : public AbstractPlanNode {
     vector<pair<uint64_t, uint64_t>> data;
 };
 //---------------------------------------------------------------------------
-class OperatorPlanNode : public AbstractPlanNode {
+class AbstractOperatorNode : public AbstractNode {
+    public:
     virtual void execute() = 0;
 };
 //---------------------------------------------------------------------------
 class Plan {
     public:
     /// All the nodes of the plan.
-    vector<AbstractPlanNode> nodes;
+    vector<AbstractNode *> nodes;
 };
 //---------------------------------------------------------------------------

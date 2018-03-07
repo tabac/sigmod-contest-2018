@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -fsanitize=address -Wall -Wextra -pedantic")
 
-set(SOURCE_FILES Relation.cpp Parser.cpp Utils.cpp Plan.cpp Executor.cpp Planner.cpp)
+set(SOURCE_FILES Relation.cpp Parser.cpp Utils.cpp Plan.cpp Executor.cpp Planner.cpp DataEngine.cpp)
 
 include_directories(${PROJECT_SRC_DIR}/include)
 add_library(database ${SOURCE_FILES})

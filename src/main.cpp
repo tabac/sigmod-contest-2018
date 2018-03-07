@@ -1,17 +1,18 @@
 #include <iostream>
 #include "Planner.hpp"
 #include "Executor.hpp"
+#include "DataEngine.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-int main(int argc, char* argv[]) {
-    Planner planner;
-    Executor executor;
+int main(void)
+{
+    DataEngine engine;
 
     // Read join relations
     string line;
     while (getline(cin, line) && line != "Done") {
-        planner.addRelation(line.c_str());
+        engine.addRelation(line.c_str());
     }
 
     // Preparation phase (not timed)
@@ -29,11 +30,14 @@ int main(int argc, char* argv[]) {
             queries.emplace_back().parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
+        // Reserve memory for results if necessary.
+        resultsInfo.reserve(queries.size());
+
         // Generate an execution plan for all `queries`.
-        Plan &plan = planner.generateAllPlans(queries);
+        Plan *plan = Planner::generatePlan(engine, queries);
 
         // Execute the generated plan.
-        resultsInfo = executor.executePlan(plan);
+        Executor::executePlan(*plan, resultsInfo);
 
         // Print results.
         ResultInfo::printResults(resultsInfo);
@@ -41,6 +45,8 @@ int main(int argc, char* argv[]) {
         // Clear info before loading next query batch.
         resultsInfo.clear();
         queries.clear();
+
+        delete plan;
     }
 
     return 0;
