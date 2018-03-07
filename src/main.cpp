@@ -45,7 +45,7 @@ int main(void)
         // Clear info before loading next query batch.
         resultsInfo.clear();
         queries.clear();
-
+        // Delete created plan.
         delete plan;
     }
 
