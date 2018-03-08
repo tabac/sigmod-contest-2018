@@ -2,11 +2,10 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include "Plan.hpp"
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
-using RelationId = unsigned;
-//---------------------------------------------------------------------------
-class Relation: public DataReaderMixin {
+class Relation: public AbstractDataNode {
     private:
     /// Owns memory (false if it was mmaped)
     bool ownsMemory;
@@ -30,6 +29,12 @@ class Relation: public DataReaderMixin {
     /// Dump SQL: Create and load table (PostgreSQL)
     void dumpSQL(const std::string& fileName,unsigned relationId);
 
+    /// Checks if the nodes it depends on are `processed`
+    /// and if so sets its flag to processed too.
+    void execute();
+    /// Returns the relations columns aggregated sums.
+    // TODO: This should return something else.
+    ResultInfo aggregate();
     /// Returns an `IteratorPair` over all the `DataNode`'s ids.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getIdsIterator(FilterInfo* filterInfo);
@@ -37,6 +42,8 @@ class Relation: public DataReaderMixin {
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+
+    std::vector<SelectInfo>& getColumns() { return columnsInfo; }
 
     /// Constructor without mmap
     Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}

@@ -31,6 +31,16 @@ void ResultInfo::printResults(vector<ResultInfo> resultsInfo)
     cout << endl;
 }
 //---------------------------------------------------------------------------
+void AbstractNode::resetStatus()
+// Resets the nodes status, adjacency lists.
+{
+    this->visited = 0;
+    this->status = fresh;
+
+    this->inAdjList.clear();
+    this->outAdjList.clear();
+}
+//---------------------------------------------------------------------------
 void DataNode::execute()
 // Checks if the nodes it depends on are `processed`
 // and if so sets its flag to processed too.
@@ -57,6 +67,12 @@ void DataNode::execute()
 
     cout << "Executing Data: " << this->nodeId << endl;
 
+    vector<uint64_t>::iterator jt;
+    for (jt = this->dataValues.begin(); jt != this->dataValues.end(); ++jt) {
+        cout << (*jt) << " ";
+    }
+    cout << endl;
+
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
@@ -72,16 +88,16 @@ ResultInfo DataNode::aggregate()
     assert(this->isStatusProcessed());
 
     // Reserve memory for results.
-    result.results.reserve(this->columns.size());
+    result.results.reserve(this->columnsInfo.size());
 
     if (this->size == 0) {
         // Return empty results for each column.
-        for (uint64_t i = 0; i < this->columns.size(); ++i) {
+        for (uint64_t i = 0; i < this->columnsInfo.size(); ++i) {
             result.results.push_back(optional<uint64_t>());
         }
     } else {
         // Calculate aggregated sum for each column.
-        for (uint64_t i = 0; i < this->columns.size(); ++i) {
+        for (uint64_t i = 0; i < this->columnsInfo.size(); ++i) {
             uint64_t sum = 0;
 
             vector<uint64_t>::iterator it;
@@ -115,14 +131,14 @@ IteratorPair DataNode::getValuesIterator(SelectInfo& selectInfo, FilterInfo* fil
 
     // Find filter column index in `data`
     unsigned c = 0;
-    vector<SelectInfo *>::iterator it;
-    for (it = this->columns.begin(); it != this->columns.end(); ++it, ++c) {
-        if ((*(*it)) == selectInfo) {
+    vector<SelectInfo>::iterator it;
+    for (it = this->columnsInfo.begin(); it != this->columnsInfo.end(); ++it, ++c) {
+        if ((*it) == selectInfo) {
             break;
         }
     }
 
-    assert(c < this->columns.size());
+    assert(c < this->columnsInfo.size());
 
     return {
         this->dataValues.begin() + c * this->size,
@@ -181,6 +197,43 @@ void FilterOperatorNode::execute()
 
     cout << "Executing Filter: " << this->nodeId << endl;
 
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    IteratorPair idsIter = inNode->getIdsIterator(NULL);
+    IteratorPair valIter = inNode->getValuesIterator(this->info.filterColumn, NULL);
+
+    // Get indices that satisfy the given filter condition.
+    vector<uint64_t> indices;
+    this->info.getFilteredIndices(valIter, indices);
+
+    // Reserve memory for ids, values.
+    outNode->dataIds.reserve(indices.size());
+
+    // Filter ids.
+    vector<uint64_t>::iterator it;
+    for (it = indices.begin(); it != indices.end(); ++it) {
+        assert(idsIter.first + (*it) < idsIter.second);
+        outNode->dataIds.push_back(*(idsIter.first + (*it)));
+    }
+
+    // Reserve memory for column names, column values.
+    outNode->columnsInfo.reserve(inNode->columnsInfo.size());
+    outNode->dataValues.reserve(inNode->columnsInfo.size() * indices.size());
+
+    // Filter values.
+    vector<SelectInfo>::iterator kt;
+    for (kt = inNode->columnsInfo.begin(); kt != inNode->columnsInfo.end(); ++kt) {
+        outNode->columnsInfo.emplace_back((*kt));
+
+        valIter = inNode->getValuesIterator((*kt), NULL);
+
+        for (it = indices.begin(); it != indices.end(); ++it) {
+            assert(valIter.first + (*it) < valIter.second);
+            outNode->dataValues.push_back(*(valIter.first + (*it)));
+        }
+    }
+
     // Set status to processed.
     this->setStatus(processed);
 }
@@ -189,7 +242,14 @@ Plan::~Plan()
 {
     vector<AbstractNode *>::iterator it;
     for (it = this->nodes.begin(); it != this->nodes.end(); ++it) {
-        delete (*it);
+        // Delete intermediate nodes and reset intial relations.
+        if (((*it) != this->root) && ((*it)->inAdjList[0] != this->root)) {
+            delete (*it);
+        } else {
+            (*it)->resetStatus();
+        }
     }
+
+    delete this->root;
 }
 //---------------------------------------------------------------------------

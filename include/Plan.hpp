@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <cassert>
 #include "Mixins.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -39,6 +40,11 @@ class AbstractNode {
     bool isStatusProcessing() { return status == processing; };
     bool isStatusProcessed() { return status == processed; };
 
+    /// Resets the nodes status, adjacency lists.
+    /// Used for the relations that are reused between
+    /// query batches.
+    void resetStatus();
+
     /// Constructor.
     AbstractNode() : status(fresh), visited(0) { }
     /// Virtual destructor.
@@ -51,19 +57,22 @@ class AbstractNode {
     /////////////////////////////////////////////////////////////////////////
 };
 //---------------------------------------------------------------------------
-class AbstractDataNode : public AbstractNode {
+class AbstractDataNode : public AbstractNode, public DataReaderMixin {
     public:
+    /// A vector of `SelectInfo` instances of the columns
+    /// appearing in the `data` vector.
+    std::vector<SelectInfo> columnsInfo;
+
     /// Returns the relations columns aggregated sums.
     virtual ResultInfo aggregate() = 0;
+
+    virtual std::vector<SelectInfo>& getColumns() = 0;
 };
 //---------------------------------------------------------------------------
-class DataNode : public AbstractDataNode, public DataReaderMixin {
+class DataNode : public AbstractDataNode {
     public:
     /// The number of tuples (rows).
     uint64_t size;
-    /// A vector of `SelectInfo` instances of the columns
-    /// appearing in the `data` vector.
-    std::vector<SelectInfo *> columns;
     /// A table in columnar format with "value" entries.
     std::vector<uint64_t> dataValues;
     /// A table in columnar format with "row ID" entries.
@@ -82,6 +91,8 @@ class DataNode : public AbstractDataNode, public DataReaderMixin {
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+
+    std::vector<SelectInfo>& getColumns() { return this->columnsInfo; }
     /// Destructor.
     ~DataNode() { }
 };
@@ -91,7 +102,7 @@ class AbstractOperatorNode : public AbstractNode { };
 class JoinOperatorNode : public AbstractOperatorNode {
     public:
     /// Reference to the corresponding `PredicateInfo` instance.
-    const struct PredicateInfo &info;
+    PredicateInfo &info;
 
     /// Joins the two input `DataNode` instances.
     void execute();
@@ -104,15 +115,10 @@ class JoinOperatorNode : public AbstractOperatorNode {
 class FilterOperatorNode : public AbstractOperatorNode {
     public:
     /// Reference to the corresponding `FilterInfo` instance.
-    const struct FilterInfo &info;
+    FilterInfo& info;
 
     /// Filters the input `DataNode` instance.
     void execute();
-
-    /*
-    /// Find row indexes in `data` that satisfy the filter condition.
-    std::vector<unsigned> filterDataByColIndex(unsigned colIndex);
-    */
 
     FilterOperatorNode(struct FilterInfo &info) : info(info) {}
 

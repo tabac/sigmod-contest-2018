@@ -2,10 +2,12 @@
 #include <vector>
 #include <cstdint>
 //---------------------------------------------------------------------------
-typedef std::pair<std::vector<uint64_t>::iterator, std::vector<uint64_t>::iterator> IteratorPair;
-//---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
+//---------------------------------------------------------------------------
+using RelationId = unsigned;
+//---------------------------------------------------------------------------
+using IteratorPair = std::pair<std::vector<uint64_t>::iterator, std::vector<uint64_t>::iterator>;
 //---------------------------------------------------------------------------
 class DataReaderMixin {
     // TODO: Would be nice not to pass `filterInfo` and then ignore it...

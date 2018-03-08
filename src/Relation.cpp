@@ -10,6 +10,41 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
+void Relation::execute()
+{
+    // Should never be called otherwise.
+    assert(this->isStatusFresh());
+
+    // Sould have only one incoming edge.
+    assert(this->inAdjList.size() == 1);
+    // Sould have one or zero outgoing edges.
+    assert(this->outAdjList.size() < 2);
+
+    if (this->outAdjList.size() == 1) {
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+    }
+
+    // Check that all parent nodes are processed.
+    bool allInProcessed = true;
+    vector<AbstractNode *>::iterator it;
+    for (it = this->inAdjList.begin(); it != this->inAdjList.end(); ++it) {
+        allInProcessed &= (*it)->isStatusProcessed();
+    }
+
+    cout << "Love that jocker: " << this->relId << endl;
+
+    // If so set status to `processed`.
+    if (allInProcessed) {
+        this->setStatus(processed);
+    }
+}
+//---------------------------------------------------------------------------
+ResultInfo Relation::aggregate()
+{
+    return ResultInfo();
+}
+//---------------------------------------------------------------------------
 IteratorPair Relation::getIdsIterator(FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
@@ -114,6 +149,13 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
 // Constructor that loads relation from disk
 {
     loadRelation(fileName);
+
+    // Reserve memory for column names.
+    this->columnsInfo.reserve(this->columns.size());
+    // Create relations column `SelectInfo` objects.
+    for (unsigned c = 0; c < this->columns.size(); ++c) {
+        this->columnsInfo.emplace_back(relId, 0, c);
+    }
 
     // Reserve memory for ids.
     this->ids.reserve(this->size);
