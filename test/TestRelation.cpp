@@ -13,28 +13,28 @@ static void ASSERT_RELATION_EQ(Relation& r1,Relation& r2)
 }
 //---------------------------------------------------------------------------
 TEST(Relation,LoadAndStore) {
-  Relation r1=Utils::createRelation(1000,5);
+  Relation r1=Utils::createRelation(0, 1000,5);
 
   r1.storeRelation("r1");
   // Load it back from disk
-  Relation r2("r1");
+  Relation r2(1, "r1");
 
   ASSERT_RELATION_EQ(r1,r2);
 }
 //---------------------------------------------------------------------------
 TEST(Relation,EmptyRelation) {
-  Relation r1=Utils::createRelation(0,0);
+  Relation r1=Utils::createRelation(0, 0,0);
 
   r1.storeRelation("r1");
 
   // Load it back from disk
-  Relation r2("r1");
+  Relation r2(1, "r1");
 
   ASSERT_RELATION_EQ(r1,r2);
 }
 //---------------------------------------------------------------------------
 TEST(Relation,StoreCsv) {
-  Relation r1=Utils::createRelation(1000,2);
+  Relation r1=Utils::createRelation(0, 1000,2);
 
   r1.storeRelationCSV("r1");
 
@@ -51,7 +51,7 @@ TEST(Relation,StoreCsv) {
 }
 //---------------------------------------------------------------------------
 TEST(Relation,CreateSQL) {
-  Relation r1=Utils::createRelation(1,5);
+  Relation r1=Utils::createRelation(0, 1, 5);
 
   r1.dumpSQL("r1",3);
 

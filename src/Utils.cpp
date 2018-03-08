@@ -13,14 +13,14 @@ static void createColumn(vector<uint64_t*>& columns,uint64_t numTuples)
   }
 }
 //---------------------------------------------------------------------------
-Relation Utils::createRelation(uint64_t size,uint64_t numColumns)
+Relation Utils::createRelation(RelationId relId, uint64_t size,uint64_t numColumns)
   // Create a dummy relation
 {
   vector<uint64_t*> columns;
   for (unsigned i=0;i<numColumns;++i) {
     createColumn(columns,size);
   }
-  return Relation(size,move(columns));
+  return Relation(relId, size,move(columns));
 }
 //---------------------------------------------------------------------------
 void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)

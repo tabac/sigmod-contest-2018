@@ -1,19 +1,20 @@
 #include <vector>
-#include <variant>
 #include <cstdint>
 #include <cassert>
 #include <iostream>
 #include "Plan.hpp"
+#include "Mixins.hpp"
+//---------------------------------------------------------------------------
+using namespace std;
 //---------------------------------------------------------------------------
 void ResultInfo::printResultInfo()
 // Prints the `results` vector to stdout.
 {
-    vector<variant<uint64_t, bool>>::iterator it;
+    vector<optional<uint64_t>>::iterator it;
     for (it = this->results.begin(); it != this->results.end(); ++it) {
-
-        try {
-            cout << get<uint64_t>(*it) << " ";
-        } catch (const bad_variant_access&) {
+        if ((*it).has_value()) {
+            cout << (*it).value() << " ";
+        } else {
             cout << "NULL ";
         }
     }
@@ -64,9 +65,69 @@ void DataNode::execute()
 //---------------------------------------------------------------------------
 ResultInfo DataNode::aggregate()
 {
+    // TODO: We return by value here, anything better?
     ResultInfo result;
 
+    // Should never be called earlier.
+    assert(this->isStatusProcessed());
+
+    // Reserve memory for results.
+    result.results.reserve(this->columns.size());
+
+    if (this->size == 0) {
+        // Return empty results for each column.
+        for (uint64_t i = 0; i < this->columns.size(); ++i) {
+            result.results.push_back(optional<uint64_t>());
+        }
+    } else {
+        // Calculate aggregated sum for each column.
+        for (uint64_t i = 0; i < this->columns.size(); ++i) {
+            uint64_t sum = 0;
+
+            vector<uint64_t>::iterator it;
+            for (it = this->dataValues.begin() + i * this->size;
+                 it != this->dataValues.begin() + (i + 1) * this->size; ++it) {
+                sum += *it;
+            }
+
+            result.results.push_back(sum);
+        }
+    }
+
     return result;
+}
+//---------------------------------------------------------------------------
+IteratorPair DataNode::getIdsIterator(FilterInfo* filterInfo)
+// Returns an `IteratorPair` over all the `DataNode`'s ids.
+{
+    // Should not be called with some filter condition.
+    assert(filterInfo == NULL);
+
+    return {this->dataIds.begin(), this->dataIds.end()};
+}
+//---------------------------------------------------------------------------
+IteratorPair DataNode::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+// Returns an `IteratorPair` over all the `DataNode`'s values
+// of the column specified by `selectInfo`.
+{
+    // Should not be called with some filter condition.
+    assert(filterInfo == NULL);
+
+    // Find filter column index in `data`
+    unsigned c = 0;
+    vector<SelectInfo *>::iterator it;
+    for (it = this->columns.begin(); it != this->columns.end(); ++it, ++c) {
+        if ((*(*it)) == selectInfo) {
+            break;
+        }
+    }
+
+    assert(c < this->columns.size());
+
+    return {
+        this->dataValues.begin() + c * this->size,
+        this->dataValues.begin() + (c + 1) * this->size,
+    };
 }
 //---------------------------------------------------------------------------
 void JoinOperatorNode::execute()
@@ -86,7 +147,7 @@ void JoinOperatorNode::execute()
     // Return if one of the parent nodes has not
     // finished processing.
     if (!this->inAdjList[0]->isStatusProcessed() ||
-        !this->inAdjList[0]->isStatusProcessed()) {
+        !this->inAdjList[1]->isStatusProcessed()) {
         return;
     }
 
@@ -102,16 +163,18 @@ void JoinOperatorNode::execute()
 void FilterOperatorNode::execute()
 // Filters the input `DataNode` instance.
 {
-    // Should never be called otherwise.
-    assert(this->isStatusFresh());
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
 
-    // Sould have only one incoming edge.
-    assert(this->inAdjList.size() == 1);
-    // Sould have only one outgoing edge.
-    assert(this->outAdjList.size() == 1);
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
 
-    // Should not be processed yet.
-    assert(this->outAdjList[0]->isStatusFresh());
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+    }
 
     // Set status to processing.
     this->setStatus(processing);

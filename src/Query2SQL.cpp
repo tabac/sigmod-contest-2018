@@ -3,7 +3,7 @@
 #include "Utils.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
-int main (int argc, char *argv[])
+int main (void)
 {
   std::cout << "Transforms our query format to SQL" << std::endl;
 

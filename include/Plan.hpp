@@ -1,22 +1,20 @@
 #pragma once
 #include <vector>
 #include <cstdint>
-#include <variant>
+#include "Mixins.hpp"
 #include "Parser.hpp"
-//---------------------------------------------------------------------------
-using namespace std;
 //---------------------------------------------------------------------------
 enum NodeStatus { fresh, processing, processed };
 //---------------------------------------------------------------------------
 class ResultInfo {
     public:
     /// Query results.
-    vector<variant<uint64_t, bool>> results;
+    std::vector<std::optional<uint64_t>> results;
 
     /// Prints the `results` vector to stdout.
     void printResultInfo();
     /// Prints the `ResultInfo` vector to stdout.
-    static void printResults(vector<ResultInfo> resultsInfo);
+    static void printResults(std::vector<ResultInfo> resultsInfo);
 };
 //---------------------------------------------------------------------------
 class AbstractNode {
@@ -26,9 +24,9 @@ class AbstractNode {
     /// Used by the `Executor` when performing BFS.
     unsigned visited;
     /// In-edge adjacency list.
-    vector<AbstractNode *> inAdjList;
+    std::vector<AbstractNode *> inAdjList;
     /// Out-edge adjacency list.
-    vector<AbstractNode *> outAdjList;
+    std::vector<AbstractNode *> outAdjList;
 
     /// Executes node-type related functionality.
     virtual void execute() = 0;
@@ -59,17 +57,17 @@ class AbstractDataNode : public AbstractNode {
     virtual ResultInfo aggregate() = 0;
 };
 //---------------------------------------------------------------------------
-class DataNode : public AbstractDataNode {
+class DataNode : public AbstractDataNode, public DataReaderMixin {
     public:
     /// The number of tuples (rows).
     uint64_t size;
     /// A vector of `SelectInfo` instances of the columns
     /// appearing in the `data` vector.
-    vector<SelectInfo *> columns;
+    std::vector<SelectInfo *> columns;
     /// A table in columnar format with "value" entries.
-    vector<uint64_t> dataValues;
+    std::vector<uint64_t> dataValues;
     /// A table in columnar format with "row ID" entries.
-    vector<uint64_t> dataIds;
+    std::vector<uint64_t> dataIds;
 
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
@@ -77,7 +75,14 @@ class DataNode : public AbstractDataNode {
     /// Returns the relations columns aggregated sums.
     // TODO: This should return something else.
     ResultInfo aggregate();
-
+    /// Returns an `IteratorPair` over all the `DataNode`'s ids.
+    /// Ignores `filterInfo`, requires it being `NULL`.
+    IteratorPair getIdsIterator(FilterInfo* filterInfo);
+    /// Returns an `IteratorPair` over all the `DataNode`'s values
+    /// of the column specified by `selectInfo`.
+    /// Ignores `filterInfo`, requires it being `NULL`.
+    IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    /// Destructor.
     ~DataNode() { }
 };
 //---------------------------------------------------------------------------
@@ -106,7 +111,7 @@ class FilterOperatorNode : public AbstractOperatorNode {
 
     /*
     /// Find row indexes in `data` that satisfy the filter condition.
-    vector<unsigned> filterDataByColIndex(unsigned colIndex);
+    std::vector<unsigned> filterDataByColIndex(unsigned colIndex);
     */
 
     FilterOperatorNode(struct FilterInfo &info) : info(info) {}
@@ -120,9 +125,9 @@ class Plan {
     /// execution plan(s) graph.
     AbstractNode *root;
     /// Pointers to all the nodes of the plan(s).
-    vector<AbstractNode *> nodes;
+    std::vector<AbstractNode *> nodes;
     /// All the exit nodes of the plan(s).
-    vector<DataNode *> exitNodes;
+    std::vector<DataNode *> exitNodes;
 
     ~Plan();
 };

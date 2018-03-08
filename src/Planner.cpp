@@ -35,21 +35,21 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
     p->nodes[0]->outAdjList.push_back(p->nodes[2]);
 
     p->nodes[1]->inAdjList.push_back(p->nodes[0]);
-    p->nodes[1]->outAdjList.push_back(p->nodes[5]);
+    p->nodes[1]->outAdjList.push_back(p->nodes[6]);
 
     p->nodes[2]->inAdjList.push_back(p->nodes[0]);
     p->nodes[2]->outAdjList.push_back(p->nodes[5]);
 
     p->nodes[3]->inAdjList.push_back(p->nodes[5]);
-    p->nodes[3]->outAdjList.push_back(p->nodes[6]);
 
     p->nodes[4]->inAdjList.push_back(p->nodes[6]);
+    p->nodes[4]->outAdjList.push_back(p->nodes[5]);
 
-    p->nodes[5]->inAdjList.push_back(p->nodes[1]);
     p->nodes[5]->inAdjList.push_back(p->nodes[2]);
+    p->nodes[5]->inAdjList.push_back(p->nodes[4]);
     p->nodes[5]->outAdjList.push_back(p->nodes[3]);
 
-    p->nodes[6]->inAdjList.push_back(p->nodes[3]);
+    p->nodes[6]->inAdjList.push_back(p->nodes[1]);
     p->nodes[6]->outAdjList.push_back(p->nodes[4]);
 
     return p;

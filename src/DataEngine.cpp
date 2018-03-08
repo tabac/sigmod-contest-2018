@@ -4,10 +4,10 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void DataEngine::addRelation(const char* fileName)
+void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
-   this->relations.emplace_back(fileName);
+   this->relations.emplace_back(relId, fileName);
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
