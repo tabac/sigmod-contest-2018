@@ -42,10 +42,11 @@ void Relation::execute()
     }
 }
 //---------------------------------------------------------------------------
-IteratorPair Relation::getIdsIterator(FilterInfo* filterInfo)
+IteratorPair Relation::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
     assert(filterInfo == NULL);
+    assert(selectInfo.relId == this->relId);
 
     return {this->ids.begin(), this->ids.end()};
 }

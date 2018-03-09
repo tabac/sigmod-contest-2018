@@ -101,13 +101,33 @@ void DataNode::execute()
     }
 }
 //---------------------------------------------------------------------------
-IteratorPair DataNode::getIdsIterator(FilterInfo* filterInfo)
+IteratorPair DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
     // Should not be called with some filter condition.
     assert(filterInfo == NULL);
+    // Should have at least one column.
+    assert(!this->columnsInfo.empty());
 
-    return {this->dataIds.begin(), this->dataIds.end()};
+    unsigned c = 0;
+    RelationId relId = this->columnsInfo[0].relId;
+
+    vector<SelectInfo>::iterator it;
+    for (it = this->columnsInfo.begin(); it != this->columnsInfo.end(); ++it, ++c) {
+        if ((*it).relId != relId) {
+            ++c;
+            relId = (*it).relId;
+        }
+
+        if ((*it).relId == selectInfo.relId && (*it).binding == selectInfo.binding) {
+            break;
+        }
+    }
+
+    return {
+        this->dataIds.begin() + c * this->size,
+        this->dataIds.begin() + (c + 1) * this->size,
+    };
 }
 //---------------------------------------------------------------------------
 IteratorPair DataNode::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
@@ -137,16 +157,18 @@ IteratorPair DataNode::getValuesIterator(SelectInfo& selectInfo, FilterInfo* fil
 void JoinOperatorNode::execute()
 // Joins the two input `DataNode` instances.
 {
-    // Should never be called otherwise.
-    assert(this->isStatusFresh());
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
 
-    // Sould have only two incoming edges.
-    assert(this->inAdjList.size() == 2);
-    // Sould have only one outgoing edge.
-    assert(this->outAdjList.size() == 1);
+        // Sould have only two incoming edges.
+        assert(this->inAdjList.size() == 2);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
 
-    // Should not be processed yet.
-    assert(this->outAdjList[0]->isStatusFresh());
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+    }
 
     // Return if one of the parent nodes has not
     // finished processing.
@@ -160,8 +182,46 @@ void JoinOperatorNode::execute()
 
     cout << "Executing Join: " << this->nodeId << endl;
 
+    // Ugly castings...
+    AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    // Get sorted vector<{rowVal, rowId}> for left column.
+    IteratorPair idsIter = inLeftNode->getIdsIterator(this->info.left, NULL);
+    IteratorPair valIter = inLeftNode->getValuesIterator(this->info.left, NULL);
+
+    vector<pair<uint64_t, uint64_t>> leftPair;
+    JoinOperatorNode::getColumnIdPair(idsIter, valIter, leftPair);
+
+
+    // Get sorted vector<{rowVal, rowId}> for right column.
+
+    // Merge the two vectors and get a vector<{rowId, rowId}>.
+
+    // Get Indices for left by rowId.
+
+    // Add columns to result for left.
+
+    // Get Indices for right by rowId.
+
+    // Add columns to result for right.
+
     // Set status to processed.
     this->setStatus(processed);
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::getColumnIdPair(IteratorPair &ids, IteratorPair &values,
+                                       vector<pair<uint64_t, uint64_t>> &pairs)
+{
+    assert(distance(ids.first, ids.second) == distance(values.first, values.second));
+
+    // TODO: Maybe reserve memory based on the above distance.
+
+    vector<uint64_t>::iterator it, jt;
+    for (it = ids.first, jt = values.first; it != ids.second; ++it, ++jt) {
+        pairs.push_back({(*jt), (*it)});
+    }
 }
 //---------------------------------------------------------------------------
 void FilterOperatorNode::execute()
@@ -190,7 +250,7 @@ void FilterOperatorNode::execute()
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get id, values iterators for the filter column.
-    IteratorPair idsIter = inNode->getIdsIterator(NULL);
+    IteratorPair idsIter = inNode->getIdsIterator(this->info.filterColumn, NULL);
     IteratorPair valIter = inNode->getValuesIterator(this->info.filterColumn, NULL);
 
     // Get indices that satisfy the given filter condition.
@@ -200,38 +260,51 @@ void FilterOperatorNode::execute()
     // Set the size of the new relation.
     outNode->size = indices.size();
 
-    // Reserve memory for ids, values.
-    outNode->dataIds.reserve(outNode->size);
-
-    // Filter ids.
-    vector<uint64_t>::iterator it;
-    for (it = indices.begin(); it != indices.end(); ++it) {
-        assert(idsIter.first + (*it) < idsIter.second);
-
-        outNode->dataIds.push_back(*(idsIter.first + (*it)));
-    }
-
+    // Get ouput columns.
     vector<SelectInfo> &selections = this->selectionsInfo;
-    if (this->selectionsInfo.size() == 0) {
+    if (this->selectionsInfo.empty()) {
         selections = inNode->columnsInfo;
     }
-    // Reserve memory for column names, column values.
+
+    // Should pass on at least one columns.
+    assert(!selections.empty());
+
+    // Reserve memory for ids, column names, column values.
+    outNode->dataIds.reserve(outNode->size);
     outNode->columnsInfo.reserve(selections.size());
     outNode->dataValues.reserve(selections.size() * outNode->size);
 
-    // Filter values.
+    unsigned colId = 0, binding = 0;
     vector<SelectInfo>::iterator jt;
     for (jt = selections.begin(); jt != selections.end(); ++jt) {
+        // Push column name to new `DataNode`.
         outNode->columnsInfo.emplace_back((*jt));
 
-        valIter = inNode->getValuesIterator((*jt), NULL);
+        // Filter ids.
+        vector<uint64_t>::iterator it;
+        if (outNode->dataIds.empty() || colId != (*jt).colId || binding != (*jt).binding) {
+            idsIter = inNode->getIdsIterator((*jt), NULL);
 
+            for (it = indices.begin(); it != indices.end(); ++it) {
+                assert(idsIter.first + (*it) < idsIter.second);
+
+                outNode->dataIds.push_back(*(idsIter.first + (*it)));
+            }
+
+            colId = (*jt).colId;
+            binding = (*jt).binding;
+        }
+
+        // Filter values.
+        valIter = inNode->getValuesIterator((*jt), NULL);
         for (it = indices.begin(); it != indices.end(); ++it) {
             assert(valIter.first + (*it) < valIter.second);
 
             outNode->dataValues.push_back(*(valIter.first + (*it)));
         }
     }
+
+    assert(outNode->dataIds.size() == selections.size() * outNode->size);
 
     // Set status to processed.
     this->setStatus(processed);

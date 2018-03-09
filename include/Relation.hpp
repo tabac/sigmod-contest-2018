@@ -37,7 +37,7 @@ class Relation: public AbstractDataNode {
 
     /// Returns an `IteratorPair` over all the `DataNode`'s ids.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    IteratorPair getIdsIterator(FilterInfo* filterInfo);
+    IteratorPair getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.

@@ -74,7 +74,8 @@ void doAssertions(DataEngine &engine)
 
     assert(engine.relations[0].ids[1560] == 1560);
 
-    IteratorPair idsIter = engine.relations[0].getIdsIterator(NULL);
+    SelectInfo selectInfo (0, 0, 2);
+    IteratorPair idsIter = engine.relations[0].getIdsIterator(selectInfo, NULL);
     uint64_t i = 0;
     vector<uint64_t>::iterator it = idsIter.first;
     for ( ; it != idsIter.second; ++i, ++it) {
@@ -82,7 +83,6 @@ void doAssertions(DataEngine &engine)
     }
     assert(i == 1561);
 
-    SelectInfo selectInfo (0, 0, 2);
     IteratorPair firstCol = engine.relations[0].getValuesIterator(selectInfo, NULL);
 
     for (i = 0, it = firstCol.first; it != firstCol.second; ++it, ++i) {
