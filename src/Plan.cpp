@@ -1,19 +1,38 @@
 #include <vector>
-#include <variant>
 #include <cstdint>
 #include <cassert>
 #include <iostream>
 #include "Plan.hpp"
+#include "Mixins.hpp"
+//---------------------------------------------------------------------------
+using namespace std;
+//---------------------------------------------------------------------------
+ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
+// TODO: This should be done better.
+{
+    this->results.reserve(size);
+    if (results.size() != size) {
+        assert(results.size() == 0);
+
+        for (uint64_t i = 0; i < size; ++i) {
+            this->results.push_back(optional<uint64_t>());
+        }
+    } else {
+        vector<uint64_t>::iterator it;
+        for (it = results.begin(); it != results.end(); ++it) {
+            this->results.push_back((*it));
+        }
+    }
+}
 //---------------------------------------------------------------------------
 void ResultInfo::printResultInfo()
 // Prints the `results` vector to stdout.
 {
-    vector<variant<uint64_t, bool>>::iterator it;
+    vector<optional<uint64_t>>::iterator it;
     for (it = this->results.begin(); it != this->results.end(); ++it) {
-
-        try {
-            cout << get<uint64_t>(*it) << " ";
-        } catch (const bad_variant_access&) {
+        if ((*it).has_value()) {
+            cout << (*it).value() << " ";
+        } else {
             cout << "NULL ";
         }
     }
@@ -28,6 +47,16 @@ void ResultInfo::printResults(vector<ResultInfo> resultsInfo)
         it->printResultInfo();
     }
     cout << endl;
+}
+//---------------------------------------------------------------------------
+void AbstractNode::resetStatus()
+// Resets the nodes status, adjacency lists.
+{
+    this->visited = 0;
+    this->status = fresh;
+
+    this->inAdjList.clear();
+    this->outAdjList.clear();
 }
 //---------------------------------------------------------------------------
 void DataNode::execute()
@@ -56,17 +85,53 @@ void DataNode::execute()
 
     cout << "Executing Data: " << this->nodeId << endl;
 
+    /*
+    cout << "-----------" << endl;
+    vector<uint64_t>::iterator jt;
+    for (jt = this->dataValues.begin(); jt != this->dataValues.end(); ++jt) {
+        cout << (*jt) << " ";
+    }
+    cout << endl;
+    cout << "-----------" << endl;
+    */
+
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
     }
 }
 //---------------------------------------------------------------------------
-ResultInfo DataNode::aggregate()
+IteratorPair DataNode::getIdsIterator(FilterInfo* filterInfo)
+// Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
-    ResultInfo result;
+    // Should not be called with some filter condition.
+    assert(filterInfo == NULL);
 
-    return result;
+    return {this->dataIds.begin(), this->dataIds.end()};
+}
+//---------------------------------------------------------------------------
+IteratorPair DataNode::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+// Returns an `IteratorPair` over all the `DataNode`'s values
+// of the column specified by `selectInfo`.
+{
+    // Should not be called with some filter condition.
+    assert(filterInfo == NULL);
+
+    // Find filter column index in `data`
+    unsigned c = 0;
+    vector<SelectInfo>::iterator it;
+    for (it = this->columnsInfo.begin(); it != this->columnsInfo.end(); ++it, ++c) {
+        if ((*it) == selectInfo) {
+            break;
+        }
+    }
+
+    assert(c < this->columnsInfo.size());
+
+    return {
+        this->dataValues.begin() + c * this->size,
+        this->dataValues.begin() + (c + 1) * this->size,
+    };
 }
 //---------------------------------------------------------------------------
 void JoinOperatorNode::execute()
@@ -86,7 +151,7 @@ void JoinOperatorNode::execute()
     // Return if one of the parent nodes has not
     // finished processing.
     if (!this->inAdjList[0]->isStatusProcessed() ||
-        !this->inAdjList[0]->isStatusProcessed()) {
+        !this->inAdjList[1]->isStatusProcessed()) {
         return;
     }
 
@@ -102,22 +167,128 @@ void JoinOperatorNode::execute()
 void FilterOperatorNode::execute()
 // Filters the input `DataNode` instance.
 {
-    // Should never be called otherwise.
-    assert(this->isStatusFresh());
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
 
-    // Sould have only one incoming edge.
-    assert(this->inAdjList.size() == 1);
-    // Sould have only one outgoing edge.
-    assert(this->outAdjList.size() == 1);
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
 
-    // Should not be processed yet.
-    assert(this->outAdjList[0]->isStatusFresh());
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+    }
 
     // Set status to processing.
     this->setStatus(processing);
 
     cout << "Executing Filter: " << this->nodeId << endl;
 
+    // Ugly castings...
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    // Get id, values iterators for the filter column.
+    IteratorPair idsIter = inNode->getIdsIterator(NULL);
+    IteratorPair valIter = inNode->getValuesIterator(this->info.filterColumn, NULL);
+
+    // Get indices that satisfy the given filter condition.
+    vector<uint64_t> indices;
+    this->info.getFilteredIndices(valIter, indices);
+
+    // Set the size of the new relation.
+    outNode->size = indices.size();
+
+    // Reserve memory for ids, values.
+    outNode->dataIds.reserve(outNode->size);
+
+    // Filter ids.
+    vector<uint64_t>::iterator it;
+    for (it = indices.begin(); it != indices.end(); ++it) {
+        assert(idsIter.first + (*it) < idsIter.second);
+
+        outNode->dataIds.push_back(*(idsIter.first + (*it)));
+    }
+
+    vector<SelectInfo> &selections = this->selectionsInfo;
+    if (this->selectionsInfo.size() == 0) {
+        selections = inNode->columnsInfo;
+    }
+    // Reserve memory for column names, column values.
+    outNode->columnsInfo.reserve(selections.size());
+    outNode->dataValues.reserve(selections.size() * outNode->size);
+
+    // Filter values.
+    vector<SelectInfo>::iterator jt;
+    for (jt = selections.begin(); jt != selections.end(); ++jt) {
+        outNode->columnsInfo.emplace_back((*jt));
+
+        valIter = inNode->getValuesIterator((*jt), NULL);
+
+        for (it = indices.begin(); it != indices.end(); ++it) {
+            assert(valIter.first + (*it) < valIter.second);
+
+            outNode->dataValues.push_back(*(valIter.first + (*it)));
+        }
+    }
+
+    // Set status to processed.
+    this->setStatus(processed);
+}
+//---------------------------------------------------------------------------
+void AggregateOperatorNode::execute()
+{
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
+
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
+
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+
+        // Should have at least one column.
+        assert(this->selectionsInfo.size() > 0);
+    }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    cout << "Executing Aggregate: " << this->nodeId << endl;
+
+    // Ugly castings...
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    // Reserve memory for results.
+    outNode->dataValues.reserve(this->selectionsInfo.size());
+
+    // Set row count for outNode;
+    outNode->size = 1;
+
+    if (inNode->size != 0) {
+        // Calculate aggregated sum for each column.
+        vector<SelectInfo>::iterator it;
+        for (it = this->selectionsInfo.begin(); it != this->selectionsInfo.end(); ++it) {
+            outNode->columnsInfo.emplace_back((*it));
+
+            IteratorPair valIter = inNode->getValuesIterator((*it), NULL);
+
+            uint64_t sum = 0;
+            vector<uint64_t>::iterator jt;
+            for (jt = valIter.first; jt != valIter.second; ++jt) {
+                sum += (*jt);
+            }
+
+            outNode->dataValues.push_back(sum);
+        }
+
+        assert(outNode->columnsInfo.size() == outNode->dataValues.size());
+    }
     // Set status to processed.
     this->setStatus(processed);
 }
@@ -126,7 +297,14 @@ Plan::~Plan()
 {
     vector<AbstractNode *>::iterator it;
     for (it = this->nodes.begin(); it != this->nodes.end(); ++it) {
-        delete (*it);
+        // Delete intermediate nodes and reset intial relations.
+        if (((*it) != this->root) && ((*it)->inAdjList[0] != this->root)) {
+            delete (*it);
+        } else {
+            (*it)->resetStatus();
+        }
     }
+
+    delete this->root;
 }
 //---------------------------------------------------------------------------

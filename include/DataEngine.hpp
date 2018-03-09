@@ -11,7 +11,7 @@ class DataEngine {
   vector<Relation> relations;
 
   /// Loads a relations from disk.
-  void addRelation(const char* fileName);
+  void addRelation(RelationId relId, const char* fileName);
   /// Returns a reference to a `Relation` instance by id.
   Relation& getRelation(unsigned id);
 };
