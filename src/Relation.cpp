@@ -12,17 +12,19 @@ using namespace std;
 //---------------------------------------------------------------------------
 void Relation::execute()
 {
-    // Should never be called otherwise.
-    assert(this->isStatusFresh());
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
 
-    // Sould have only one incoming edge.
-    assert(this->inAdjList.size() == 1);
-    // Sould have one or zero outgoing edges.
-    assert(this->outAdjList.size() < 2);
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have one or zero outgoing edges.
+        assert(this->outAdjList.size() < 2);
 
-    if (this->outAdjList.size() == 1) {
-        // Should not be processed yet.
-        assert(this->outAdjList[0]->isStatusFresh());
+        if (this->outAdjList.size() == 1) {
+            // Should not be processed yet.
+            assert(this->outAdjList[0]->isStatusFresh());
+        }
     }
 
     // Check that all parent nodes are processed.
@@ -38,11 +40,6 @@ void Relation::execute()
     if (allInProcessed) {
         this->setStatus(processed);
     }
-}
-//---------------------------------------------------------------------------
-ResultInfo Relation::aggregate()
-{
-    return ResultInfo();
 }
 //---------------------------------------------------------------------------
 IteratorPair Relation::getIdsIterator(FilterInfo* filterInfo)

@@ -7,6 +7,24 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
+ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
+// TODO: This should be done better.
+{
+    this->results.reserve(size);
+    if (results.size() != size) {
+        assert(results.size() == 0);
+
+        for (uint64_t i = 0; i < size; ++i) {
+            this->results.push_back(optional<uint64_t>());
+        }
+    } else {
+        vector<uint64_t>::iterator it;
+        for (it = results.begin(); it != results.end(); ++it) {
+            this->results.push_back((*it));
+        }
+    }
+}
+//---------------------------------------------------------------------------
 void ResultInfo::printResultInfo()
 // Prints the `results` vector to stdout.
 {
@@ -67,50 +85,20 @@ void DataNode::execute()
 
     cout << "Executing Data: " << this->nodeId << endl;
 
+    /*
+    cout << "-----------" << endl;
     vector<uint64_t>::iterator jt;
     for (jt = this->dataValues.begin(); jt != this->dataValues.end(); ++jt) {
         cout << (*jt) << " ";
     }
     cout << endl;
+    cout << "-----------" << endl;
+    */
 
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
     }
-}
-//---------------------------------------------------------------------------
-ResultInfo DataNode::aggregate()
-{
-    // TODO: We return by value here, anything better?
-    ResultInfo result;
-
-    // Should never be called earlier.
-    assert(this->isStatusProcessed());
-
-    // Reserve memory for results.
-    result.results.reserve(this->columnsInfo.size());
-
-    if (this->size == 0) {
-        // Return empty results for each column.
-        for (uint64_t i = 0; i < this->columnsInfo.size(); ++i) {
-            result.results.push_back(optional<uint64_t>());
-        }
-    } else {
-        // Calculate aggregated sum for each column.
-        for (uint64_t i = 0; i < this->columnsInfo.size(); ++i) {
-            uint64_t sum = 0;
-
-            vector<uint64_t>::iterator it;
-            for (it = this->dataValues.begin() + i * this->size;
-                 it != this->dataValues.begin() + (i + 1) * this->size; ++it) {
-                sum += *it;
-            }
-
-            result.results.push_back(sum);
-        }
-    }
-
-    return result;
 }
 //---------------------------------------------------------------------------
 IteratorPair DataNode::getIdsIterator(FilterInfo* filterInfo)
@@ -197,9 +185,11 @@ void FilterOperatorNode::execute()
 
     cout << "Executing Filter: " << this->nodeId << endl;
 
+    // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
+    // Get id, values iterators for the filter column.
     IteratorPair idsIter = inNode->getIdsIterator(NULL);
     IteratorPair valIter = inNode->getValuesIterator(this->info.filterColumn, NULL);
 
@@ -207,33 +197,98 @@ void FilterOperatorNode::execute()
     vector<uint64_t> indices;
     this->info.getFilteredIndices(valIter, indices);
 
+    // Set the size of the new relation.
+    outNode->size = indices.size();
+
     // Reserve memory for ids, values.
-    outNode->dataIds.reserve(indices.size());
+    outNode->dataIds.reserve(outNode->size);
 
     // Filter ids.
     vector<uint64_t>::iterator it;
     for (it = indices.begin(); it != indices.end(); ++it) {
         assert(idsIter.first + (*it) < idsIter.second);
+
         outNode->dataIds.push_back(*(idsIter.first + (*it)));
     }
 
+    vector<SelectInfo> &selections = this->selectionsInfo;
+    if (this->selectionsInfo.size() == 0) {
+        selections = inNode->columnsInfo;
+    }
     // Reserve memory for column names, column values.
-    outNode->columnsInfo.reserve(inNode->columnsInfo.size());
-    outNode->dataValues.reserve(inNode->columnsInfo.size() * indices.size());
+    outNode->columnsInfo.reserve(selections.size());
+    outNode->dataValues.reserve(selections.size() * outNode->size);
 
     // Filter values.
-    vector<SelectInfo>::iterator kt;
-    for (kt = inNode->columnsInfo.begin(); kt != inNode->columnsInfo.end(); ++kt) {
-        outNode->columnsInfo.emplace_back((*kt));
+    vector<SelectInfo>::iterator jt;
+    for (jt = selections.begin(); jt != selections.end(); ++jt) {
+        outNode->columnsInfo.emplace_back((*jt));
 
-        valIter = inNode->getValuesIterator((*kt), NULL);
+        valIter = inNode->getValuesIterator((*jt), NULL);
 
         for (it = indices.begin(); it != indices.end(); ++it) {
             assert(valIter.first + (*it) < valIter.second);
+
             outNode->dataValues.push_back(*(valIter.first + (*it)));
         }
     }
 
+    // Set status to processed.
+    this->setStatus(processed);
+}
+//---------------------------------------------------------------------------
+void AggregateOperatorNode::execute()
+{
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
+
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
+
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+
+        // Should have at least one column.
+        assert(this->selectionsInfo.size() > 0);
+    }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    cout << "Executing Aggregate: " << this->nodeId << endl;
+
+    // Ugly castings...
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    // Reserve memory for results.
+    outNode->dataValues.reserve(this->selectionsInfo.size());
+
+    // Set row count for outNode;
+    outNode->size = 1;
+
+    if (inNode->size != 0) {
+        // Calculate aggregated sum for each column.
+        vector<SelectInfo>::iterator it;
+        for (it = this->selectionsInfo.begin(); it != this->selectionsInfo.end(); ++it) {
+            outNode->columnsInfo.emplace_back((*it));
+
+            IteratorPair valIter = inNode->getValuesIterator((*it), NULL);
+
+            uint64_t sum = 0;
+            vector<uint64_t>::iterator jt;
+            for (jt = valIter.first; jt != valIter.second; ++jt) {
+                sum += (*jt);
+            }
+
+            outNode->dataValues.push_back(sum);
+        }
+
+        assert(outNode->columnsInfo.size() == outNode->dataValues.size());
+    }
     // Set status to processed.
     this->setStatus(processed);
 }

@@ -10,6 +10,10 @@ using namespace std;
 //---------------------------------------------------------------------------
 void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 // Executes a `Plan`.
+// TODO: This should clear vectors of intermediate nodes if
+//       they are not used anymore.
+// TODO: This should wait on a condition variable and not
+//       spin on this `counter`.
 {
     unsigned counter = 0, mark = 0;
     queue<AbstractNode *> q;
@@ -18,8 +22,6 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
     plan.root->setStatus(processed);
 
     do {
-        // TODO: This should wait on a condition variable and not
-        //       spin on this `counter`.
         counter = 0;
 
         plan.root->visited = mark;
@@ -32,12 +34,24 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
             if (cur->isStatusFresh()) {
                 Executor::executeOperator(cur);
             } else if (cur->isStatusProcessed()) {
+                unsigned processed = 0;
                 vector<AbstractNode *>::iterator it;
                 for (it = cur->outAdjList.begin(); it != cur->outAdjList.end(); ++it) {
                     if ((*it)->visited != mark) {
                         (*it)->visited = mark;
                         q.push(*it);
                     }
+                    if ((*it)->isStatusProcessed()) {
+                        ++processed;
+                    }
+                }
+
+                // Call `freeResources()` for each intermediate node
+                // that his children are processed.
+                // TODO: This gets called too many times. Maybe we
+                //       should move the root forward or something.
+                if (processed != 0 && cur->outAdjList.size() == processed) {
+                    cur->freeResources();
                 }
 
                 ++counter;
@@ -51,7 +65,7 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {
-        resultsInfo.push_back((*it)->aggregate());
+        resultsInfo.emplace_back((*it)->dataValues, (*it)->columnsInfo.size());
     }
 }
 //---------------------------------------------------------------------------

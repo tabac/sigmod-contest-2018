@@ -32,9 +32,9 @@ class Relation: public AbstractDataNode {
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
     void execute();
-    /// Returns the relations columns aggregated sums.
-    // TODO: This should return something else.
-    ResultInfo aggregate();
+    /// Frees any resources allocated by the node.
+    void freeResources() { }
+
     /// Returns an `IteratorPair` over all the `DataNode`'s ids.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getIdsIterator(FilterInfo* filterInfo);
@@ -42,8 +42,6 @@ class Relation: public AbstractDataNode {
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
-
-    std::vector<SelectInfo>& getColumns() { return columnsInfo; }
 
     /// Constructor without mmap
     Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}

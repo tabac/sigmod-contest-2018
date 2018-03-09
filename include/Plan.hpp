@@ -12,6 +12,7 @@ class ResultInfo {
     /// Query results.
     std::vector<std::optional<uint64_t>> results;
 
+    ResultInfo(std::vector<uint64_t> results, unsigned size);
     /// Prints the `results` vector to stdout.
     void printResultInfo();
     /// Prints the `ResultInfo` vector to stdout.
@@ -45,6 +46,9 @@ class AbstractNode {
     /// query batches.
     void resetStatus();
 
+    /// Frees any resources allocated by the node.
+    virtual void freeResources() = 0;
+
     /// Constructor.
     AbstractNode() : status(fresh), visited(0) { }
     /// Virtual destructor.
@@ -59,20 +63,15 @@ class AbstractNode {
 //---------------------------------------------------------------------------
 class AbstractDataNode : public AbstractNode, public DataReaderMixin {
     public:
+    /// The number of tuples (rows).
+    uint64_t size;
     /// A vector of `SelectInfo` instances of the columns
     /// appearing in the `data` vector.
     std::vector<SelectInfo> columnsInfo;
-
-    /// Returns the relations columns aggregated sums.
-    virtual ResultInfo aggregate() = 0;
-
-    virtual std::vector<SelectInfo>& getColumns() = 0;
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
     public:
-    /// The number of tuples (rows).
-    uint64_t size;
     /// A table in columnar format with "value" entries.
     std::vector<uint64_t> dataValues;
     /// A table in columnar format with "row ID" entries.
@@ -81,9 +80,9 @@ class DataNode : public AbstractDataNode {
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
     void execute();
-    /// Returns the relations columns aggregated sums.
-    // TODO: This should return something else.
-    ResultInfo aggregate();
+    /// Frees any resources allocated by the node.
+    void freeResources() { this->dataValues.clear(); this->dataIds.clear(); this->columnsInfo.clear(); }
+
     /// Returns an `IteratorPair` over all the `DataNode`'s ids.
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getIdsIterator(FilterInfo* filterInfo);
@@ -92,12 +91,19 @@ class DataNode : public AbstractDataNode {
     /// Ignores `filterInfo`, requires it being `NULL`.
     IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
 
-    std::vector<SelectInfo>& getColumns() { return this->columnsInfo; }
     /// Destructor.
     ~DataNode() { }
 };
 //---------------------------------------------------------------------------
-class AbstractOperatorNode : public AbstractNode { };
+class AbstractOperatorNode : public AbstractNode {
+    public:
+    /// A list of columns that are passed to the next `DataNode`
+    /// after the application of the operator.
+    std::vector<SelectInfo> selectionsInfo;
+
+    /// Frees any resources allocated by the node.
+    void freeResources() { this->selectionsInfo.clear(); }
+};
 //---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
     public:
@@ -120,9 +126,17 @@ class FilterOperatorNode : public AbstractOperatorNode {
     /// Filters the input `DataNode` instance.
     void execute();
 
-    FilterOperatorNode(struct FilterInfo &info) : info(info) {}
+    FilterOperatorNode(FilterInfo &info) : info(info) {}
 
     ~FilterOperatorNode() { }
+};
+//---------------------------------------------------------------------------
+class AggregateOperatorNode : public AbstractOperatorNode {
+    public:
+    /// Calculates sums for the columns in the `selectionsInfo` vector.
+    void execute();
+
+    ~AggregateOperatorNode() { }
 };
 //---------------------------------------------------------------------------
 class Plan {
