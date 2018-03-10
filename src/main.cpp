@@ -83,7 +83,9 @@ void doAssertions(DataEngine &engine)
     }
     assert(i == 1561);
 
-    IteratorPair firstCol = engine.relations[0].getValuesIterator(selectInfo, NULL);
+    optional<IteratorPair> option = engine.relations[0].getValuesIterator(selectInfo, NULL);
+    assert(option.has_value());
+    IteratorPair firstCol = option.value();
 
     for (i = 0, it = firstCol.first; it != firstCol.second; ++it, ++i) {
         assert((*it) == engine.relations[0].columns[2][i]);

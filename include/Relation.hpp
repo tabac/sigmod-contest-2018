@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <optional>
 #include "Plan.hpp"
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ class Relation: public AbstractDataNode {
     /// The relation's ID.
     const RelationId relId;
     /// The number of tuples
+    /// TODO: Should be unified somehow with `DataNode.size`.
     uint64_t size;
     /// The join column containing the keys
     std::vector<uint64_t*> columns;
@@ -41,7 +43,11 @@ class Relation: public AbstractDataNode {
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
+                                                  FilterInfo* filterInfo);
+
+    /// Returns the size, that is the number of tuples.
+    uint64_t getSize() { return this->size; }
 
     /// Constructor without mmap
     Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}

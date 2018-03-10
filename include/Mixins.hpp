@@ -1,11 +1,14 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <optional>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
 //---------------------------------------------------------------------------
 using RelationId = unsigned;
+//---------------------------------------------------------------------------
+using uint64Pair = std::pair<uint64_t, uint64_t>;
 //---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::iterator, std::vector<uint64_t>::iterator>;
 //---------------------------------------------------------------------------
@@ -30,6 +33,7 @@ class DataReaderMixin {
     /// In the first two cases `filterInfo` is ignored, in the
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of values.
-    virtual IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo) = 0;
+    virtual std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
+                                                          FilterInfo* filterInfo) = 0;
 };
 //---------------------------------------------------------------------------

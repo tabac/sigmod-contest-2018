@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
+#include <optional>
 #include "Mixins.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -63,15 +64,18 @@ class AbstractNode {
 //---------------------------------------------------------------------------
 class AbstractDataNode : public AbstractNode, public DataReaderMixin {
     public:
-    /// The number of tuples (rows).
-    uint64_t size;
     /// A vector of `SelectInfo` instances of the columns
     /// appearing in the `data` vector.
     std::vector<SelectInfo> columnsInfo;
+
+    /// Should return the size, that is the number of tuples.
+    virtual uint64_t getSize() = 0;
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
     public:
+    /// The number of tuples (rows).
+    uint64_t size;
     /// A table in columnar format with "value" entries.
     std::vector<uint64_t> dataValues;
     /// A table in columnar format with "row ID" entries.
@@ -89,8 +93,11 @@ class DataNode : public AbstractDataNode {
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
+                                                  FilterInfo* filterInfo);
 
+    /// Returns the size, that is the number of tuples.
+    uint64_t getSize() { return this->size; }
     /// Destructor.
     ~DataNode() { }
 };
@@ -103,6 +110,24 @@ class AbstractOperatorNode : public AbstractNode {
 
     /// Frees any resources allocated by the node.
     void freeResources() { this->selectionsInfo.clear(); }
+
+    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
+    /// for the values in `values`.
+    static void getValuesIndexed(IteratorPair &values, std::vector<uint64Pair> &pairs);
+
+    /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
+    /// values specified by `indices` for the specified columns
+    /// in `selections`.
+    static void pushSelections(std::vector<SelectInfo> &selections,
+                               std::vector<uint64_t> &indices,
+                               AbstractDataNode *inNode,
+                               DataNode *outNode);
+
+    /// Pushes the values specifies by `indices` of the `valIter`
+    /// iterator to `outValues`.
+    static void pushValuesByIndex(IteratorPair &valIter,
+                                  std::vector<uint64_t> &indices,
+                                  std::vector<uint64_t> &outValues);
 };
 //---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
@@ -115,9 +140,10 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     JoinOperatorNode(struct PredicateInfo &info) : info(info) {}
 
-    /// Joins `ids` and `values` to a vector of pairs.
-    static void getColumnIdPair(IteratorPair &ids, IteratorPair &values,
-                                std::vector<std::pair<uint64_t, uint64_t>> &pairs);
+    /// Performs merge join between `leftPairs` and `rightPairs`.
+    static void mergeJoin(std::vector<uint64Pair> &leftPairs,
+                          std::vector<uint64Pair> &rightPairs,
+                          std::pair<std::vector<uint64_t>, std::vector<uint64_t>> &indexPairs);
 
     ~JoinOperatorNode() { }
 };
