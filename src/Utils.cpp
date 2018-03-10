@@ -1,5 +1,7 @@
 #include <iostream>
+#include <vector>
 #include "Utils.hpp"
+#include "Parser.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -34,3 +36,13 @@ void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)
   out << baseName << "\n";
 }
 //---------------------------------------------------------------------------
+//template<typename T>
+bool Utils::contains(vector<SelectInfo> v, SelectInfo x)
+{
+      if (v.empty())
+           return false;
+      if (find(v.begin(), v.end(), x) != v.end())
+           return true;
+      else
+           return false;
+}
