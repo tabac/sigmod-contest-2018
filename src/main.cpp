@@ -36,15 +36,16 @@ int main(void)
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         do {
+            cout << line << endl;
             queries.emplace_back().parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
-
+        cout << "Ready for the planner" << endl;
         // Generate an execution plan for all `queries`.
         Plan *plan = Planner::generatePlan(engine, queries);
-
+        cout << "Plan is finished" << endl;
         // Execute the generated plan.
         Executor::executePlan(*plan, resultsInfo);
 

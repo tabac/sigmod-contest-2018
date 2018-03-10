@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
+#include <string>
 #include "Mixins.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -56,6 +57,7 @@ class AbstractNode {
 
     /////////////////////////////////////////////////////////////////////////
     /// FOR DEBUG PURPOSES
+    std::string label;
     unsigned nodeId; //0 = base relation, 1 = interm data, 2 = filter, 3 = join, 4 = aggr, 5 = final data, -1 = dummy root
     void setNodeId(unsigned nodeId) { this->nodeId = nodeId; };
     /////////////////////////////////////////////////////////////////////////

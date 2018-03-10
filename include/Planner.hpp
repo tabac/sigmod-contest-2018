@@ -11,6 +11,7 @@ class Planner {
     /// Generates a plan for the `queries`.
     static Plan* generatePlan(DataEngine &engine, std::vector<QueryInfo> &queries);
     /// Prints the graph of the plan
-    static void printPlanGraph(AbstractNode* root);
+    static void printPlanGraph(Plan* plan);
+    static bool nodeMatching(vector<AbstractNode *> v, string label);
 };
 //---------------------------------------------------------------------------
