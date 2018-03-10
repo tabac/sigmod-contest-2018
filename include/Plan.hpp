@@ -113,7 +113,8 @@ class AbstractOperatorNode : public AbstractNode {
 
     /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
     /// for the values in `values`.
-    static void getValuesIndexed(IteratorPair &values, std::vector<uint64Pair> &pairs);
+    static void getValuesIndexed(IteratorPair &values,
+                                 std::vector<uint64Pair> &pairs);
 
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
@@ -145,6 +146,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
                           std::vector<uint64Pair> &rightPairs,
                           std::pair<std::vector<uint64_t>, std::vector<uint64_t>> &indexPairs);
 
+    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
+    /// sorted by value.
+    static void getValuesIndexedSorted(std::vector<uint64Pair> &pairs,
+                                       SelectInfo &selection,
+                                       AbstractDataNode* inNode);
     ~JoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
