@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cassert>
 #include <optional>
+#include <string>
 #include "Mixins.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -57,7 +58,8 @@ class AbstractNode {
 
     /////////////////////////////////////////////////////////////////////////
     /// FOR DEBUG PURPOSES
-    unsigned nodeId;
+    std::string label;
+    unsigned nodeId; //0 = base relation, 1 = interm data, 2 = filter, 3 = join, 4 = aggr, 5 = final data, -1 = dummy root
     void setNodeId(unsigned nodeId) { this->nodeId = nodeId; };
     /////////////////////////////////////////////////////////////////////////
 };
@@ -180,6 +182,8 @@ class Plan {
     /// A pointer to the `root` node, the beginning of the
     /// execution plan(s) graph.
     AbstractNode *root;
+    /// The base relations that this plan needs to consume
+    std::vector<AbstractNode *> baseRelations;
     /// Pointers to all the nodes of the plan(s).
     std::vector<AbstractNode *> nodes;
     /// All the exit nodes of the plan(s).

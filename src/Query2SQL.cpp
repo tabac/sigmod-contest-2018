@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "Relation.hpp"
 #include "Utils.hpp"
 #include "Parser.hpp"
