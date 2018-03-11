@@ -8,6 +8,7 @@
 #include "Utils.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
+
 int intermDataCounter = 0;
 int targetCounter = 0;
 //---------------------------------------------------------------------------
@@ -174,7 +175,6 @@ Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q)
 Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
 {
     Plan *p = new Plan();
-    //globalPlan = p;
     AbstractNode* globalRoot = new DataNode();
     globalRoot->label="global_root";
     p->nodes.push_back(globalRoot);
@@ -184,7 +184,6 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
     for(currentQuery = queries.begin(); currentQuery != queries.end(); currentQuery++){
         // connect the base relations of individual query to global dummy root
         Plan *singlePlan = generateSingleQueryPlan(engine, *currentQuery);
-        //atomicPlans.push_back(singlePlan);
         cout << endl;
         cout << endl;
         vector<AbstractNode *>::iterator queryBaseRel;
@@ -220,9 +219,5 @@ void Planner::printPlanGraph(Plan* plan)
             cout << "Node: " << (*node)->label << ", children: " << children << endl;
         }
     }
-}
-//---------------------------------------------------------------------------
-void Planner::clear()
-{
 }
 //---------------------------------------------------------------------------

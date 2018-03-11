@@ -470,6 +470,8 @@ Plan::~Plan()
             (*it)->resetStatus();
         }
     }
+    this->baseRelations.clear();
+    this->nodes.clear();
 
     delete this->root;
 }

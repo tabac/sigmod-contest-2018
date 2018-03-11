@@ -51,10 +51,8 @@ int main(void)
         ResultInfo::printResults(resultsInfo);
 
         // Clear info before loading next query batch.
-        Planner::clear();
         resultsInfo.clear();
         queries.clear();
-        // Delete created plan.
         delete plan;
     }
 
