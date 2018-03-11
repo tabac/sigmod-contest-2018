@@ -185,11 +185,23 @@ string SelectInfo::dumpText()
 {
     return to_string(binding)+"."+to_string(colId);
 }
+//--------------------------------------------------------------------------
+string SelectInfo::dumpLabel()
+// Dump the graph label in text format
+{
+    return to_string(relId)+"."+to_string(colId);
+}
 //---------------------------------------------------------------------------
 string FilterInfo::dumpText()
 // Dump text format
 {
     return filterColumn.dumpText()+static_cast<char>(comparison)+to_string(constant);
+}
+//---------------------------------------------------------------------------
+string FilterInfo::dumpLabel()
+// Dump the graph label in text format
+{
+    return filterColumn.dumpLabel()+static_cast<char>(comparison)+to_string(constant);
 }
 //---------------------------------------------------------------------------
 string FilterInfo::dumpSQL()
@@ -202,6 +214,12 @@ string PredicateInfo::dumpText()
 // Dump text format
 {
     return left.dumpText()+'='+right.dumpText();
+}
+//---------------------------------------------------------------------------
+string PredicateInfo::dumpLabel()
+// Dump the graph label in text format
+{
+    return left.dumpLabel()+'='+right.dumpLabel();
 }
 //---------------------------------------------------------------------------
 string PredicateInfo::dumpSQL()

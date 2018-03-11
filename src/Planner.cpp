@@ -11,25 +11,127 @@ using namespace std;
 int intermDataCounter = 0;
 int targetCounter = 0;
 //---------------------------------------------------------------------------
-Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q){
+void Planner::addBaseRelationNode(RelationId& r, DataEngine& engine, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush,
+unordered_map<RelationId, AbstractNode*>& lastAttached)
+{
+    AbstractNode* d = &engine.relations[r];
+    d->label = "r"+std::to_string(r);
+    lastAttached[r] = d;
+    colsToPush[r];
+    splan->nodes.push_back(d);
+    splan->baseRelations.push_back(d);
+}
+//---------------------------------------------------------------------------
+void Planner::addFilterNode(FilterInfo& f, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush, 
+unordered_map<RelationId, AbstractNode*>& lastAttached)
+{
+    FilterOperatorNode *filterOp = new FilterOperatorNode(f);
+    filterOp->label=filterOp->info.dumpLabel();
+    RelationId& frel = filterOp->info.filterColumn.relId;
+    //bool cond1 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[frel]) != splan->baseRelations.end();
+    //bool cond2 = find(lastAttached[frel]->outAdjList.begin(),lastAttached[frel]->outAdjList.end(), filterOp) != lastAttached[frel]->outAdjList.end();
+    //if(cond1 && cond2){
+    //    delete filterOp;
+    //    break;
+    //}
+
+    // For the case where filters are always applied first
+    // the next datanode needs to contain teh following columns:
+    // a) the column where the filter is applied
+    // b) any join column on that relation
+    // c) the final aggregates of that relation
+    vector<SelectInfo>::iterator pushedCol;
+    for(pushedCol = colsToPush.at(frel).begin(); pushedCol != colsToPush.at(frel).end(); pushedCol++){
+        filterOp->selectionsInfo.push_back(*pushedCol);
+    }
+    AbstractNode *intermData =  new DataNode();
+    intermData->label="d"+std::to_string(intermDataCounter);
+    intermDataCounter++;
+    AbstractNode *filterNode = (AbstractNode *) filterOp;
+    intermData -> inAdjList.push_back(filterNode);
+    filterOp -> outAdjList.push_back(intermData);
+    filterOp -> inAdjList.push_back(lastAttached.at(frel));
+    lastAttached.at(frel) -> outAdjList.push_back(filterNode);
+    lastAttached[frel] = intermData;
+    splan->nodes.push_back(filterNode);
+    splan->nodes.push_back(intermData); // create a datanode for the filter output
+}
+//---------------------------------------------------------------------------
+void Planner::addJoinNode(PredicateInfo& p, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush, 
+unordered_map<RelationId, AbstractNode*>& lastAttached)
+{
+    JoinOperatorNode *joinOp = new JoinOperatorNode(p);
+    joinOp->label=joinOp->info.dumpLabel();
+    RelationId& jRelLeft = joinOp->info.left.relId;
+    RelationId& jRelRight = joinOp->info.right.relId;
+    //bool cond1 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[jRelLeft]) != splan->baseRelations.end();
+    //bool cond2 = nodeMatching(lastAttached[jRelLeft]->outAdjList, joinOp->label);
+    //bool cond3 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[jRelRight]) != splan->baseRelations.end();
+    //bool cond4 = nodeMatching(lastAttached[jRelRight]->outAdjList, joinOp->label);
+    //if(cond1 && cond2 && cond3 && cond4) {
+    //    delete joinOp;
+    //    break;
+    //}
+
+    // For the case where filters are always applied first
+    // the next datanode needs to contain teh following columns:
+    // a) any join column on that relation
+    // b) the final aggregates of that relation
+    //TODO: for now I also pass the filter columns that need to be pruned
+    vector<SelectInfo>::iterator pushedCol;
+    for(pushedCol = colsToPush.at(jRelLeft).begin(); pushedCol != colsToPush.at(jRelLeft).end(); pushedCol++){
+        joinOp->selectionsInfo.push_back(*pushedCol);
+    }
+    for(pushedCol = colsToPush.at(jRelRight).begin(); pushedCol != colsToPush.at(jRelRight).end(); pushedCol++){
+        joinOp->selectionsInfo.push_back(*pushedCol);
+    }
+    AbstractNode *intermData =  new DataNode();
+    intermData->label="d"+std::to_string(intermDataCounter);
+    intermDataCounter++;
+    intermData -> inAdjList.push_back((AbstractNode *) joinOp);
+    joinOp -> outAdjList.push_back(intermData);
+    joinOp -> inAdjList.push_back(lastAttached.at(jRelLeft));
+    joinOp -> inAdjList.push_back(lastAttached.at(jRelRight));
+    lastAttached.at(jRelLeft) -> outAdjList.push_back(joinOp);
+    lastAttached.at(jRelRight) -> outAdjList.push_back(joinOp);
+    lastAttached[jRelLeft] = intermData;
+    lastAttached[jRelRight] = intermData;
+    splan->nodes.push_back((AbstractNode *) joinOp);
+    splan->nodes.push_back(intermData);
+}
+//---------------------------------------------------------------------------
+void Planner::addAggrNode(QueryInfo& q, Plan *splan, unordered_map<RelationId, AbstractNode*>& lastAttached)
+{
+    AggregateOperatorNode *aggrOp = new AggregateOperatorNode();
+    aggrOp->label="aggr";
+    aggrOp->selectionsInfo = q.selections;
+    AbstractNode *finalData =  new DataNode();
+    finalData->label="t"+std::to_string(targetCounter);
+    targetCounter++;
+    finalData -> inAdjList.push_back((AbstractNode *) aggrOp);
+    aggrOp -> outAdjList.push_back(finalData);
+    aggrOp -> inAdjList.push_back(lastAttached.at(q.selections[0].relId));
+    lastAttached.at(q.selections[0].relId) -> outAdjList.push_back(aggrOp);
+    splan->nodes.push_back((AbstractNode *) aggrOp);
+    splan->nodes.push_back(finalData);
+
+    splan->exitNodes.push_back((DataNode *) finalData);
+}
+//---------------------------------------------------------------------------
+Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q)
+{
     // dummy plan. Apply first all the filters
     Plan *splan = new Plan();
     unordered_map<RelationId, vector<SelectInfo>> colsToPush;
     unordered_map<RelationId, AbstractNode*> lastAttached;
-
-    vector<RelationId>::iterator r;
-    for(r = q.relationIds.begin(); r != q.relationIds.end(); r++){
-        AbstractNode* d = &engine.relations[*r];
-        d->label = "r"+std::to_string(*r);
-        lastAttached[*r] = d;
-        colsToPush[*r];
-        splan->nodes.push_back(d);
-        splan->baseRelations.push_back(d);
-    }
-
     vector<FilterInfo>::iterator f;
     vector<PredicateInfo>::iterator p;
     vector<SelectInfo>::iterator s;
+    vector<RelationId>::iterator r;
+
+    for(r = q.relationIds.begin(); r != q.relationIds.end(); r++){
+        addBaseRelationNode(*r, engine, splan, colsToPush, lastAttached);
+    }
 
     // find columns that need to be pushed for each relation
     for(f = q.filters.begin(); f != q.filters.end(); f++){
@@ -37,7 +139,6 @@ Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q){
             colsToPush[f->filterColumn.relId].push_back(f->filterColumn);
         }
     }
-
     for(p = q.predicates.begin(); p != q.predicates.end(); p++){
         SelectInfo& leftRelation = p->left;
         SelectInfo& rightRelation = p->right;
@@ -53,103 +154,19 @@ Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q){
             colsToPush[s->relId].push_back(*s);
         }
     }
+
+
     // Apply Filters
-
     for(f = q.filters.begin(); f != q.filters.end(); f++){
-        //TODO: Put the body of this for loop in a separate `addFilterOp` function.
-        //TODO: Similarly for predicates (and aggregations?)
-    	FilterOperatorNode *filterOp = new FilterOperatorNode(*f);
-        filterOp->label=filterOp->info.dumpText();
-        RelationId& frel = filterOp->info.filterColumn.relId;
-        bool cond1 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[frel]) != splan->baseRelations.end();
-        bool cond2 = find(lastAttached[frel]->outAdjList.begin(),lastAttached[frel]->outAdjList.end(), filterOp) != lastAttached[frel]->outAdjList.end();
-        if(cond1 && cond2){
-            delete filterOp;
-            break;
-        }
-        // For the case where filters are always applied first
-        // the next datanode needs to contain teh following columns:
-        // a) the column where the filter is applied
-        // b) any join column on that relation
-        // c) the final aggregates of that relation
-        vector<SelectInfo>::iterator pushedCol;
-        for(pushedCol = colsToPush.at(frel).begin(); pushedCol != colsToPush.at(frel).end(); pushedCol++){
-            filterOp->selectionsInfo.push_back(*pushedCol);
-        }
-        AbstractNode *intermData =  new DataNode();
-        intermData->label="d"+std::to_string(intermDataCounter);
-        intermDataCounter++;
-        AbstractNode *filterNode = (AbstractNode *) filterOp;
-        intermData -> inAdjList.push_back(filterNode);
-        filterOp -> outAdjList.push_back(intermData);
-        filterOp -> inAdjList.push_back(lastAttached.at(frel));
-        lastAttached.at(frel) -> outAdjList.push_back(filterNode);
-        lastAttached[frel] = intermData;
-        splan->nodes.push_back(filterNode);
-        splan->nodes.push_back(intermData); // create a datanode for the filter output
+        addFilterNode(*f, splan, colsToPush, lastAttached);
     }
-
-   // Apply Predicates
-
+   // Apply Join Predicates
     for(p = q.predicates.begin(); p != q.predicates.end(); p++){
-    	JoinOperatorNode *joinOp = new JoinOperatorNode(*p);
-        joinOp->label=joinOp->info.dumpText();
-        RelationId& jRelLeft = joinOp->info.left.relId;
-        RelationId& jRelRight = joinOp->info.right.relId;
-        bool cond1 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[jRelLeft]) != splan->baseRelations.end();
-        bool cond2 = nodeMatching(lastAttached[jRelLeft]->outAdjList, joinOp->label);
-
-        //bool cond2 = find(lastAttached[jRelLeft]->outAdjList.begin(),lastAttached[jRelLeft]->outAdjList.end(), joinOp) != lastAttached[jRelLeft]->outAdjList.end();
-        bool cond3 = find(splan->baseRelations.begin(),splan->baseRelations.end(), lastAttached[jRelRight]) != splan->baseRelations.end();
-        bool cond4 = nodeMatching(lastAttached[jRelRight]->outAdjList, joinOp->label);
-        //bool cond4 = find(lastAttached[jRelRight]->outAdjList.begin(),lastAttached[jRelRight]->outAdjList.end(), joinOp) != lastAttached[jRelRight]->outAdjList.end();
-        if(cond1 && cond2 && cond3 && cond4) {
-            delete joinOp;
-            break;
-        }
-        // For the case where filters are always applied first
-        // the next datanode needs to contain teh following columns:
-        // a) any join column on that relation
-        // b) the final aggregates of that relation
-        //TODO: for now I also pass the filter columns that need to be pruned
-        vector<SelectInfo>::iterator pushedCol;
-        for(pushedCol = colsToPush.at(jRelLeft).begin(); pushedCol != colsToPush.at(jRelLeft).end(); pushedCol++){
-            joinOp->selectionsInfo.push_back(*pushedCol);
-        }
-        for(pushedCol = colsToPush.at(jRelRight).begin(); pushedCol != colsToPush.at(jRelRight).end(); pushedCol++){
-            joinOp->selectionsInfo.push_back(*pushedCol);
-        }
-        AbstractNode *intermData =  new DataNode();
-        intermData->label="d"+std::to_string(intermDataCounter);
-        intermDataCounter++;
-        intermData -> inAdjList.push_back((AbstractNode *) joinOp);
-        joinOp -> outAdjList.push_back(intermData);
-        joinOp -> inAdjList.push_back(lastAttached.at(jRelLeft));
-        joinOp -> inAdjList.push_back(lastAttached.at(jRelRight));
-        lastAttached.at(jRelLeft) -> outAdjList.push_back(joinOp);
-        lastAttached.at(jRelRight) -> outAdjList.push_back(joinOp);
-        lastAttached[jRelLeft] = intermData;
-        lastAttached[jRelRight] = intermData;
-        splan->nodes.push_back((AbstractNode *) joinOp);
-        splan->nodes.push_back(intermData);
+        addJoinNode(*p,splan,colsToPush,lastAttached);
     }
-
     // Apply final aggregate selections
+    addAggrNode(q, splan, lastAttached);
 
-    AggregateOperatorNode *aggrOp = new AggregateOperatorNode();
-    aggrOp->label="aggre";
-    aggrOp->selectionsInfo = q.selections;
-    AbstractNode *finalData =  new DataNode();
-    finalData->label="t"+std::to_string(targetCounter);
-    targetCounter++;
-    finalData -> inAdjList.push_back((AbstractNode *) aggrOp);
-    aggrOp -> outAdjList.push_back(finalData);
-    aggrOp -> inAdjList.push_back(lastAttached.at(q.selections[0].relId));
-    lastAttached.at(q.selections[0].relId) -> outAdjList.push_back(aggrOp);
-    splan->nodes.push_back((AbstractNode *) aggrOp);
-    splan->nodes.push_back(finalData);
-
-    splan->exitNodes.push_back((DataNode *) finalData);
 
     printPlanGraph(splan);
 

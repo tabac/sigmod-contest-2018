@@ -18,6 +18,8 @@ struct SelectInfo {
     bool operator==(const SelectInfo& o) const;
     /// Dump text format
     std::string dumpText();
+    /// Dump graph label in text format
+    std::string dumpLabel();
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
 
@@ -42,6 +44,8 @@ struct FilterInfo {
     FilterInfo(SelectInfo filterColumn,uint64_t constant,Comparison comparison) : filterColumn(filterColumn), constant(constant), comparison(comparison) {};
     /// Dump text format
     std::string dumpText();
+    /// Dump label graph in text format
+    std::string dumpLabel();
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter, std::vector<uint64_t> &indices);
@@ -62,6 +66,8 @@ struct PredicateInfo {
     PredicateInfo(SelectInfo left, SelectInfo right) : left(left), right(right){};
     /// Dump text format
     std::string dumpText();
+    /// Dump label graph in text format
+    std::string dumpLabel();
     /// Dump SQL
     std::string dumpSQL();
 
