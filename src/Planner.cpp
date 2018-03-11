@@ -136,24 +136,20 @@ Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q){
 
     // Apply final aggregate selections
 
-    for(s = q.selections.begin(); s != q.selections.end(); s++){
-    	AggregateOperatorNode *aggrOp = new AggregateOperatorNode();
-        aggrOp->label=s->dumpText();
-        // For the case where filters are always applied first
-        // the next datanode needs to contain teh following columns:
-        // a) the column where the aggregate selection exists
-        aggrOp->selectionsInfo.push_back(*s);
-        AbstractNode *finalData =  new DataNode();
-        finalData->label="t"+std::to_string(targetCounter);
-        targetCounter++;
-        finalData -> inAdjList.push_back((AbstractNode *) aggrOp);
-        aggrOp -> outAdjList.push_back(finalData);
-        aggrOp -> inAdjList.push_back(lastAttached.at(s->relId));
-        lastAttached.at(s->relId) -> outAdjList.push_back(aggrOp);
-        splan->nodes.push_back((AbstractNode *) aggrOp);
-        splan->nodes.push_back(finalData);
-    }
+    AggregateOperatorNode *aggrOp = new AggregateOperatorNode();
+    aggrOp->label="aggre";
+    aggrOp->selectionsInfo = q.selections;
+    AbstractNode *finalData =  new DataNode();
+    finalData->label="t"+std::to_string(targetCounter);
+    targetCounter++;
+    finalData -> inAdjList.push_back((AbstractNode *) aggrOp);
+    aggrOp -> outAdjList.push_back(finalData);
+    aggrOp -> inAdjList.push_back(lastAttached.at(q.selections[0].relId));
+    lastAttached.at(q.selections[0].relId) -> outAdjList.push_back(aggrOp);
+    splan->nodes.push_back((AbstractNode *) aggrOp);
+    splan->nodes.push_back(finalData);
 
+    splan->exitNodes.push_back((DataNode *) finalData);
 
     printPlanGraph(splan);
 
@@ -166,6 +162,7 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
     AbstractNode* globalRoot = new DataNode();
     globalRoot->label="global_root";
     p->nodes.push_back(globalRoot);
+    p->root = globalRoot;
 
     vector<QueryInfo>::iterator currentQuery;
     for(currentQuery = queries.begin(); currentQuery != queries.end(); currentQuery++){
@@ -186,6 +183,8 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
         for(splanNode = singlePlan->nodes.begin(); splanNode != singlePlan->nodes.end(); splanNode++){
             p->nodes.push_back(*splanNode);
         }
+
+        p->exitNodes.push_back(singlePlan->exitNodes[0]);
     }
     printPlanGraph(p);
     return p;
