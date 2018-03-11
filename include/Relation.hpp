@@ -54,7 +54,14 @@ class Relation: public AbstractDataNode {
     /// Constructor using mmap
     Relation(RelationId relId, const char* fileName);
     /// Delete copy constructor
-    Relation(const Relation& other)=delete;
+    //Relation(const Relation& other)=delete;
+    Relation(const Relation& other):relId(other.relId){
+        this -> ownsMemory = other.ownsMemory;
+        this -> size = other.size;
+        this -> columns = other.columns;
+        this -> ids = other.ids;
+        this -> columnsInfo = other.columnsInfo;
+    }
     /// Move constructor
     Relation(Relation&& other)=default;
     /// The destructor

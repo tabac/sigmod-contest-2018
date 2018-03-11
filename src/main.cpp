@@ -42,10 +42,8 @@ int main(void)
 
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
-        cout << "Ready for the planner" << endl;
         // Generate an execution plan for all `queries`.
         Plan *plan = Planner::generatePlan(engine, queries);
-        cout << "Plan is finished" << endl;
         // Execute the generated plan.
         Executor::executePlan(*plan, resultsInfo);
 
@@ -53,6 +51,7 @@ int main(void)
         ResultInfo::printResults(resultsInfo);
 
         // Clear info before loading next query batch.
+        Planner::clear();
         resultsInfo.clear();
         queries.clear();
         // Delete created plan.
