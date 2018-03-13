@@ -58,6 +58,12 @@ void AbstractNode::resetStatus()
     this->outAdjList.clear();
 }
 //---------------------------------------------------------------------------
+void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
+{
+    left->outAdjList.push_back(right);
+    right->inAdjList.push_back(left);
+}
+//---------------------------------------------------------------------------
 void DataNode::execute()
 // TODO: Ultimately we just want to update the status here.
 {
@@ -83,8 +89,7 @@ void DataNode::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
-    cout << "Executing Data: " << this->nodeId << endl;
-
+    DEBUGLN("Executing Data");
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
@@ -189,7 +194,7 @@ void JoinOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    cout << "Executing Join: " << this->nodeId << endl;
+    DEBUGLN("Executing Join.");
 
     // Ugly castings...
     AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
@@ -368,7 +373,7 @@ void FilterOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    cout << "Executing Filter: " << this->nodeId << endl;
+    DEBUGLN("Executing Filter.");
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -417,7 +422,7 @@ void AggregateOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    cout << "Executing Aggregate: " << this->nodeId << endl;
+    DEBUGLN("Executing Aggregate.");
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -429,18 +434,18 @@ void AggregateOperatorNode::execute()
     // Set row count for outNode;
     outNode->size = 1;
 
-    if (inNode->getSize() != 0) {
-        // Calculate aggregated sum for each column.
-        vector<SelectInfo>::iterator it;
-        for (it = this->selectionsInfo.begin(); it != this->selectionsInfo.end(); ++it) {
+    // Calculate aggregated sum for each column.
+    vector<SelectInfo>::iterator it;
+    for (it = this->selectionsInfo.begin(); it != this->selectionsInfo.end(); ++it) {
+        // Push column name to new `DataNode`.
+        outNode->columnsInfo.emplace_back((*it));
+
+        if (inNode->getSize() != 0) {
             optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
             if (!option.has_value()) {
                 continue;
             }
             IteratorPair valIter = option.value();
-
-            // Push column name to new `DataNode`.
-            outNode->columnsInfo.emplace_back((*it));
 
             // Calculate sum for column.
             uint64_t sum = 0;
@@ -451,9 +456,10 @@ void AggregateOperatorNode::execute()
 
             outNode->dataValues.push_back(sum);
         }
-
-        assert(outNode->columnsInfo.size() == outNode->dataValues.size());
     }
+
+    assert(outNode->dataValues.size() == 0 ||
+           outNode->columnsInfo.size() == outNode->dataValues.size());
 
     // Set status to processed.
     this->setStatus(processed);

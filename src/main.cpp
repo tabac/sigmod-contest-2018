@@ -7,8 +7,6 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void doAssertions(DataEngine &engine);
-//---------------------------------------------------------------------------
 int main(void)
 {
     DataEngine engine;
@@ -22,8 +20,6 @@ int main(void)
         ++relId;
     }
 
-    doAssertions(engine);
-
     // Preparation phase (not timed)
     // Build histograms, indices,...
 
@@ -36,7 +32,6 @@ int main(void)
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         do {
-            cout << line << endl;
             queries.emplace_back().parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
@@ -53,43 +48,10 @@ int main(void)
         // Clear info before loading next query batch.
         resultsInfo.clear();
         queries.clear();
+
         delete plan;
     }
 
     return 0;
 }
-
-void doAssertions(DataEngine &engine)
-// TODO: This is only for debug, should be deleted.
-{
-    assert(engine.relations.size() == 14);
-
-    assert(engine.relations[0].size == 1561);
-
-    assert(engine.relations[0].columns.size() == 3);
-
-    assert(engine.relations[0].ids.size() == 1561);
-
-    assert(engine.relations[0].ids[1560] == 1560);
-
-    SelectInfo selectInfo (0, 0, 2);
-    IteratorPair idsIter = engine.relations[0].getIdsIterator(selectInfo, NULL);
-    uint64_t i = 0;
-    vector<uint64_t>::iterator it = idsIter.first;
-    for ( ; it != idsIter.second; ++i, ++it) {
-        assert(i == (*it));
-    }
-    assert(i == 1561);
-
-    optional<IteratorPair> option = engine.relations[0].getValuesIterator(selectInfo, NULL);
-    assert(option.has_value());
-    IteratorPair firstCol = option.value();
-
-    for (i = 0, it = firstCol.first; it != firstCol.second; ++it, ++i) {
-        assert((*it) == engine.relations[0].columns[2][i]);
-    }
-
-    assert(i == 1561);
-
-    cout << "OK!" << endl;
-}
+//---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ void Relation::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
-    cout << "Love that jocker: " << this->relId << endl;
+    DEBUGLN("Love that jocker.");
 
     // If so set status to `processed`.
     if (allInProcessed) {

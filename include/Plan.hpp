@@ -48,6 +48,9 @@ class AbstractNode {
     /// query batches.
     void resetStatus();
 
+    /// Connects the `left` with the `right` nodes, `left` precedes `right`.
+    static void connectNodes(AbstractNode *left, AbstractNode *right);
+
     /// Frees any resources allocated by the node.
     virtual void freeResources() = 0;
 
@@ -59,7 +62,7 @@ class AbstractNode {
     /////////////////////////////////////////////////////////////////////////
     /// FOR DEBUG PURPOSES
     std::string label;
-    unsigned nodeId; //0 = base relation, 1 = interm data, 2 = filter, 3 = join, 4 = aggr, 5 = final data, -1 = dummy root
+    unsigned nodeId;
     void setNodeId(unsigned nodeId) { this->nodeId = nodeId; };
     /////////////////////////////////////////////////////////////////////////
 };
