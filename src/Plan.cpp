@@ -59,6 +59,7 @@ void AbstractNode::resetStatus()
 }
 //---------------------------------------------------------------------------
 void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
+// TODO: Why this cannot be inline???
 {
     left->outAdjList.push_back(right);
     right->inAdjList.push_back(left);

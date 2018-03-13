@@ -3,6 +3,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
 struct SelectInfo {
@@ -109,9 +110,29 @@ class QueryInfo {
     std::string dumpText();
     /// Dump SQL
     std::string dumpSQL();
+
+
+    void getAllSelections(std::unordered_set<SelectInfo> &selectionsInfo);
+
+
     /// The empty constructor
     QueryInfo() {}
     /// The constructor that parses a query
     QueryInfo(std::string rawQuery);
 };
 //---------------------------------------------------------------------------
+namespace std {
+    template<>
+    struct hash<SelectInfo>
+    {
+        inline size_t operator()(const SelectInfo & s) const
+        {
+            size_t seed = 0;
+            ::hash_combine(seed, s.relId);
+            ::hash_combine(seed, s.binding);
+            ::hash_combine(seed, s.colId);
+
+            return seed;
+        }
+    };
+}

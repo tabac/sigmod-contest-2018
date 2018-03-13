@@ -1,14 +1,15 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
+#include "Plan.hpp"
 #include "Parser.hpp"
 #include "Planner.hpp"
 #include "Relation.hpp"
 #include "Utils.hpp"
 //---------------------------------------------------------------------------
-using namespace std;
-
+using namespace std; //---------------------------------------------------------------------------
 int intermDataCounter = 0;
 int targetCounter = 0;
 //---------------------------------------------------------------------------
@@ -23,7 +24,7 @@ unordered_map<RelationId, AbstractNode*>& lastAttached)
     splan->baseRelations.push_back(d);
 }
 //---------------------------------------------------------------------------
-void Planner::addFilterNode(FilterInfo& f, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush, 
+void Planner::addFilterNode(FilterInfo& f, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush,
 unordered_map<RelationId, AbstractNode*>& lastAttached)
 {
     FilterOperatorNode *filterOp = new FilterOperatorNode(f);
@@ -58,7 +59,7 @@ unordered_map<RelationId, AbstractNode*>& lastAttached)
     splan->nodes.push_back(intermData); // create a datanode for the filter output
 }
 //---------------------------------------------------------------------------
-void Planner::addJoinNode(PredicateInfo& p, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush, 
+void Planner::addJoinNode(PredicateInfo& p, Plan *splan, unordered_map<RelationId, vector<SelectInfo>>& colsToPush,
 unordered_map<RelationId, AbstractNode*>& lastAttached)
 {
     JoinOperatorNode *joinOp = new JoinOperatorNode(p);
@@ -101,22 +102,29 @@ unordered_map<RelationId, AbstractNode*>& lastAttached)
     splan->nodes.push_back(intermData);
 }
 //---------------------------------------------------------------------------
-void Planner::addAggrNode(QueryInfo& q, Plan *splan, unordered_map<RelationId, AbstractNode*>& lastAttached)
+void Planner::addAggregateNode(Plan &plan, QueryInfo& query,
+                               unordered_map<RelationId, AbstractNode*>& lastAttached)
 {
-    AggregateOperatorNode *aggrOp = new AggregateOperatorNode();
-    aggrOp->label="aggr";
-    aggrOp->selectionsInfo = q.selections;
-    AbstractNode *finalData =  new DataNode();
-    finalData->label="t"+std::to_string(targetCounter);
-    targetCounter++;
-    finalData -> inAdjList.push_back((AbstractNode *) aggrOp);
-    aggrOp -> outAdjList.push_back(finalData);
-    aggrOp -> inAdjList.push_back(lastAttached.at(q.selections[0].relId));
-    lastAttached.at(q.selections[0].relId) -> outAdjList.push_back(aggrOp);
-    splan->nodes.push_back((AbstractNode *) aggrOp);
-    splan->nodes.push_back(finalData);
+    DataNode *dataNode =  new DataNode();
+    AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
 
-    splan->exitNodes.push_back((DataNode *) finalData);
+    aggregateNode->selectionsInfo = query.selections;
+
+    AbstractNode::connectNodes((AbstractNode *) aggregateNode,
+                               (AbstractNode *) dataNode);
+    AbstractNode::connectNodes((AbstractNode *) lastAttached.at(query.selections[0].relId),
+                               (AbstractNode *) aggregateNode);
+
+    plan.nodes.push_back((AbstractNode *) aggregateNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+    plan.exitNodes.push_back(dataNode);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    aggregateNode->label="aggr";
+    dataNode->label="t"+std::to_string(targetCounter++);
+    /////////////////////////////////////////////////////////////////////////
 }
 //---------------------------------------------------------------------------
 Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q)
@@ -165,13 +173,14 @@ Plan* Planner::generateSingleQueryPlan(DataEngine &engine, QueryInfo &q)
         addJoinNode(*p,splan,colsToPush,lastAttached);
     }
     // Apply final aggregate selections
-    addAggrNode(q, splan, lastAttached);
+    addAggregateNode(*splan, q, lastAttached);
 
     printPlanGraph(splan);
 
     return splan;
 }
 //---------------------------------------------------------------------------
+/*
 Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
 {
     Plan *p = new Plan();
@@ -205,6 +214,7 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
     printPlanGraph(p);
     return p;
 }
+*/
 //---------------------------------------------------------------------------
 void Planner::printPlanGraph(Plan* plan)
 {
@@ -221,3 +231,167 @@ void Planner::printPlanGraph(Plan* plan)
     }
 }
 //---------------------------------------------------------------------------
+void Planner::addFilter(Plan &plan, FilterInfo& filter,
+                        unordered_set<SelectInfo> selections,
+                        unordered_map<unsignedPair, AbstractNode *> lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    FilterOperatorNode *filterNode = new FilterOperatorNode(filter);
+
+    unsignedPair filterPair = {filter.filterColumn.relId,
+                               filter.filterColumn.binding};
+
+    unordered_set<SelectInfo>::iterator st;
+    for (st = selections.begin(); st != selections.end(); ++st) {
+        if (st->relId == filterPair.first && st->binding == filterPair.second) {
+            filterNode->selectionsInfo.emplace_back((*st));
+        }
+    }
+
+    AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+    AbstractNode::connectNodes(filterNode, dataNode);
+
+    lastAttached[filterPair] = dataNode;
+
+    plan.nodes.push_back((AbstractNode *) filterNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    filterNode->label = filterNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
+                      unordered_set<SelectInfo> selections,
+                      unordered_map<unsignedPair, AbstractNode *> lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
+
+    unsignedPair leftPair = {predicate.left.relId,
+                             predicate.left.binding};
+    unsignedPair rightPair = {predicate.right.relId,
+                              predicate.right.binding};
+
+    unordered_set<SelectInfo>::iterator st;
+    for (st = selections.begin(); st != selections.end(); ++st) {
+        if ((st->relId == leftPair.first && st->binding == leftPair.second) ||
+            (st->relId == rightPair.first && st->binding == rightPair.second)) {
+            joinNode->selectionsInfo.emplace_back((*st));
+        }
+    }
+
+    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+    AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+    AbstractNode::connectNodes(joinNode, dataNode);
+
+    lastAttached[leftPair] = dataNode;
+    lastAttached[rightPair] = dataNode;
+
+    plan.nodes.push_back((AbstractNode *) joinNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    joinNode->label = joinNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::addAggregate(Plan &plan, QueryInfo& query,
+                           unordered_map<unsignedPair, AbstractNode *> lastAttached)
+{
+    DataNode *dataNode =  new DataNode();
+    AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
+
+    aggregateNode->selectionsInfo = query.selections;
+
+    AbstractNode *anode = (*lastAttached.begin()).second;
+
+    AbstractNode::connectNodes((AbstractNode *) aggregateNode,
+                               (AbstractNode *) dataNode);
+
+    AbstractNode::connectNodes((AbstractNode *) anode,
+                               (AbstractNode *) aggregateNode);
+
+    plan.nodes.push_back((AbstractNode *) aggregateNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+    plan.exitNodes.push_back(dataNode);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    unordered_map<unsignedPair, AbstractNode *>::iterator it;
+    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+        //assert(anode == (*it).second);
+
+        // cerr << it->second->label << endl;
+    }
+    aggregateNode->label = "aggr";
+    dataNode->label = "t" + to_string(targetCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
+{
+    unordered_map<unsignedPair, AbstractNode *> lastAttached;
+
+    // Push original relations.
+    // TODO: We could check for already added relations
+    //       and use the same pointer.
+    unsigned bd;
+    vector<RelationId>::iterator rt;
+    for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
+        plan.nodes.push_back((AbstractNode *) &engine.relations[(*rt)]);
+
+        lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
+        engine.relations[(*rt)].label = "r" + to_string((*rt));
+    }
+
+    // Get all selections used in the query.
+    unordered_set<SelectInfo> selections;
+    query.getAllSelections(selections);
+
+    // Push filters.
+    vector<FilterInfo>::iterator ft;
+    for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+        Planner::addFilter(plan, (*ft), selections, lastAttached);
+    }
+    printPlanGraph(&plan);
+
+    cout << "---------------------------------------------------------------" << endl;
+    // Push join predicates.
+    vector<PredicateInfo>::iterator pt;
+    for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
+        Planner::addJoin(plan, (*pt), selections, lastAttached);
+    }
+    printPlanGraph(&plan);
+    cout << "---------------------------------------------------------------" << endl;
+
+    Planner::addAggregate(plan, query, lastAttached);
+}
+//---------------------------------------------------------------------------
+Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
+{
+    Plan *plan = new Plan();
+    AbstractNode* root = new DataNode();
+
+    plan->nodes.push_back(root);
+    plan->root = root;
+
+    vector<QueryInfo>::iterator it;
+    for(it = queries.begin(); it != queries.end(); ++it) {
+        Planner::attachQueryPlan(*plan, engine, (*it));
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    printPlanGraph(plan);
+    root->label = "global_root";
+    /////////////////////////////////////////////////////////////////////////
+    exit(1);
+
+    return plan;
+}

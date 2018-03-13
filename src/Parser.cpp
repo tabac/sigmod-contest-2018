@@ -2,6 +2,7 @@
 #include <iostream>
 #include <utility>
 #include <sstream>
+#include <unordered_set>
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -297,6 +298,25 @@ string QueryInfo::dumpSQL()
     sql << ";";
 
     return sql.str();
+}
+//---------------------------------------------------------------------------
+void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selectionsInfo)
+{
+    vector<PredicateInfo>::iterator pt;
+    for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
+        selectionsInfo.emplace(pt->left);
+        selectionsInfo.emplace(pt->right);
+    }
+
+    vector<FilterInfo>::iterator ft;
+    for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
+        selectionsInfo.emplace(ft->filterColumn);
+    }
+
+    vector<SelectInfo>::iterator st;
+    for (st = this->selections.begin(); st != this->selections.end(); ++st) {
+        selectionsInfo.emplace((*st));
+    }
 }
 //---------------------------------------------------------------------------
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }

@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include "Plan.hpp"
 #include "Parser.hpp"
 #include "DataEngine.hpp"
@@ -16,15 +17,29 @@ class Planner {
     static void printPlanGraph(Plan* plan);
     private:
     /// Adds a base-relation datanode in the graph
-    static void addBaseRelationNode(RelationId& r, DataEngine& engine, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush, 
+    static void addBaseRelationNode(RelationId& r, DataEngine& engine, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush,
                   std::unordered_map<RelationId, AbstractNode*>& lastAttached);
     /// Adds a filter operator node in the graph
-    static void addFilterNode(FilterInfo& f, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush, 
+    static void addFilterNode(FilterInfo& f, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush,
                   std::unordered_map<RelationId, AbstractNode*>& lastAttached);
     /// Adds a join operator node in the graph
-    static void addJoinNode(PredicateInfo& p, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush, 
+    static void addJoinNode(PredicateInfo& p, Plan *splan, std::unordered_map<RelationId, vector<SelectInfo>>& columnsToPush,
                   std::unordered_map<RelationId, AbstractNode*>& lastAttached);
     /// Adds an aggregate-selection operator node in the graph
-    static void addAggrNode(QueryInfo& q, Plan *splan, std::unordered_map<RelationId, AbstractNode*>& lastAttached);
+    static void addAggregateNode(Plan &plan, QueryInfo& query,
+                                 std::unordered_map<RelationId, AbstractNode*>& lastAttached);
+
+    static void attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query);
+
+    static void addFilter(Plan &plan, FilterInfo& filter,
+                          std::unordered_set<SelectInfo> selections,
+                          std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
+
+    static void addJoin(Plan& plan, PredicateInfo& predicate,
+                        std::unordered_set<SelectInfo> selections,
+                        std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
+
+    static void addAggregate(Plan &plan, QueryInfo& query,
+                             std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
 };
 //---------------------------------------------------------------------------
