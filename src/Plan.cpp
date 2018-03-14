@@ -74,7 +74,7 @@ void DataNode::execute()
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
         // Sould have one or zero outgoing edges.
-        assert(this->outAdjList.size() < 2);
+        // assert(this->outAdjList.size() < 2);
 
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
@@ -387,6 +387,69 @@ void FilterOperatorNode::execute()
     // Get indices that satisfy the given filter condition.
     vector<uint64_t> indices;
     this->info.getFilteredIndices(valIter, indices);
+
+    // Set the size of the new relation.
+    outNode->size = indices.size();
+
+    // Reserve memory for ids, column names, column values.
+    outNode->columnsInfo.reserve(this->selectionsInfo.size());
+    outNode->dataValues.reserve(this->selectionsInfo.size() * outNode->size);
+
+    FilterOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
+
+    // Set status to processed.
+    this->setStatus(processed);
+}
+//---------------------------------------------------------------------------
+void FilterJoinOperatorNode::execute()
+// Filters the input `DataNode` instance.
+{
+    {
+        // Should never be called otherwise.
+        assert(this->isStatusFresh());
+
+        // Sould have only one incoming edge.
+        assert(this->inAdjList.size() == 1);
+        // Sould have only one outgoing edge.
+        assert(this->outAdjList.size() == 1);
+
+        // Should not be processed yet.
+        assert(this->outAdjList[0]->isStatusFresh());
+
+        // Should specify selections. Simplifies things
+        // with bindings...
+        assert(!this->selectionsInfo.empty());
+    }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    DEBUGLN("Executing Join Filter.");
+
+    // Ugly castings...
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    DataNode *outNode = (DataNode *) this->outAdjList[0];
+
+    // Get values iterator for the left column.
+    optional<IteratorPair> option = inNode->getValuesIterator(this->info.left, NULL);
+    assert(option.has_value());
+    IteratorPair leftIter = option.value();
+
+    // Get values iterator for the right column.
+    option = inNode->getValuesIterator(this->info.right, NULL);
+    assert(option.has_value());
+    IteratorPair rightIter = option.value();
+
+    uint64_t i;
+    vector<uint64_t> indices;
+    vector<uint64_t>::iterator it, jt;
+    for (i = 0, it = leftIter.first, jt = rightIter.first; it != leftIter.second; ++i, ++it, ++jt) {
+        if ((*it) == (*jt)) {
+            indices.push_back(i);
+        }
+    }
+
+    assert(jt == rightIter.second);
 
     // Set the size of the new relation.
     outNode->size = indices.size();

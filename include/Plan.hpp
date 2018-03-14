@@ -172,6 +172,19 @@ class FilterOperatorNode : public AbstractOperatorNode {
     ~FilterOperatorNode() { }
 };
 //---------------------------------------------------------------------------
+class FilterJoinOperatorNode : public AbstractOperatorNode {
+    public:
+    /// Reference to the corresponding `PredicateInfo` instance.
+    PredicateInfo &info;
+
+    /// Filters the input `DataNode` instance.
+    void execute();
+
+    FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
+
+    ~FilterJoinOperatorNode() { }
+};
+//---------------------------------------------------------------------------
 class AggregateOperatorNode : public AbstractOperatorNode {
     public:
     /// Calculates sums for the columns in the `selectionsInfo` vector.

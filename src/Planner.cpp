@@ -320,6 +320,41 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
     /////////////////////////////////////////////////////////////////////////
 }
 //---------------------------------------------------------------------------
+void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
+                            unordered_set<SelectInfo> selections,
+                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
+
+    unsignedPair leftPair = {predicate.left.relId,
+                             predicate.left.binding};
+    unsignedPair rightPair = {predicate.right.relId,
+                              predicate.right.binding};
+
+    assert(leftPair == rightPair);
+
+    // TODO: This copies all the selections to every node. Maybe
+    //       we can do something better here.
+    unordered_set<SelectInfo>::iterator st;
+    for (st = selections.begin(); st != selections.end(); ++st) {
+        joinNode->selectionsInfo.emplace_back((*st));
+    }
+
+    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+    AbstractNode::connectNodes(joinNode, dataNode);
+
+    Planner::updateAttached(lastAttached, lastAttached[leftPair], dataNode);
+
+    plan.nodes.push_back((AbstractNode *) joinNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    joinNode->label = joinNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}//---------------------------------------------------------------------------
 void Planner::addAggregate(Plan &plan, QueryInfo& query,
                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
@@ -394,7 +429,12 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     // Push join predicates.
     vector<PredicateInfo>::iterator pt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
-        Planner::addJoin(plan, (*pt), selections, lastAttached);
+        if ((*pt).left.relId == (*pt).right.relId &&
+            (*pt).left.binding == (*pt).right.binding) {
+            Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+        } else {
+            Planner::addJoin(plan, (*pt), selections, lastAttached);
+        }
     }
 
     Planner::addAggregate(plan, query, lastAttached);
