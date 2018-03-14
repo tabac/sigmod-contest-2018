@@ -35,7 +35,7 @@ void Relation::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
-    DEBUGLN("Love that jocker.");
+    DEBUGLN("Love that jocker." + this->label);
 
     // If so set status to `processed`.
     if (allInProcessed) {

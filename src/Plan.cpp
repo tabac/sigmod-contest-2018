@@ -89,7 +89,7 @@ void DataNode::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
-    DEBUGLN("Executing Data");
+    DEBUGLN("Executing Data" + this->label);
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
@@ -194,7 +194,7 @@ void JoinOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    DEBUGLN("Executing Join.");
+    DEBUGLN("Executing Join." + this->label);
 
     // Ugly castings...
     AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
@@ -222,27 +222,27 @@ void JoinOperatorNode::execute()
     if (this->selectionsInfo.empty()) {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        JoinOperatorNode::pushSelections(inLeftNode->columnsInfo,
-                                         indexPairs.first,
-                                         inLeftNode, outNode);
+        AbstractOperatorNode::pushSelections(inLeftNode->columnsInfo,
+                                             indexPairs.first,
+                                             inLeftNode, outNode);
 
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        JoinOperatorNode::pushSelections(inRightNode->columnsInfo,
-                                         indexPairs.second,
-                                         inRightNode, outNode);
+        AbstractOperatorNode::pushSelections(inRightNode->columnsInfo,
+                                             indexPairs.second,
+                                             inRightNode, outNode);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        JoinOperatorNode::pushSelections(this->selectionsInfo,
-                                         indexPairs.first,
-                                         inLeftNode, outNode);
+        AbstractOperatorNode::pushSelections(this->selectionsInfo,
+                                             indexPairs.first,
+                                             inLeftNode, outNode);
 
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        JoinOperatorNode::pushSelections(this->selectionsInfo,
-                                         indexPairs.second,
-                                         inRightNode, outNode);
+        AbstractOperatorNode::pushSelections(this->selectionsInfo,
+                                             indexPairs.second,
+                                             inRightNode, outNode);
     }
 
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);
@@ -293,6 +293,13 @@ inline void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
 
     vector<SelectInfo>::iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
+        // Skip columns already inserted.
+        vector<SelectInfo>::iterator jt = find(outNode->columnsInfo.begin(),
+                                               outNode->columnsInfo.end(), (*it));
+        if (jt != outNode->columnsInfo.end()) {
+            continue;
+        }
+
         optional<IteratorPair> valIter = inNode->getValuesIterator((*it), NULL);
         if (!valIter.has_value()) {
             // Skip column if not in `inNode->columnsInfo`.
@@ -373,7 +380,7 @@ void FilterOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    DEBUGLN("Executing Filter.");
+    DEBUGLN("Executing Filter." + this->label);
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -395,7 +402,7 @@ void FilterOperatorNode::execute()
     outNode->columnsInfo.reserve(this->selectionsInfo.size());
     outNode->dataValues.reserve(this->selectionsInfo.size() * outNode->size);
 
-    FilterOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -424,7 +431,7 @@ void FilterJoinOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    DEBUGLN("Executing Join Filter.");
+    DEBUGLN("Executing Join Filter." + this->label);
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -458,7 +465,7 @@ void FilterJoinOperatorNode::execute()
     outNode->columnsInfo.reserve(this->selectionsInfo.size());
     outNode->dataValues.reserve(this->selectionsInfo.size() * outNode->size);
 
-    FilterOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -485,7 +492,7 @@ void AggregateOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
-    DEBUGLN("Executing Aggregate.");
+    DEBUGLN("Executing Aggregate." + this->label);
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];

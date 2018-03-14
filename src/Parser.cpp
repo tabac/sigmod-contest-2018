@@ -190,7 +190,7 @@ string SelectInfo::dumpText()
 string SelectInfo::dumpLabel()
 // Dump the graph label in text format
 {
-    return to_string(relId)+"."+to_string(colId);
+    return to_string(relId)+"."+to_string(binding)+"."+to_string(colId);
 }
 //---------------------------------------------------------------------------
 string FilterInfo::dumpText()
