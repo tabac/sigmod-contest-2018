@@ -4,11 +4,13 @@
 #include "Planner.hpp"
 #include "Executor.hpp"
 #include "DataEngine.hpp"
+#include "Index.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
 int main(void)
 {
+
     DataEngine engine;
 
     // Read join relations
@@ -16,7 +18,6 @@ int main(void)
     unsigned relId = 0;
     while (getline(cin, line) && line != "Done") {
         engine.addRelation(relId, line.c_str());
-
         ++relId;
     }
 
@@ -24,6 +25,20 @@ int main(void)
     // Build histograms, indices,...
 
     // Do index crazy.
+	
+	uint64_t *data = engine.getRelation(0).columns[1];
+	uint64_t size = engine.getRelation(0).size;
+
+	SortedIndex *index = new SortedIndex(false, data, size);
+
+	if(index->build()) {
+			cout << "Index was built successfully!" << endl;
+	} else {
+			cout << "Index built failed!" << endl;
+	}
+
+	delete index;
+	return 0;
 
     // The test harness will send the first query after 1 second.
 
