@@ -33,13 +33,16 @@ class Planner {
 
     static void addFilter(Plan &plan, FilterInfo& filter,
                           std::unordered_set<SelectInfo> selections,
-                          std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
+                          std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate,
                         std::unordered_set<SelectInfo> selections,
-                        std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
+                        std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addAggregate(Plan &plan, QueryInfo& query,
-                             std::unordered_map<unsignedPair, AbstractNode *> lastAttached);
+                             std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+
+    static void updateAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached,
+                               AbstractNode *oldNode, AbstractNode *newNode);
 };
 //---------------------------------------------------------------------------

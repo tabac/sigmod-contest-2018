@@ -186,7 +186,7 @@ class Plan {
     /// execution plan(s) graph.
     AbstractNode *root;
     /// The base relations that this plan needs to consume
-    std::vector<AbstractNode *> baseRelations;
+    std::vector<AbstractNode *> relations;
     /// Pointers to all the nodes of the plan(s).
     std::vector<AbstractNode *> nodes;
     /// All the exit nodes of the plan(s).

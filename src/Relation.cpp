@@ -20,7 +20,7 @@ void Relation::execute()
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
         // Sould have one or zero outgoing edges.
-        assert(this->outAdjList.size() < 2);
+        // assert(this->outAdjList.size() < 2);
 
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.

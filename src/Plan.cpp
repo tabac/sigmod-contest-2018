@@ -46,7 +46,6 @@ void ResultInfo::printResults(vector<ResultInfo> resultsInfo)
     for (it = resultsInfo.begin(); it != resultsInfo.end(); ++it) {
         it->printResultInfo();
     }
-    cout << endl;
 }
 //---------------------------------------------------------------------------
 void AbstractNode::resetStatus()
@@ -477,8 +476,6 @@ Plan::~Plan()
             (*it)->resetStatus();
         }
     }
-    this->baseRelations.clear();
-    this->nodes.clear();
 
     delete this->root;
 }
