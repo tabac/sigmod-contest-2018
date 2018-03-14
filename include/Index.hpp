@@ -8,12 +8,14 @@ class IdValuePair{
 	uint64_t id, value;
 	IdValuePair(){};
 	IdValuePair(uint64_t id, uint64_t value): id(id), value(value){};
-
-	bool operator<(const IdValuePair &o) 
+	
+	bool operator <(const IdValuePair& o)
 	{
-			return this->value < o.value;
+		return this->value < o.value;
 	}
+	static bool compare(IdValuePair *a, IdValuePair *b){return a->value<b->value;};
 };
+
 
 
 // ---------------------------------------------------------------------------
@@ -48,7 +50,5 @@ class SortedIndex : public AbstractIndex {
 	IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
 
 	private:
-	bool buildOffline();
 	bool buildIncrementally();
 };
-

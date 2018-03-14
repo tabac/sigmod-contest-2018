@@ -1,4 +1,6 @@
 #include "Index.hpp"
+#include <algorithm>
+#include <iostream>
 
 // Class constructor
 SortedIndex::SortedIndex(bool online, uint64_t  *values, uint64_t size) 
@@ -23,8 +25,8 @@ bool SortedIndex::build()
 	if(this->online) { 	//building for each call separately
 		return false;
 	}
-	// start building my shit
-	return this->buildOffline();
+	std::sort(this->values.begin(), this->values.end(), IdValuePair::compare);
+	return true;
 }
 
 // Returns an iterator with the ids of the Tuples that satisfy FilterInfo
@@ -39,11 +41,6 @@ IteratorPair SortedIndex::getValuesIterator(SelectInfo& selectInfo, FilterInfo* 
 {
 	IteratorPair a;
 	return a;
-}
-
-bool SortedIndex::buildOffline() {
-	uint64_t *indexes, *values;
-	return true;
 }
 
 bool SortedIndex::buildIncrementally() {
