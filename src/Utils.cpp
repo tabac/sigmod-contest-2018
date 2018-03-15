@@ -37,13 +37,3 @@ void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)
   DEBUGLN(baseName);
 }
 //---------------------------------------------------------------------------
-//template<typename T>
-bool Utils::contains(vector<SelectInfo> v, SelectInfo x)
-{
-      if (v.empty())
-           return false;
-      if (find(v.begin(), v.end(), x) != v.end())
-           return true;
-      else
-           return false;
-}

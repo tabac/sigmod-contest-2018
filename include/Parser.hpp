@@ -20,7 +20,7 @@ struct SelectInfo {
     /// Dump text format
     std::string dumpText();
     /// Dump graph label in text format
-    std::string dumpLabel();
+    std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
 
@@ -46,7 +46,7 @@ struct FilterInfo {
     /// Dump text format
     std::string dumpText();
     /// Dump label graph in text format
-    std::string dumpLabel();
+    std::string dumpLabel() const;
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter, std::vector<uint64_t> &indices);
@@ -68,7 +68,7 @@ struct PredicateInfo {
     /// Dump text format
     std::string dumpText();
     /// Dump label graph in text format
-    std::string dumpLabel();
+    std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL();
 

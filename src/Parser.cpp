@@ -187,7 +187,7 @@ string SelectInfo::dumpText()
     return to_string(binding)+"."+to_string(colId);
 }
 //--------------------------------------------------------------------------
-string SelectInfo::dumpLabel()
+string SelectInfo::dumpLabel() const
 // Dump the graph label in text format
 {
     return to_string(relId)+"."+to_string(binding)+"."+to_string(colId);
@@ -199,7 +199,7 @@ string FilterInfo::dumpText()
     return filterColumn.dumpText()+static_cast<char>(comparison)+to_string(constant);
 }
 //---------------------------------------------------------------------------
-string FilterInfo::dumpLabel()
+string FilterInfo::dumpLabel() const
 // Dump the graph label in text format
 {
     return filterColumn.dumpLabel()+static_cast<char>(comparison)+to_string(constant);
@@ -217,7 +217,7 @@ string PredicateInfo::dumpText()
     return left.dumpText()+'='+right.dumpText();
 }
 //---------------------------------------------------------------------------
-string PredicateInfo::dumpLabel()
+string PredicateInfo::dumpLabel() const
 // Dump the graph label in text format
 {
     return left.dumpLabel()+'='+right.dumpLabel();
