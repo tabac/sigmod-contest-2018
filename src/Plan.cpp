@@ -233,17 +233,29 @@ void JoinOperatorNode::execute()
                                              indexPairs.second,
                                              inRightNode, outNode);
     } else {
-        // Get ouput columns for left relation and push
-        // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.first,
-                                             inLeftNode, outNode);
-
-        // Get ouput columns for right relation and push
-        // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.second,
-                                             inRightNode, outNode);
+        if (inLeftNode->isBaseRelation()) {
+            // Get ouput columns for right relation and push
+            // values to the next `DataNode`.
+            AbstractOperatorNode::pushSelections(this->selections,
+                                                 indexPairs.second,
+                                                 inRightNode, outNode);
+            // Get ouput columns for left relation and push
+            // values to the next `DataNode`.
+            AbstractOperatorNode::pushSelections(this->selections,
+                                                 indexPairs.first,
+                                                 inLeftNode, outNode);
+        } else {
+            // Get ouput columns for left relation and push
+            // values to the next `DataNode`.
+            AbstractOperatorNode::pushSelections(this->selections,
+                                                 indexPairs.first,
+                                                 inLeftNode, outNode);
+            // Get ouput columns for right relation and push
+            // values to the next `DataNode`.
+            AbstractOperatorNode::pushSelections(this->selections,
+                                                 indexPairs.second,
+                                                 inRightNode, outNode);
+        }
     }
 
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);

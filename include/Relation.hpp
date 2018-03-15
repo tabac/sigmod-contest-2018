@@ -49,6 +49,8 @@ class Relation: public AbstractDataNode {
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() { return this->size; }
 
+    bool isBaseRelation() { return true; }
+
     /// Constructor without mmap
     Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}
     /// Constructor using mmap

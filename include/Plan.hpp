@@ -50,6 +50,9 @@ class AbstractNode {
     /// query batches.
     void resetStatus();
 
+    /// Another total fail.
+    virtual bool isBaseRelation() = 0;
+
     /// Connects the `left` with the `right` nodes, `left` precedes `right`.
     static void connectNodes(AbstractNode *left, AbstractNode *right);
 
@@ -77,6 +80,8 @@ class AbstractDataNode : public AbstractNode, public DataReaderMixin {
 
     /// Should return the size, that is the number of tuples.
     virtual uint64_t getSize() = 0;
+
+    bool isBaseRelation() { return false; }
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
@@ -132,6 +137,9 @@ class AbstractOperatorNode : public AbstractNode {
     static void pushValuesByIndex(IteratorPair &valIter,
                                   std::vector<uint64_t> &indices,
                                   std::vector<uint64_t> &outValues);
+
+    bool isBaseRelation() { return false; }
+
 };
 //---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
