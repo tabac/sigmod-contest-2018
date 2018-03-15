@@ -48,8 +48,46 @@ void Planner::updateAttached(Plan &plan,
     }
 }
 //---------------------------------------------------------------------------
+void Planner::setSelections(Plan &plan, SelectInfo &selection,
+                            unordered_set<SelectInfo> &selections,
+                            AbstractNode *node)
+{
+    assert(!node->inAdjList.empty());
+
+    vector<AbstractNode *>::iterator it;
+    for (it = node->inAdjList.begin(); it != node->inAdjList.end(); ++it) {
+        assert(!(*it)->selections.empty());
+
+        if (Utils::contains(plan.relations, (*it))) {
+            // The parent node is a base relation.
+            unsigned relId = (*it)->selections[0].relId;
+
+            unordered_set<SelectInfo>::iterator st;
+            for (st = selections.begin(); st != selections.end(); ++st) {
+                if (((*st).relId == relId) &&
+                    ((*st).relId == selection.relId) &&
+                    ((*st).binding == selection.binding)) {
+
+                    if (!Utils::contains(node->selections, (*st))) {
+                        node->selections.emplace_back((*st));
+                    }
+                }
+            }
+        } else {
+            // The parent node is not a base relation.
+            vector<SelectInfo>::iterator jt;
+            for (jt = (*it)->selections.begin(); jt != (*it)->selections.end(); ++jt) {
+                if (!Utils::contains(node->selections, (*jt))) {
+                    node->selections.emplace_back((*jt));
+                }
+            }
+        }
+    }
+
+}
+//---------------------------------------------------------------------------
 void Planner::addFilter(Plan &plan, FilterInfo& filter,
-                        unordered_set<SelectInfo> selections,
+                        unordered_set<SelectInfo> &selections,
                         unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -68,6 +106,9 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
     AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
     AbstractNode::connectNodes(filterNode, dataNode);
 
+    Planner::setSelections(plan, filter.filterColumn, selections, filterNode);
+    Planner::setSelections(plan, filter.filterColumn, selections, dataNode);
+
     Planner::updateAttached(plan, lastAttached, filterPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) filterNode);
@@ -81,7 +122,7 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
 }
 //---------------------------------------------------------------------------
 void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
-                      unordered_set<SelectInfo> selections,
+                      unordered_set<SelectInfo> &selections,
                       unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -103,6 +144,11 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
 
+    Planner::setSelections(plan, predicate.left, selections, joinNode);
+    Planner::setSelections(plan, predicate.right, selections, joinNode);
+    // Here `predicate.left` is ignored for sure...
+    Planner::setSelections(plan, predicate.left, selections, dataNode);
+
     Planner::updateAttached(plan, lastAttached, leftPair, dataNode);
     Planner::updateAttached(plan, lastAttached, rightPair, dataNode);
 
@@ -117,7 +163,7 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
 }
 //---------------------------------------------------------------------------
 void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
-                            unordered_set<SelectInfo> selections,
+                            unordered_set<SelectInfo> &selections,
                             unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -140,6 +186,9 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
 
+    Planner::setSelections(plan, predicate.left, selections, joinNode);
+    Planner::setSelections(plan, predicate.left, selections, dataNode);
+
     Planner::updateAttached(plan, lastAttached, leftPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
@@ -159,6 +208,8 @@ void Planner::addAggregate(Plan &plan, QueryInfo& query,
     AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
 
     aggregateNode->selectionsInfo = query.selections;
+    aggregateNode->selections = query.selections;
+    dataNode->selections = query.selections;
 
     AbstractNode::connectNodes((AbstractNode *) aggregateNode,
                                (AbstractNode *) dataNode);
@@ -286,6 +337,16 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
 void Planner::printPlan(Plan* plan)
 {
     vector<AbstractNode*>::iterator node;
+    for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
+        cout << (*node)->label << ": ";
+
+        vector<SelectInfo>::iterator jt;
+        for (jt = (*node)->selections.begin(); jt != (*node)->selections.end(); ++jt) {
+            cout << (*jt).dumpLabel() << " ";
+        }
+        cout << endl;
+    }
+
     for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
         string children = "";
         vector<AbstractNode*>::iterator ch;

@@ -32,6 +32,8 @@ class AbstractNode {
     /// Out-edge adjacency list.
     std::vector<AbstractNode *> outAdjList;
 
+    std::vector<SelectInfo> selections;
+
     /// Executes node-type related functionality.
     virtual void execute() = 0;
 

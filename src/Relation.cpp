@@ -161,6 +161,13 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
         this->columnsInfo.emplace_back(relId, 0, c);
     }
 
+    // Reserve memory for column names.
+    this->selections.reserve(this->columns.size());
+    // Create relations column `SelectInfo` objects.
+    for (unsigned c = 0; c < this->columns.size(); ++c) {
+        this->selections.emplace_back(relId, 0, c);
+    }
+
     // Reserve memory for ids.
     this->ids.reserve(this->size);
 
