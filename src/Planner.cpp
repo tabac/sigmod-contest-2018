@@ -160,7 +160,8 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
     unsignedPair rightPair = {predicate.right.relId,
                               predicate.right.binding};
 
-    assert(leftPair == rightPair);
+    assert(leftPair == rightPair ||
+           lastAttached[leftPair] == lastAttached[rightPair]);
 
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
@@ -274,9 +275,18 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
                 // add `FilterJoinOperatorNode`.
                 Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
             } else {
-                // If predicate refers to different tables
-                // add `JoinOperatorNode`.
-                Planner::addJoin(plan, (*pt), selections, lastAttached);
+                unsignedPair leftPair = {(*pt).left.relId,
+                                         (*pt).left.binding};
+                unsignedPair rightPair = {(*pt).right.relId,
+                                          (*pt).right.binding};
+
+                if (lastAttached[leftPair] == lastAttached[rightPair]) {
+                    Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+                } else {
+                    // If predicate refers to different tables
+                    // add `JoinOperatorNode`.
+                    Planner::addJoin(plan, (*pt), selections, lastAttached);
+                }
             }
         }
     }
@@ -306,8 +316,6 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
         assert((*jt)->visited == 0);
     }
     /////////////////////////////////////////////////////////////////////////
-
-    printPlan(plan);
 
     return plan;
 }
