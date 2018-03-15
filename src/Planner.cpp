@@ -23,20 +23,13 @@ void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached)
     cout << endl;
 }
 //---------------------------------------------------------------------------
-void Planner::updateAttached(Plan &plan,
-                             unordered_map<unsignedPair, AbstractNode *> &lastAttached,
+void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
                              unsignedPair relationPair, AbstractNode *newNode)
 {
     // Fail, total fail.
     AbstractNode *oldNode = lastAttached[relationPair];
 
-    vector<AbstractNode *>::iterator it;
-    for (it = plan.relations.begin(); it != plan.relations.end(); ++it) {
-        if ((*it) == oldNode) {
-            break;
-        }
-    }
-    if (it == plan.relations.end()) {
+    if (!oldNode->isBaseRelation()) {
         unordered_map<unsignedPair, AbstractNode *>::iterator jt;
         for (jt = lastAttached.begin(); jt != lastAttached.end(); ++jt) {
             if (jt->second == oldNode) {
@@ -48,7 +41,7 @@ void Planner::updateAttached(Plan &plan,
     }
 }
 //---------------------------------------------------------------------------
-void Planner::setSelections(Plan &plan, SelectInfo &selection,
+void Planner::setSelections(SelectInfo &selection,
                             unordered_set<SelectInfo> &selections,
                             AbstractNode *node)
 {
@@ -58,7 +51,7 @@ void Planner::setSelections(Plan &plan, SelectInfo &selection,
     for (it = node->inAdjList.begin(); it != node->inAdjList.end(); ++it) {
         assert(!(*it)->selections.empty());
 
-        if (Utils::contains(plan.relations, (*it))) {
+        if ((*it)->isBaseRelation()) {
             // The parent node is a base relation.
             unsigned relId = (*it)->selections[0].relId;
 
@@ -99,10 +92,10 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
     AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
     AbstractNode::connectNodes(filterNode, dataNode);
 
-    Planner::setSelections(plan, filter.filterColumn, selections, filterNode);
-    Planner::setSelections(plan, filter.filterColumn, selections, dataNode);
+    Planner::setSelections(filter.filterColumn, selections, filterNode);
+    Planner::setSelections(filter.filterColumn, selections, dataNode);
 
-    Planner::updateAttached(plan, lastAttached, filterPair, dataNode);
+    Planner::updateAttached(lastAttached, filterPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) filterNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
@@ -130,13 +123,13 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
 
-    Planner::setSelections(plan, predicate.left, selections, joinNode);
-    Planner::setSelections(plan, predicate.right, selections, joinNode);
+    Planner::setSelections(predicate.left, selections, joinNode);
+    Planner::setSelections(predicate.right, selections, joinNode);
     // Here `predicate.left` is ignored for sure...
-    Planner::setSelections(plan, predicate.left, selections, dataNode);
+    Planner::setSelections(predicate.left, selections, dataNode);
 
-    Planner::updateAttached(plan, lastAttached, leftPair, dataNode);
-    Planner::updateAttached(plan, lastAttached, rightPair, dataNode);
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
@@ -166,10 +159,10 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
 
-    Planner::setSelections(plan, predicate.left, selections, joinNode);
-    Planner::setSelections(plan, predicate.left, selections, dataNode);
+    Planner::setSelections(predicate.left, selections, joinNode);
+    Planner::setSelections(predicate.left, selections, dataNode);
 
-    Planner::updateAttached(plan, lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
@@ -222,28 +215,20 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     unordered_map<unsignedPair, AbstractNode *> lastAttached;
 
     // Push original relations.
-    // TODO: We could check for already added relations
-    //       and use the same pointer.
     unsigned bd;
     vector<RelationId>::iterator rt;
     for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
         vector<AbstractNode *>::iterator lt;
-        lt = find(plan.relations.begin(), plan.relations.end(), &engine.relations[(*rt)]);
+        lt = find(plan.nodes.begin(), plan.nodes.end(), &engine.relations[(*rt)]);
 
-        if (lt == plan.relations.end()) {
+        if (lt == plan.nodes.end()) {
             plan.nodes.push_back((AbstractNode *) &engine.relations[(*rt)]);
-            plan.relations.push_back((AbstractNode *) &engine.relations[(*rt)]);
 
             AbstractNode::connectNodes(plan.root, plan.nodes.back());
             lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
         } else {
             lastAttached[make_pair((*rt), bd)] = (*lt);
         }
-
-        /////////////////////////////////////////////////////////////////////////
-        /// FOR DEBUG PURPOSES
-        engine.relations[(*rt)].label = "r" + to_string((*rt));
-        /////////////////////////////////////////////////////////////////////////
     }
 
     // Get all selections used in the query.

@@ -27,13 +27,12 @@ class Planner {
     static void addAggregate(Plan &plan, QueryInfo& query,
                              std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
-    static void updateAttached(Plan &plan,
-                               std::unordered_map<unsignedPair, AbstractNode *> &lastAttached,
+    static void updateAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached,
                                unsignedPair relationPair, AbstractNode *newNode);
 
     static Plan* generatePlan(DataEngine &engine, std::vector<QueryInfo> &queries);
 
-    static void setSelections(Plan &plan, SelectInfo &selection,
+    static void setSelections(SelectInfo &selection,
                               std::unordered_set<SelectInfo> &selections,
                               AbstractNode *node);
 };
