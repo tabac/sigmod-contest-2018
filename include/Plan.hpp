@@ -111,12 +111,8 @@ class DataNode : public AbstractDataNode {
 //---------------------------------------------------------------------------
 class AbstractOperatorNode : public AbstractNode {
     public:
-    /// A list of columns that are passed to the next `DataNode`
-    /// after the application of the operator.
-    std::vector<SelectInfo> selectionsInfo;
-
     /// Frees any resources allocated by the node.
-    void freeResources() { this->selectionsInfo.clear(); }
+    void freeResources() { }
 
     /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
     /// for the values in `values`.
@@ -189,7 +185,7 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 //---------------------------------------------------------------------------
 class AggregateOperatorNode : public AbstractOperatorNode {
     public:
-    /// Calculates sums for the columns in the `selectionsInfo` vector.
+    /// Calculates sums for the columns in the `selections` vector.
     void execute();
 
     ~AggregateOperatorNode() { }

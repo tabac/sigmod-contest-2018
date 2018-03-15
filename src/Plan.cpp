@@ -181,7 +181,7 @@ void JoinOperatorNode::execute()
 
         // Should specify selections. Simplifies things
         // with bindings...
-        assert(this->selectionsInfo.size() != 0);
+        assert(this->selections.size() != 0);
     }
 
     // Return if one of the parent nodes has not
@@ -219,7 +219,8 @@ void JoinOperatorNode::execute()
     // Set out DataNode size.
     outNode->size = indexPairs.first.size();
 
-    if (this->selectionsInfo.empty()) {
+    if (this->selections.empty()) {
+        assert(false);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
         AbstractOperatorNode::pushSelections(inLeftNode->columnsInfo,
@@ -234,13 +235,13 @@ void JoinOperatorNode::execute()
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selectionsInfo,
+        AbstractOperatorNode::pushSelections(this->selections,
                                              indexPairs.first,
                                              inLeftNode, outNode);
 
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selectionsInfo,
+        AbstractOperatorNode::pushSelections(this->selections,
                                              indexPairs.second,
                                              inRightNode, outNode);
     }
@@ -374,7 +375,7 @@ void FilterOperatorNode::execute()
 
         // Should specify selections. Simplifies things
         // with bindings...
-        assert(this->selectionsInfo.size() != 0);
+        assert(this->selections.size() != 0);
     }
 
     // Set status to processing.
@@ -399,10 +400,10 @@ void FilterOperatorNode::execute()
     outNode->size = indices.size();
 
     // Reserve memory for ids, column names, column values.
-    outNode->columnsInfo.reserve(this->selectionsInfo.size());
-    outNode->dataValues.reserve(this->selectionsInfo.size() * outNode->size);
+    outNode->columnsInfo.reserve(this->selections.size());
+    outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections(this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -425,7 +426,7 @@ void FilterJoinOperatorNode::execute()
 
         // Should specify selections. Simplifies things
         // with bindings...
-        assert(!this->selectionsInfo.empty());
+        assert(!this->selections.empty());
     }
 
     // Set status to processing.
@@ -462,10 +463,10 @@ void FilterJoinOperatorNode::execute()
     outNode->size = indices.size();
 
     // Reserve memory for ids, column names, column values.
-    outNode->columnsInfo.reserve(this->selectionsInfo.size());
-    outNode->dataValues.reserve(this->selectionsInfo.size() * outNode->size);
+    outNode->columnsInfo.reserve(this->selections.size());
+    outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections(this->selectionsInfo, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections(this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -486,7 +487,7 @@ void AggregateOperatorNode::execute()
         assert(this->outAdjList[0]->isStatusFresh());
 
         // Should have at least one column.
-        assert(this->selectionsInfo.size() > 0);
+        assert(this->selections.size() > 0);
     }
 
     // Set status to processing.
@@ -499,14 +500,14 @@ void AggregateOperatorNode::execute()
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Reserve memory for results.
-    outNode->dataValues.reserve(this->selectionsInfo.size());
+    outNode->dataValues.reserve(this->selections.size());
 
     // Set row count for outNode;
     outNode->size = 1;
 
     // Calculate aggregated sum for each column.
     vector<SelectInfo>::iterator it;
-    for (it = this->selectionsInfo.begin(); it != this->selectionsInfo.end(); ++it) {
+    for (it = this->selections.begin(); it != this->selections.end(); ++it) {
         // Push column name to new `DataNode`.
         outNode->columnsInfo.emplace_back((*it));
 

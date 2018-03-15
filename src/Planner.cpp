@@ -96,13 +96,6 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
     unsignedPair filterPair = {filter.filterColumn.relId,
                                filter.filterColumn.binding};
 
-    // TODO: This copies all the selections to every node. Maybe
-    //       we can do something better here.
-    unordered_set<SelectInfo>::iterator st;
-    for (st = selections.begin(); st != selections.end(); ++st) {
-        filterNode->selectionsInfo.emplace_back((*st));
-    }
-
     AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
     AbstractNode::connectNodes(filterNode, dataNode);
 
@@ -132,13 +125,6 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
                              predicate.left.binding};
     unsignedPair rightPair = {predicate.right.relId,
                               predicate.right.binding};
-
-    // TODO: This copies all the selections to every node. Maybe
-    //       we can do something better here.
-    unordered_set<SelectInfo>::iterator st;
-    for (st = selections.begin(); st != selections.end(); ++st) {
-        joinNode->selectionsInfo.emplace_back((*st));
-    }
 
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
@@ -176,13 +162,6 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
 
     assert(leftPair == rightPair);
 
-    // TODO: This copies all the selections to every node. Maybe
-    //       we can do something better here.
-    unordered_set<SelectInfo>::iterator st;
-    for (st = selections.begin(); st != selections.end(); ++st) {
-        joinNode->selectionsInfo.emplace_back((*st));
-    }
-
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(joinNode, dataNode);
 
@@ -207,7 +186,6 @@ void Planner::addAggregate(Plan &plan, QueryInfo& query,
     DataNode *dataNode =  new DataNode();
     AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
 
-    aggregateNode->selectionsInfo = query.selections;
     aggregateNode->selections = query.selections;
     dataNode->selections = query.selections;
 
