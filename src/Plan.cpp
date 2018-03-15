@@ -30,12 +30,18 @@ ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 void ResultInfo::printResultInfo()
 {
     vector<optional<uint64_t>>::iterator it;
-    for (it = this->results.begin(); it != this->results.end(); ++it) {
+    for (it = this->results.begin(); it != this->results.end() - 1; ++it) {
         if ((*it).has_value()) {
             cout << (*it).value() << " ";
         } else {
             cout << "NULL ";
         }
+    }
+
+    if ((*it).has_value()) {
+        cout << (*it).value();
+    } else {
+        cout << "NULL";
     }
     cout << endl;
 }

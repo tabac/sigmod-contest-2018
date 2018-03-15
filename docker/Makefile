@@ -20,6 +20,8 @@ run:
 		--rm \
 		--tty \
 		--interactive \
+		--memory 2g \
+		--memory-swap 0 \
 		--mount type=bind,source="$(LOCALCODE)",target="/code" \
 		--name $(CONTAINERNAME) \
 		$(IMAGENAME)
