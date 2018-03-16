@@ -32,22 +32,42 @@ int main(void)
 	// val: 0 1 1 1 1 2 3 3 4 5  6  9
 	// idx: 0 1 2 3 4 5 6 7 8 9 10 11
 	uint64_t size = 12;
-	uint64_t data[size] = {1,5,6,9,2,1,4,20,1,3,1,3};
+	uint64_t data[size] = {1,5,6,9,2,1,4,0,1,3,1,3};
 
 	SortedIndex *index = new SortedIndex(data, size);
 
-	if(index->build()) {
-			cout << "Index was built successfully!" << endl;
-	} else {
-			cout << "Index built failed!" << endl;
-	}
-	cout << index->findElement(0) << endl; // must return 0
-	cout << index->findElement(1) << endl; // must return 1
-	cout << index->findElement(9) << endl; // must return 11
-	cout << index->findElement(8) << endl; // must return 10
-	cout << index->findElement(3) << endl; // must return 6
-	cout << index->findElement(100000) << endl; // must return 11
+//	cout << index->findElement(0) << endl; // must return 0
+//	cout << index->findElement(1) << endl; // must return 1
+//	cout << index->findElement(9) << endl; // must return 11
+//	cout << index->findElement(8) << endl; // must return 10
+//	cout << index->findElement(3) << endl; // must return 6
+//	cout << index->findElement(100000) << endl; // must return 11
 
+	SelectInfo sel = SelectInfo(0,1,2);
+	FilterInfo *filterInfo = new FilterInfo(sel, 0, FilterInfo::Comparison::Greater);
+	IteratorPair it = index->getValuesIterator(sel, filterInfo);
+	for(vector<uint64_t>::iterator i=it.first; i!=it.second;i++) {
+		cout<< (*i) << ", ";
+	}
+	cout<< endl;
+
+	delete filterInfo;
+
+	filterInfo = new FilterInfo(sel, 10, FilterInfo::Comparison::Less);
+	it = index->getValuesIterator(sel, filterInfo);
+	for(vector<uint64_t>::iterator i=it.first; i!=it.second;i++) {
+		cout<< (*i) << ", ";
+	}
+	cout<< endl;
+	delete filterInfo;
+
+	filterInfo = new FilterInfo(sel, 3, FilterInfo::Comparison::Equal);
+	it = index->getValuesIterator(sel, filterInfo);
+	for(vector<uint64_t>::iterator i=it.first; i!=it.second;i++) {
+		cout<< (*i) << ", ";
+	}
+	cout<< endl;
+	delete filterInfo;
 	delete index;
 	return 0;
 

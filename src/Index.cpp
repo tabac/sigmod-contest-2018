@@ -4,53 +4,90 @@
 
 // Class constructor
 SortedIndex::SortedIndex(uint64_t  *values, uint64_t size) 
-{		
-	this->values.reserve(size);
+{	
+	std::vector<IdValuePair> temp_values;	
+	temp_values.reserve(size);
 	for(uint64_t i=0;i<size; i++) {
-		this->values.push_back(new IdValuePair(i, values[i]));
+		temp_values.push_back(IdValuePair(i, values[i]));
 	}
+	std::sort(temp_values.begin(), temp_values.end());
+
+	this->ids = new uint64_t[temp_values.size()];
+	this->values = new uint64_t[temp_values.size()];
+
+	for(int i=0;i<temp_values.size();i++) {
+		this->ids[i] = temp_values[i].id;
+		this->values[i] = temp_values[i].value;
+	}
+	this->size = size;
 }
 
+// Destructor
 SortedIndex::~SortedIndex() {
-	for(uint64_t i=0;i<this->values.size();i++) {
-		delete this->values[i];
-	}
-}
-
-// Builds the index
-bool SortedIndex::build() 
-{
-	std::sort(this->values.begin(), this->values.end(), IdValuePair::compare);
-	return true;
+	delete[] this->ids;
+	delete[] this->values;
 }
 
 // Returns an iterator with the ids of the Tuples that satisfy FilterInfo
 IteratorPair SortedIndex::getIdsIterator(FilterInfo* filterInfo)
 {
-	IteratorPair a;
-	return a;
+	uint64_t idxFrom, idxTo;
+	this->estimateIndexes(&idxFrom, &idxTo, filterInfo);
+	std::vector<uint64_t>::iterator begin(&this->ids[idxFrom]);
+	std::vector<uint64_t>::iterator end(&this->ids[idxTo]);
+	return {begin, end};
 }
 
 // Returns an iterator with the values of the Tuples that satisfy the FilterInfo
 IteratorPair SortedIndex::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 {
-	IteratorPair a;
-	return a;
+	uint64_t idxFrom, idxTo;
+	this->estimateIndexes(&idxFrom, &idxTo, filterInfo);
+	std::vector<uint64_t>::iterator begin(&this->values[idxFrom]);
+	std::vector<uint64_t>::iterator end(&this->values[idxTo]);
+	return {begin, end};
 }
 
-uint64_t SortedIndex::findElement(uint64_t value) {
-	uint64_t start = 0, finish = this->values.size()-1;
+// returns the index of the specific element. If the element does not exist,
+// the index of the smaller closer element is returned.
+uint64_t SortedIndex::findElement(uint64_t value) 
+{
+	uint64_t start = 0, finish = this->size-1;
 	uint64_t median;
 	while(finish - start > 1) {
 		median = (finish + start)/2;
-		if (value > this->values[median]->value) {
+		if (value > this->values[median]) {
 			start = median;
-		} else {
+		} else { // equality
 			finish = median;
 		}
 	}
-	if(value < this->values[start]->value){
-		return -1;
+	return (value < this->values[finish]? start : finish);
+}
+
+void SortedIndex::estimateIndexes(uint64_t *idxFrom, uint64_t *idxTo, FilterInfo *filterInfo) {
+	if (filterInfo->comparison == FilterInfo::Comparison::Less){
+		*idxFrom = 0;
+		*idxTo = this->findElement(filterInfo->constant);
+		if(filterInfo->constant < this->values[*idxTo]){
+			*idxTo=0;
+		}
+		if(filterInfo->constant > this->values[*idxTo]){
+			*idxTo += 1;
+		}
+	} else if (filterInfo->comparison == FilterInfo::Comparison::Greater){
+		*idxFrom = this->findElement(filterInfo->constant+1);
+		if(filterInfo->constant >= this->values[*idxFrom]){
+			*idxFrom = this->size;
+		}
+		*idxTo = this->size;
+
+	} else if (filterInfo->comparison == FilterInfo::Comparison::Equal){
+		*idxFrom = this->findElement(filterInfo->constant);
+		*idxTo = this->findElement(filterInfo->constant+1);
+		if(this->values[*idxTo] == filterInfo->constant) {
+				*idxTo +=1;
+		}
 	}
-	return (value < this->values[finish]->value? start : finish);
+
 }

@@ -13,7 +13,6 @@ class IdValuePair{
 	{
 		return this->value < o.value;
 	}
-	static bool compare(IdValuePair *a, IdValuePair *b){return a->value<b->value;};
 };
 
 
@@ -26,11 +25,9 @@ class AbstractIndex: public DataReaderMixin {
 	// offline
 	//	bool online;
 
-	std::vector <IdValuePair *> values;
+//	std::vector <IdValuePair *> values;	
+	uint64_t *ids, *values, size;
 
-	// Method used to construct the index, returning the index builiding 
-	// status. If used when onlineConstruction == true returns false.
-	virtual bool build() = 0;
 };
 // ---------------------------------------------------------------------------
 // SortedIndex represents a simple index that sorts a column of a Relation
@@ -42,16 +39,15 @@ class SortedIndex : public AbstractIndex {
 	SortedIndex(uint64_t *values, uint64_t size);
 	~SortedIndex();
 
-	// Builds the index
-	bool build();
 	// Returns the ids that match the filterInfo
 	IteratorPair getIdsIterator(FilterInfo* filterInfo);
 	//Returns the values that match filterInfo
 	IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
 
-//	private:
+	private:
 	// findElement traverses the index and returns the position of the 
 	// specified value. If the specified value does not exist, it returns the
 	// index of the directly smallest value.
 	uint64_t findElement(uint64_t value);
+	void estimateIndexes(uint64_t *, uint64_t *, FilterInfo *);
 };
