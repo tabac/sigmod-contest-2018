@@ -24,7 +24,7 @@ class AbstractIndex: public DataReaderMixin {
 	public:
 	// Defines whether the index is built online (i.e., for each query) or
 	// offline
-	bool online;
+	//	bool online;
 
 	std::vector <IdValuePair *> values;
 
@@ -39,7 +39,7 @@ class SortedIndex : public AbstractIndex {
 //class SortedIndex : class AbstractIndex {
 	public:
 	// Constructor
-	SortedIndex(bool online, uint64_t *values, uint64_t size);
+	SortedIndex(uint64_t *values, uint64_t size);
 	~SortedIndex();
 
 	// Builds the index
@@ -49,6 +49,9 @@ class SortedIndex : public AbstractIndex {
 	//Returns the values that match filterInfo
 	IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
 
-	private:
-	bool buildIncrementally();
+//	private:
+	// findElement traverses the index and returns the position of the 
+	// specified value. If the specified value does not exist, it returns the
+	// index of the directly smallest value.
+	uint64_t findElement(uint64_t value);
 };
