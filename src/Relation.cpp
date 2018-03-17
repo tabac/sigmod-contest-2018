@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <cassert>
+#include <optional>
 #include "Mixins.hpp"
 #include "Relation.hpp"
 #include "Parser.hpp"
@@ -19,7 +20,7 @@ void Relation::execute()
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
         // Sould have one or zero outgoing edges.
-        assert(this->outAdjList.size() < 2);
+        // assert(this->outAdjList.size() < 2);
 
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
@@ -34,7 +35,7 @@ void Relation::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
-    cout << "Love that jocker: " << this->relId << endl;
+    DEBUGLN("Love that jocker." + this->label);
 
     // If so set status to `processed`.
     if (allInProcessed) {
@@ -42,26 +43,32 @@ void Relation::execute()
     }
 }
 //---------------------------------------------------------------------------
-IteratorPair Relation::getIdsIterator(FilterInfo* filterInfo)
+IteratorPair Relation::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
     assert(filterInfo == NULL);
+    assert(selectInfo.relId == this->relId);
 
     return {this->ids.begin(), this->ids.end()};
 }
 //---------------------------------------------------------------------------
-IteratorPair Relation::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+optional<IteratorPair> Relation::getValuesIterator(SelectInfo& selectInfo,
+                                                   FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s values
 // of the column specified by `selectInfo`.
 {
     assert(filterInfo == NULL);
 
-    assert(selectInfo.relId == this->relId);
+    // Returns an empty optional if `selectInfo` does not
+    // refair to this relation.
+    if (selectInfo.relId != this->relId) {
+        return nullopt;
+    } else {
+        vector<uint64_t>::iterator begin (this->columns[selectInfo.colId]);
+        vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
 
-    vector<uint64_t>::iterator begin (this->columns[selectInfo.colId]);
-    vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
-
-    return {begin, end};
+        return optional<IteratorPair>{{begin, end}};
+    }
 }
 //---------------------------------------------------------------------------
 void Relation::storeRelation(const string& fileName)
@@ -152,6 +159,13 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
     // Create relations column `SelectInfo` objects.
     for (unsigned c = 0; c < this->columns.size(); ++c) {
         this->columnsInfo.emplace_back(relId, 0, c);
+    }
+
+    // Reserve memory for column names.
+    this->selections.reserve(this->columns.size());
+    // Create relations column `SelectInfo` objects.
+    for (unsigned c = 0; c < this->columns.size(); ++c) {
+        this->selections.emplace_back(relId, 0, c);
     }
 
     // Reserve memory for ids.

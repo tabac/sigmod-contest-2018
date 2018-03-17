@@ -7,8 +7,6 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void doAssertions(DataEngine &engine);
-//---------------------------------------------------------------------------
 int main(void)
 {
     DataEngine engine;
@@ -21,8 +19,6 @@ int main(void)
 
         ++relId;
     }
-
-    doAssertions(engine);
 
     // Preparation phase (not timed)
     // Build histograms, indices,...
@@ -41,10 +37,8 @@ int main(void)
 
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
-
         // Generate an execution plan for all `queries`.
         Plan *plan = Planner::generatePlan(engine, queries);
-
         // Execute the generated plan.
         Executor::executePlan(*plan, resultsInfo);
 
@@ -54,42 +48,10 @@ int main(void)
         // Clear info before loading next query batch.
         resultsInfo.clear();
         queries.clear();
-        // Delete created plan.
+
         delete plan;
     }
 
     return 0;
 }
-
-void doAssertions(DataEngine &engine)
-// TODO: This is only for debug, should be deleted.
-{
-    assert(engine.relations.size() == 14);
-
-    assert(engine.relations[0].size == 1561);
-
-    assert(engine.relations[0].columns.size() == 3);
-
-    assert(engine.relations[0].ids.size() == 1561);
-
-    assert(engine.relations[0].ids[1560] == 1560);
-
-    IteratorPair idsIter = engine.relations[0].getIdsIterator(NULL);
-    uint64_t i = 0;
-    vector<uint64_t>::iterator it = idsIter.first;
-    for ( ; it != idsIter.second; ++i, ++it) {
-        assert(i == (*it));
-    }
-    assert(i == 1561);
-
-    SelectInfo selectInfo (0, 0, 2);
-    IteratorPair firstCol = engine.relations[0].getValuesIterator(selectInfo, NULL);
-
-    for (i = 0, it = firstCol.first; it != firstCol.second; ++it, ++i) {
-        assert((*it) == engine.relations[0].columns[2][i]);
-    }
-
-    assert(i == 1561);
-
-    cout << "OK!" << endl;
-}
+//---------------------------------------------------------------------------

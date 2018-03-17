@@ -1,3 +1,5 @@
 build/*
 *.swp
 Session.vim
+data/*
+*/build/*

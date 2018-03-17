@@ -1,5 +1,7 @@
 #include <iostream>
+#include <vector>
 #include "Utils.hpp"
+#include "Parser.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -30,7 +32,8 @@ void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)
   r.storeRelation(baseName);
   r.storeRelationCSV(baseName);
   r.dumpSQL(baseName, i);
-  cout << baseName << "\n";
   out << baseName << "\n";
+
+  DEBUGLN(baseName);
 }
 //---------------------------------------------------------------------------

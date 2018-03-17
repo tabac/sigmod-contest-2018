@@ -2,6 +2,7 @@
 #include <iostream>
 #include <utility>
 #include <sstream>
+#include <unordered_set>
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -185,11 +186,23 @@ string SelectInfo::dumpText()
 {
     return to_string(binding)+"."+to_string(colId);
 }
+//--------------------------------------------------------------------------
+string SelectInfo::dumpLabel() const
+// Dump the graph label in text format
+{
+    return to_string(relId)+"."+to_string(binding)+"."+to_string(colId);
+}
 //---------------------------------------------------------------------------
 string FilterInfo::dumpText()
 // Dump text format
 {
     return filterColumn.dumpText()+static_cast<char>(comparison)+to_string(constant);
+}
+//---------------------------------------------------------------------------
+string FilterInfo::dumpLabel() const
+// Dump the graph label in text format
+{
+    return filterColumn.dumpLabel()+static_cast<char>(comparison)+to_string(constant);
 }
 //---------------------------------------------------------------------------
 string FilterInfo::dumpSQL()
@@ -202,6 +215,12 @@ string PredicateInfo::dumpText()
 // Dump text format
 {
     return left.dumpText()+'='+right.dumpText();
+}
+//---------------------------------------------------------------------------
+string PredicateInfo::dumpLabel() const
+// Dump the graph label in text format
+{
+    return left.dumpLabel()+'='+right.dumpLabel();
 }
 //---------------------------------------------------------------------------
 string PredicateInfo::dumpSQL()
@@ -279,6 +298,25 @@ string QueryInfo::dumpSQL()
     sql << ";";
 
     return sql.str();
+}
+//---------------------------------------------------------------------------
+void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections)
+{
+    vector<PredicateInfo>::iterator pt;
+    for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
+        selections.emplace(pt->left);
+        selections.emplace(pt->right);
+    }
+
+    vector<FilterInfo>::iterator ft;
+    for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
+        selections.emplace(ft->filterColumn);
+    }
+
+    vector<SelectInfo>::iterator st;
+    for (st = this->selections.begin(); st != this->selections.end(); ++st) {
+        selections.emplace((*st));
+    }
 }
 //---------------------------------------------------------------------------
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }

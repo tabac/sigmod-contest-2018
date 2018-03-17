@@ -3,6 +3,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
 struct SelectInfo {
@@ -18,6 +19,8 @@ struct SelectInfo {
     bool operator==(const SelectInfo& o) const;
     /// Dump text format
     std::string dumpText();
+    /// Dump graph label in text format
+    std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
 
@@ -42,6 +45,8 @@ struct FilterInfo {
     FilterInfo(SelectInfo filterColumn,uint64_t constant,Comparison comparison) : filterColumn(filterColumn), constant(constant), comparison(comparison) {};
     /// Dump text format
     std::string dumpText();
+    /// Dump label graph in text format
+    std::string dumpLabel() const;
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter, std::vector<uint64_t> &indices);
@@ -62,6 +67,8 @@ struct PredicateInfo {
     PredicateInfo(SelectInfo left, SelectInfo right) : left(left), right(right){};
     /// Dump text format
     std::string dumpText();
+    /// Dump label graph in text format
+    std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL();
 
@@ -103,9 +110,29 @@ class QueryInfo {
     std::string dumpText();
     /// Dump SQL
     std::string dumpSQL();
+
+
+    void getAllSelections(std::unordered_set<SelectInfo> &selections);
+
+
     /// The empty constructor
     QueryInfo() {}
     /// The constructor that parses a query
     QueryInfo(std::string rawQuery);
 };
 //---------------------------------------------------------------------------
+namespace std {
+    template<>
+    struct hash<SelectInfo>
+    {
+        inline size_t operator()(const SelectInfo & s) const
+        {
+            size_t seed = 0;
+            ::hash_combine(seed, s.relId);
+            ::hash_combine(seed, s.binding);
+            ::hash_combine(seed, s.colId);
+
+            return seed;
+        }
+    };
+}

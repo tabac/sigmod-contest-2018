@@ -1,157 +1,335 @@
 #include <iostream>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+#include "Plan.hpp"
 #include "Parser.hpp"
 #include "Planner.hpp"
 #include "Relation.hpp"
+#include "Utils.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
-// Generates a plan for the `queries`.
+int intermDataCounter = 0;
+int targetCounter = 0;
+//---------------------------------------------------------------------------
+void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
-    Plan *p = new Plan();
+    unordered_map<unsignedPair, AbstractNode *>::iterator it;
+    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+        cout << it->first.first << "." << it->first.second << " : " << it->second << " ";
+    }
+    cout << endl;
+}
+//---------------------------------------------------------------------------
+void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
+                             unsignedPair relationPair, AbstractNode *newNode)
+{
+    // Fail, total fail.
+    AbstractNode *oldNode = lastAttached[relationPair];
 
-    p->nodes.push_back((AbstractNode *) new DataNode());
-    p->nodes.push_back((AbstractNode *) &engine.relations[0]);
-    p->nodes.push_back((AbstractNode *) &engine.relations[5]);
+    if (!oldNode->isBaseRelation()) {
+        unordered_map<unsignedPair, AbstractNode *>::iterator jt;
+        for (jt = lastAttached.begin(); jt != lastAttached.end(); ++jt) {
+            if (jt->second == oldNode) {
+                jt->second = newNode;
+            }
+        }
+    } else {
+        lastAttached[relationPair] = newNode;
+    }
+}
+//---------------------------------------------------------------------------
+void Planner::setSelections(SelectInfo &selection,
+                            unordered_set<SelectInfo> &selections,
+                            AbstractNode *node)
+{
+    assert(!node->inAdjList.empty());
 
-    FilterOperatorNode *filterOne = new FilterOperatorNode(queries[0].filters[0]);
-    FilterOperatorNode *filterTwo = new FilterOperatorNode(queries[0].filters[1]);
+    vector<AbstractNode *>::iterator it;
+    for (it = node->inAdjList.begin(); it != node->inAdjList.end(); ++it) {
+        assert(!(*it)->selections.empty());
 
-    filterOne->selectionsInfo.push_back(queries[0].selections[3]);
-    filterOne->selectionsInfo.push_back(queries[0].selections[4]);
+        if ((*it)->isBaseRelation()) {
+            // The parent node is a base relation.
+            unsigned relId = (*it)->selections[0].relId;
 
-    filterTwo->selectionsInfo.push_back(queries[0].selections[0]);
-    filterTwo->selectionsInfo.push_back(queries[0].selections[1]);
-    filterTwo->selectionsInfo.push_back(queries[0].selections[2]);
+            unordered_set<SelectInfo>::iterator st;
+            for (st = selections.begin(); st != selections.end(); ++st) {
+                if (((*st).relId == relId) &&
+                    ((*st).relId == selection.relId) &&
+                    ((*st).binding == selection.binding)) {
 
-    p->nodes.push_back((AbstractNode *) filterOne);
-    p->nodes.push_back((AbstractNode *) filterTwo);
+                    if (!Utils::contains(node->selections, (*st))) {
+                        node->selections.emplace_back((*st));
+                    }
+                }
+            }
+        } else {
+            // The parent node is not a base relation.
+            vector<SelectInfo>::iterator jt;
+            for (jt = (*it)->selections.begin(); jt != (*it)->selections.end(); ++jt) {
+                if (!Utils::contains(node->selections, (*jt))) {
+                    node->selections.emplace_back((*jt));
+                }
+            }
+        }
+    }
 
-    p->nodes.push_back((AbstractNode *) new DataNode());
-    p->nodes.push_back((AbstractNode *) new DataNode());
+}
+//---------------------------------------------------------------------------
+void Planner::addFilter(Plan &plan, FilterInfo& filter,
+                        unordered_set<SelectInfo> &selections,
+                        unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    FilterOperatorNode *filterNode = new FilterOperatorNode(filter);
 
-    FilterOperatorNode *filterThree = new FilterOperatorNode(queries[0].filters[2]);
+    unsignedPair filterPair = {filter.filterColumn.relId,
+                               filter.filterColumn.binding};
 
-    filterThree->selectionsInfo.push_back(queries[0].selections[0]);
-    filterThree->selectionsInfo.push_back(queries[0].selections[1]);
+    AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+    AbstractNode::connectNodes(filterNode, dataNode);
 
-    p->nodes.push_back((AbstractNode *) filterThree);
+    Planner::setSelections(filter.filterColumn, selections, filterNode);
+    Planner::setSelections(filter.filterColumn, selections, dataNode);
 
-    p->nodes.push_back((AbstractNode *) new DataNode());
+    Planner::updateAttached(lastAttached, filterPair, dataNode);
 
-    AggregateOperatorNode *aggregateOne = new AggregateOperatorNode();
+    plan.nodes.push_back((AbstractNode *) filterNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
 
-    aggregateOne->selectionsInfo.push_back(queries[0].selections[3]);
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    filterNode->label = filterNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
+                      unordered_set<SelectInfo> &selections,
+                      unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
 
-    p->nodes.push_back((AbstractNode *) aggregateOne);
+    unsignedPair leftPair = {predicate.left.relId,
+                             predicate.left.binding};
+    unsignedPair rightPair = {predicate.right.relId,
+                              predicate.right.binding};
 
-    p->nodes.push_back((AbstractNode *) new DataNode());
+    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+    AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+    AbstractNode::connectNodes(joinNode, dataNode);
 
-    AggregateOperatorNode *aggregateTwo = new AggregateOperatorNode();
+    Planner::setSelections(predicate.left, selections, joinNode);
+    Planner::setSelections(predicate.right, selections, joinNode);
+    // Here `predicate.left` is ignored for sure...
+    Planner::setSelections(predicate.left, selections, dataNode);
 
-    aggregateTwo->selectionsInfo.push_back(queries[0].selections[0]);
-    aggregateTwo->selectionsInfo.push_back(queries[0].selections[1]);
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
-    p->nodes.push_back((AbstractNode *) aggregateTwo);
+    plan.nodes.push_back((AbstractNode *) joinNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
 
-    p->nodes.push_back((AbstractNode *) new DataNode());
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    joinNode->label = joinNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
+                            unordered_set<SelectInfo> &selections,
+                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    DataNode *dataNode = new DataNode();
+    FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
 
+    unsignedPair leftPair = {predicate.left.relId,
+                             predicate.left.binding};
+    unsignedPair rightPair = {predicate.right.relId,
+                              predicate.right.binding};
 
-    p->nodes[0]->setNodeId(0);
-    p->nodes[1]->setNodeId(1);
-    p->nodes[2]->setNodeId(2);
-    p->nodes[3]->setNodeId(3);
-    p->nodes[4]->setNodeId(4);
-    p->nodes[5]->setNodeId(5);
-    p->nodes[6]->setNodeId(6);
-    p->nodes[7]->setNodeId(7);
-    p->nodes[8]->setNodeId(8);
-    p->nodes[9]->setNodeId(9);
-    p->nodes[10]->setNodeId(10);
-    p->nodes[11]->setNodeId(11);
-    p->nodes[12]->setNodeId(12);
+    assert(leftPair == rightPair ||
+           lastAttached[leftPair] == lastAttached[rightPair]);
 
-    p->root = p->nodes[0];
+    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+    AbstractNode::connectNodes(joinNode, dataNode);
 
-    p->exitNodes.push_back((DataNode *) p->nodes[10]);
-    p->exitNodes.push_back((DataNode *) p->nodes[12]);
+    Planner::setSelections(predicate.left, selections, joinNode);
+    Planner::setSelections(predicate.left, selections, dataNode);
 
-    p->nodes[0]->outAdjList.push_back(p->nodes[1]);
-    p->nodes[0]->outAdjList.push_back(p->nodes[2]);
-    p->nodes[1]->inAdjList.push_back(p->nodes[0]);
-    p->nodes[1]->outAdjList.push_back(p->nodes[3]);
-    p->nodes[2]->inAdjList.push_back(p->nodes[0]);
-    p->nodes[2]->outAdjList.push_back(p->nodes[4]);
-    p->nodes[3]->inAdjList.push_back(p->nodes[1]);
-    p->nodes[3]->outAdjList.push_back(p->nodes[5]);
-    p->nodes[4]->inAdjList.push_back(p->nodes[2]);
-    p->nodes[4]->outAdjList.push_back(p->nodes[6]);
-    p->nodes[5]->inAdjList.push_back(p->nodes[3]);
-    p->nodes[5]->outAdjList.push_back(p->nodes[9]);
-    p->nodes[6]->inAdjList.push_back(p->nodes[4]);
-    p->nodes[6]->outAdjList.push_back(p->nodes[7]);
-    p->nodes[7]->inAdjList.push_back(p->nodes[6]);
-    p->nodes[7]->outAdjList.push_back(p->nodes[8]);
-    p->nodes[8]->inAdjList.push_back(p->nodes[7]);
-    p->nodes[8]->outAdjList.push_back(p->nodes[11]);
-    p->nodes[9]->inAdjList.push_back(p->nodes[5]);
-    p->nodes[9]->outAdjList.push_back(p->nodes[10]);
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
 
-    p->nodes[10]->inAdjList.push_back(p->nodes[9]);
+    plan.nodes.push_back((AbstractNode *) joinNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
 
-    p->nodes[11]->inAdjList.push_back(p->nodes[8]);
-    p->nodes[11]->outAdjList.push_back(p->nodes[12]);
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    joinNode->label = joinNode->info.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::addAggregate(Plan &plan, QueryInfo& query,
+                           unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    DataNode *dataNode =  new DataNode();
+    AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
 
-    p->nodes[12]->inAdjList.push_back(p->nodes[11]);
+    aggregateNode->selections = query.selections;
+    dataNode->selections = query.selections;
 
-    /*
-    p->nodes.push_back((AbstractNode *) new DataNode());
-    p->nodes.push_back((AbstractNode *) &engine.relations[0]);
-    p->nodes.push_back((AbstractNode *) &engine.relations[5]);
-    p->nodes.push_back((AbstractNode *) new DataNode());
-    p->nodes.push_back((AbstractNode *) new DataNode());
+    AbstractNode::connectNodes((AbstractNode *) aggregateNode,
+                               (AbstractNode *) dataNode);
 
-    JoinOperatorNode *joinOperator = new JoinOperatorNode(queries[0].predicates[0]);
-    FilterOperatorNode *filterOperator = new FilterOperatorNode(queries[0].filters[0]);
+    unordered_map<unsignedPair, AbstractNode *>::iterator it;
+    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+        if ((*it).second->outAdjList.empty()) {
+            AbstractNode::connectNodes((AbstractNode *) (*it).second,
+                                       (AbstractNode *) aggregateNode);
+        }
+    }
 
-    p->nodes.push_back((AbstractNode *) joinOperator);
-    p->nodes.push_back((AbstractNode *) filterOperator);
+    plan.nodes.push_back((AbstractNode *) aggregateNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
 
-    p->nodes[0]->setNodeId(0);
-    p->nodes[1]->setNodeId(1);
-    p->nodes[2]->setNodeId(2);
-    p->nodes[3]->setNodeId(3);
-    p->nodes[4]->setNodeId(4);
-    p->nodes[5]->setNodeId(5);
-    p->nodes[6]->setNodeId(6);
+    plan.exitNodes.push_back(dataNode);
 
-    p->root = p->nodes[0];
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    AbstractNode *anode = (*lastAttached.begin()).second;
+    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+        assert(anode == (*it).second);
+    }
+    aggregateNode->label = "aggr";
+    dataNode->label = "t" + to_string(targetCounter++);
+    /////////////////////////////////////////////////////////////////////////
+}
+//---------------------------------------------------------------------------
+void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
+{
+    unordered_map<unsignedPair, AbstractNode *> lastAttached;
 
-    p->nodes[0]->outAdjList.push_back(p->nodes[1]);
-    p->nodes[0]->outAdjList.push_back(p->nodes[2]);
+    // Push original relations.
+    unsigned bd;
+    vector<RelationId>::iterator rt;
+    for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
+        vector<AbstractNode *>::iterator lt;
+        lt = find(plan.nodes.begin(), plan.nodes.end(), &engine.relations[(*rt)]);
 
-    p->nodes[1]->inAdjList.push_back(p->nodes[0]);
-    p->nodes[1]->outAdjList.push_back(p->nodes[5]);
+        if (lt == plan.nodes.end()) {
+            plan.nodes.push_back((AbstractNode *) &engine.relations[(*rt)]);
 
-    p->nodes[2]->inAdjList.clear();
-    p->nodes[2]->outAdjList.clear();
-    p->nodes[2]->inAdjList.push_back(p->nodes[0]);
-    p->nodes[2]->outAdjList.push_back(p->nodes[6]);
+            AbstractNode::connectNodes(plan.root, plan.nodes.back());
+            lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
+        } else {
+            lastAttached[make_pair((*rt), bd)] = (*lt);
+        }
+    }
 
-    p->nodes[3]->inAdjList.push_back(p->nodes[5]);
+    // Get all selections used in the query.
+    unordered_set<SelectInfo> selections;
+    query.getAllSelections(selections);
 
-    p->nodes[4]->inAdjList.push_back(p->nodes[6]);
-    p->nodes[4]->outAdjList.push_back(p->nodes[5]);
+    // Push filters.
+    vector<FilterInfo>::iterator ft;
+    for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+        Planner::addFilter(plan, (*ft), selections, lastAttached);
+    }
 
-    p->nodes[5]->inAdjList.push_back(p->nodes[1]);
-    p->nodes[5]->inAdjList.push_back(p->nodes[4]);
-    p->nodes[5]->outAdjList.push_back(p->nodes[3]);
+    // Push join predicates.
+    vector<PredicateInfo>::iterator pt, qt;
+    for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
+        // Check if the symmetric predicate is already added.
+        // If so skip current predicate
+        bool skip_predicate = false;
+        for (qt = query.predicates.begin(); qt != pt; ++qt) {
+            if ((*qt).left == (*pt).right && (*qt).right == (*pt).left) {
+                skip_predicate = true;
+            }
+        }
 
-    p->nodes[6]->inAdjList.push_back(p->nodes[2]);
-    p->nodes[6]->outAdjList.push_back(p->nodes[4]);
-    */
+        if (!skip_predicate) {
+            if ((*pt).left.relId == (*pt).right.relId &&
+                (*pt).left.binding == (*pt).right.binding) {
+                // If predicate refers to the same table
+                // add `FilterJoinOperatorNode`.
+                Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+            } else {
+                unsignedPair leftPair = {(*pt).left.relId,
+                                         (*pt).left.binding};
+                unsignedPair rightPair = {(*pt).right.relId,
+                                          (*pt).right.binding};
 
-    return p;
+                if (lastAttached[leftPair] == lastAttached[rightPair]) {
+                    Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+                } else {
+                    // If predicate refers to different tables
+                    // add `JoinOperatorNode`.
+                    Planner::addJoin(plan, (*pt), selections, lastAttached);
+                }
+            }
+        }
+    }
+
+    Planner::addAggregate(plan, query, lastAttached);
+}
+//---------------------------------------------------------------------------
+Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
+{
+    Plan *plan = new Plan();
+    AbstractNode* root = new DataNode();
+
+    plan->nodes.push_back(root);
+    plan->root = root;
+
+    vector<QueryInfo>::iterator it;
+    for(it = queries.begin(); it != queries.end(); ++it) {
+        Planner::attachQueryPlan(*plan, engine, (*it));
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// FOR DEBUG PURPOSES
+    root->label = "global_root";
+    vector<AbstractNode *>::iterator jt;
+    for (jt = plan->nodes.begin(); jt != plan->nodes.end(); ++jt) {
+        assert((*jt)->status ==  NodeStatus::fresh);
+        assert((*jt)->visited == 0);
+    }
+    /////////////////////////////////////////////////////////////////////////
+
+    return plan;
+}
+//---------------------------------------------------------------------------
+void Planner::printPlan(Plan* plan)
+{
+    vector<AbstractNode*>::iterator node;
+    for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
+        cout << (*node)->label << ": ";
+
+        vector<SelectInfo>::iterator jt;
+        for (jt = (*node)->selections.begin(); jt != (*node)->selections.end(); ++jt) {
+            cout << (*jt).dumpLabel() << " ";
+        }
+        cout << endl;
+    }
+
+    for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
+        string children = "";
+        vector<AbstractNode*>::iterator ch;
+        for(ch = (*node)->outAdjList.begin(); ch != (*node)->outAdjList.end(); ch++){
+           children += (*ch)->label+" ";
+        }
+        string parents = "";
+        for(ch = (*node)->inAdjList.begin(); ch != (*node)->inAdjList.end(); ch++){
+           parents += (*ch)->label+" ";
+        }
+        cout << "Node: " << (*node)->label << ", children: " << children;
+        cout << ", parents: " << parents << endl;
+    }
 }
 //---------------------------------------------------------------------------

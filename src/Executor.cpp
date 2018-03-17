@@ -65,7 +65,7 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {
-        resultsInfo.emplace_back((*it)->dataValues, (*it)->columnsInfo.size());
+        resultsInfo.emplace_back((*it)->dataValues, (*it)->selections.size());
     }
 }
 //---------------------------------------------------------------------------

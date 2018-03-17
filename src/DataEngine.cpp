@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include "DataEngine.hpp"
+#include "Plan.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -20,3 +21,30 @@ Relation& DataEngine::getRelation(unsigned relationId)
    return this->relations[relationId];
 }
 //---------------------------------------------------------------------------
+float DataEngine::getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d){
+    FilterOperatorNode* filterOp;
+    JoinOperatorNode* joinOp;
+    if ((filterOp = dynamic_cast<FilterOperatorNode*>(&op)) != NULL){
+        cout << "Estimate for Filter operator" << endl;
+        return getFilterSelectivity(filterOp, d);
+    }else if ((joinOp = dynamic_cast<JoinOperatorNode*>(&op)) != NULL){
+        cout << "Estimate for Join operator" << endl;
+        return getJoinSelectivity(joinOp, d);
+    }else{
+       cout << "Uknown operator";
+       return 0;
+    }
+}
+//---------------------------------------------------------------------------
+float DataEngine::getFilterSelectivity(FilterOperatorNode* filterOp, DataNode &d){
+    SelectInfo &si = (filterOp -> info).filterColumn;
+    RelationId r = si.relId;
+    //TODO:check statistics for this select and filter Info
+    //for now I just return a zero-selectivity.
+    return 0.5;
+}
+//--------------------------------------------------------------------------
+float DataEngine::getJoinSelectivity(JoinOperatorNode* joinOp, DataNode &d){
+   return 0; 
+}
+
