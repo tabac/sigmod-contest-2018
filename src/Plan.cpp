@@ -257,7 +257,7 @@ void JoinOperatorNode::mergeJoin(vector<uint64Pair> &leftPairs,
     }
 }
 //---------------------------------------------------------------------------
-inline void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
+void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
                                                  vector<uint64_t> &indices,
                                                  AbstractDataNode *inNode,
                                                  DataNode *outNode)
@@ -273,6 +273,7 @@ inline void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
     // TODO: We do not reserve memory here. We should find a way
     //       to reserve memory based on `selections`.
 
+    outNode->dataValues.reserve(selections.size() * indices.size());
     vector<SelectInfo>::iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
         // Skip columns already inserted.
@@ -297,7 +298,7 @@ inline void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
     }
 }
 //---------------------------------------------------------------------------
-inline void AbstractOperatorNode::pushValuesByIndex(IteratorPair &valIter,
+void AbstractOperatorNode::pushValuesByIndex(IteratorPair &valIter,
                                                     vector<uint64_t> &indices,
                                                     vector<uint64_t> &outValues)
 {
@@ -309,7 +310,7 @@ inline void AbstractOperatorNode::pushValuesByIndex(IteratorPair &valIter,
     }
 }
 //---------------------------------------------------------------------------
-inline void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
+void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
                                                      SelectInfo &selection,
                                                      AbstractDataNode* inNode)
 {
@@ -328,7 +329,7 @@ inline void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
     sort(pairs.begin(), pairs.end(), compare);
 }
 //---------------------------------------------------------------------------
-inline void AbstractOperatorNode::getValuesIndexed(IteratorPair &values,
+void AbstractOperatorNode::getValuesIndexed(IteratorPair &values,
                                                    vector<uint64Pair> &pairs)
 {
     uint64_t i;
