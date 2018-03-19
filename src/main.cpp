@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cassert>
-#include "Mixins.hpp"
 #include "Planner.hpp"
 #include "Executor.hpp"
 #include "DataEngine.hpp"
