@@ -13,15 +13,7 @@ using namespace std;
 //---------------------------------------------------------------------------
 int intermDataCounter = 0;
 int targetCounter = 0;
-//---------------------------------------------------------------------------
-void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached)
-{
-    unordered_map<unsignedPair, AbstractNode *>::iterator it;
-    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
-        cout << it->first.first << "." << it->first.second << " : " << it->second << " ";
-    }
-    cout << endl;
-}
+
 //---------------------------------------------------------------------------
 void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
                              unsignedPair relationPair, AbstractNode *newNode)
@@ -100,11 +92,11 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
     plan.nodes.push_back((AbstractNode *) filterNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     filterNode->label = filterNode->info.dumpLabel();
     dataNode->label = "d" + to_string(intermDataCounter++);
-    /////////////////////////////////////////////////////////////////////////
+#endif
+
 }
 //---------------------------------------------------------------------------
 void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
@@ -134,11 +126,11 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     joinNode->label = joinNode->info.dumpLabel();
     dataNode->label = "d" + to_string(intermDataCounter++);
-    /////////////////////////////////////////////////////////////////////////
+#endif
+
 }
 //---------------------------------------------------------------------------
 void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
@@ -167,11 +159,11 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     joinNode->label = joinNode->info.dumpLabel();
     dataNode->label = "d" + to_string(intermDataCounter++);
-    /////////////////////////////////////////////////////////////////////////
+#endif
+
 }
 //---------------------------------------------------------------------------
 void Planner::addAggregate(Plan &plan, QueryInfo& query,
@@ -199,15 +191,15 @@ void Planner::addAggregate(Plan &plan, QueryInfo& query,
 
     plan.exitNodes.push_back(dataNode);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     AbstractNode *anode = (*lastAttached.begin()).second;
     for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
         assert(anode == (*it).second);
     }
     aggregateNode->label = "aggr";
     dataNode->label = "t" + to_string(targetCounter++);
-    /////////////////////////////////////////////////////////////////////////
+#endif
+
 }
 //---------------------------------------------------------------------------
 void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
@@ -292,19 +284,19 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
         Planner::attachQueryPlan(*plan, engine, (*it));
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     root->label = "global_root";
     vector<AbstractNode *>::iterator jt;
     for (jt = plan->nodes.begin(); jt != plan->nodes.end(); ++jt) {
         assert((*jt)->status ==  NodeStatus::fresh);
         assert((*jt)->visited == 0);
     }
-    /////////////////////////////////////////////////////////////////////////
+#endif
 
     return plan;
 }
 //---------------------------------------------------------------------------
+#ifndef NDEBUG
 void Planner::printPlan(Plan* plan)
 {
     vector<AbstractNode*>::iterator node;
@@ -332,4 +324,14 @@ void Planner::printPlan(Plan* plan)
         cout << ", parents: " << parents << endl;
     }
 }
+//---------------------------------------------------------------------------
+void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+    unordered_map<unsignedPair, AbstractNode *>::iterator it;
+    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+        cout << it->first.first << "." << it->first.second << " : " << it->second << " ";
+    }
+    cout << endl;
+}
+#endif
 //---------------------------------------------------------------------------

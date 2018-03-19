@@ -6,13 +6,8 @@
 struct FilterInfo;
 struct SelectInfo;
 //---------------------------------------------------------------------------
-#ifdef NDEBUG
-    #define DEBUG(x)
-    #define DEBUGLN(x)
-#else
-    #define DEBUG(x) do { std::cerr << x ; } while (0)
-    #define DEBUGLN(x) do { std::cerr << x << std::endl; } while (0)
-#endif
+#define DEBUG(x) do { std::cerr << x ; } while (0)
+#define DEBUGLN(x) do { std::cerr << x << std::endl; } while (0)
 //---------------------------------------------------------------------------
 using RelationId = unsigned;
 //---------------------------------------------------------------------------

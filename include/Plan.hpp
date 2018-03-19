@@ -64,12 +64,10 @@ class AbstractNode {
     /// Virtual destructor.
     virtual ~AbstractNode() { }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// FOR DEBUG PURPOSES
+#ifndef NDEBUG
     std::string label;
-    unsigned nodeId;
-    void setNodeId(unsigned nodeId) { this->nodeId = nodeId; };
-    /////////////////////////////////////////////////////////////////////////
+#endif
+
 };
 //---------------------------------------------------------------------------
 class AbstractDataNode : public AbstractNode, public DataReaderMixin {

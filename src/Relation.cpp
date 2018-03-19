@@ -35,7 +35,9 @@ void Relation::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
+#ifndef NDEBUG
     DEBUGLN("Love that jocker." + this->label);
+#endif
 
     // If so set status to `processed`.
     if (allInProcessed) {
@@ -166,14 +168,6 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
     // Create relations column `SelectInfo` objects.
     for (unsigned c = 0; c < this->columns.size(); ++c) {
         this->selections.emplace_back(relId, 0, c);
-    }
-
-    // Reserve memory for ids.
-    this->ids.reserve(this->size);
-
-    // Store ids to `ids` vector.
-    for (uint64_t i = 0; i < this->size; ++i) {
-        this->ids.push_back(i);
     }
 }
 //---------------------------------------------------------------------------

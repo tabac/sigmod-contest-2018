@@ -95,7 +95,10 @@ void DataNode::execute()
         allInProcessed &= (*it)->isStatusProcessed();
     }
 
+#ifndef NDEBUG
     DEBUGLN("Executing Data" + this->label);
+#endif
+
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
@@ -200,7 +203,9 @@ void JoinOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
+#ifndef NDEBUG
     DEBUGLN("Executing Join." + this->label);
+#endif
 
     // Ugly castings...
     AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
@@ -384,7 +389,9 @@ void FilterOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
+#ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
+#endif
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -435,7 +442,9 @@ void FilterJoinOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
+#ifndef NDEBUG
     DEBUGLN("Executing Join Filter." + this->label);
+#endif
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
@@ -496,7 +505,9 @@ void AggregateOperatorNode::execute()
     // Set status to processing.
     this->setStatus(processing);
 
+#ifndef NDEBUG
     DEBUGLN("Executing Aggregate." + this->label);
+#endif
 
     // Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];

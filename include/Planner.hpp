@@ -8,8 +8,6 @@
 //---------------------------------------------------------------------------
 class Planner {
     public:
-    static void printPlan(Plan* plan);
-
     static void attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query);
 
     static void addFilter(Plan &plan, FilterInfo& filter,
@@ -35,5 +33,12 @@ class Planner {
     static void setSelections(SelectInfo &selection,
                               std::unordered_set<SelectInfo> &selections,
                               AbstractNode *node);
+
+#ifndef NDEBUG
+    static void printPlan(Plan* plan);
+
+    static void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+#endif
+
 };
 //---------------------------------------------------------------------------
