@@ -1,14 +1,13 @@
 #pragma once
-#include "Parser.hpp"
-#include "Relation.hpp"
 #include "Mixins.hpp"
+#include "Parser.hpp"
 
 class IdValuePair{
 	public:
 	uint64_t id, value;
 	IdValuePair(){};
 	IdValuePair(uint64_t id, uint64_t value): id(id), value(value){};
-	
+
 	bool operator <(const IdValuePair& o)
 	{
 		return this->value < o.value;
@@ -25,7 +24,7 @@ class AbstractIndex: public DataReaderMixin {
 	// offline
 	//	bool online;
 
-//	std::vector <IdValuePair *> values;	
+//	std::vector <IdValuePair *> values;
 	uint64_t *ids, *values, size;
 
 };
@@ -42,10 +41,11 @@ class SortedIndex : public AbstractIndex {
 	// Returns the ids that match the filterInfo
 	IteratorPair getIdsIterator(FilterInfo* filterInfo);
 	//Returns the values that match filterInfo
-	IteratorPair getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
+                                                  FilterInfo* filterInfo);
 
 	private:
-	// findElement traverses the index and returns the position of the 
+	// findElement traverses the index and returns the position of the
 	// specified value. If the specified value does not exist, it returns the
 	// index of the directly smallest value.
 	uint64_t findElement(uint64_t value);

@@ -1,21 +1,22 @@
-#include "Index.hpp"
 #include <algorithm>
-#include <iostream>
-
+#include "Index.hpp"
+//---------------------------------------------------------------------------
+using namespace std;
+//---------------------------------------------------------------------------
 // Class constructor
-SortedIndex::SortedIndex(uint64_t  *values, uint64_t size) 
-{	
-	std::vector<IdValuePair> temp_values;	
+SortedIndex::SortedIndex(uint64_t  *values, uint64_t size)
+{
+	vector<IdValuePair> temp_values;
 	temp_values.reserve(size);
 	for(uint64_t i=0;i<size; i++) {
 		temp_values.push_back(IdValuePair(i, values[i]));
 	}
-	std::sort(temp_values.begin(), temp_values.end());
+	sort(temp_values.begin(), temp_values.end());
 
 	this->ids = new uint64_t[temp_values.size()];
 	this->values = new uint64_t[temp_values.size()];
 
-	for(int i=0;i<temp_values.size();i++) {
+	for(uint64_t i=0;i<temp_values.size();i++) {
 		this->ids[i] = temp_values[i].id;
 		this->values[i] = temp_values[i].value;
 	}
@@ -33,24 +34,25 @@ IteratorPair SortedIndex::getIdsIterator(FilterInfo* filterInfo)
 {
 	uint64_t idxFrom, idxTo;
 	this->estimateIndexes(&idxFrom, &idxTo, filterInfo);
-	std::vector<uint64_t>::iterator begin(&this->ids[idxFrom]);
-	std::vector<uint64_t>::iterator end(&this->ids[idxTo]);
+	vector<uint64_t>::iterator begin(&this->ids[idxFrom]);
+	vector<uint64_t>::iterator end(&this->ids[idxTo]);
 	return {begin, end};
 }
 
 // Returns an iterator with the values of the Tuples that satisfy the FilterInfo
-IteratorPair SortedIndex::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+optional<IteratorPair> SortedIndex::getValuesIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 {
 	uint64_t idxFrom, idxTo;
 	this->estimateIndexes(&idxFrom, &idxTo, filterInfo);
-	std::vector<uint64_t>::iterator begin(&this->values[idxFrom]);
-	std::vector<uint64_t>::iterator end(&this->values[idxTo]);
-	return {begin, end};
+	vector<uint64_t>::iterator begin(&this->values[idxFrom]);
+	vector<uint64_t>::iterator end(&this->values[idxTo]);
+
+    return optional<IteratorPair>{{begin, end}};
 }
 
 // returns the index of the specific element. If the element does not exist,
 // the index of the smaller closer element is returned.
-uint64_t SortedIndex::findElement(uint64_t value) 
+uint64_t SortedIndex::findElement(uint64_t value)
 {
 	uint64_t start = 0, finish = this->size-1;
 	uint64_t median;
