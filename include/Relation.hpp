@@ -21,8 +21,6 @@ class Relation: public AbstractDataNode {
     uint64_t size;
     /// The join column containing the keys
     std::vector<uint64_t*> columns;
-    /// The ids of the tuples.
-    std::vector<uint64_t> ids;
 
     /// Stores a relation into a file (binary)
     void storeRelation(const std::string& fileName);
@@ -37,9 +35,9 @@ class Relation: public AbstractDataNode {
     /// Frees any resources allocated by the node.
     void freeResources() { }
 
-    /// Returns an `IteratorPair` over all the `DataNode`'s ids.
-    /// Ignores `filterInfo`, requires it being `NULL`.
-    IteratorPair getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    /// Returns `nullopt` for a `Relation`. The ids are the indices
+    /// in the case of a column.
+    std::optional<IteratorPair> getIdsIterator(SelectInfo&, FilterInfo*);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.

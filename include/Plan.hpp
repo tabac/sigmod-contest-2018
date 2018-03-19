@@ -88,18 +88,16 @@ class DataNode : public AbstractDataNode {
     uint64_t size;
     /// A table in columnar format with "value" entries.
     std::vector<uint64_t> dataValues;
-    /// A table in columnar format with "row ID" entries.
-    std::vector<uint64_t> dataIds;
 
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
     void execute();
     /// Frees any resources allocated by the node.
-    void freeResources() { this->dataValues.clear(); this->dataIds.clear(); this->columnsInfo.clear(); }
+    void freeResources() { this->dataValues.clear(); this->columnsInfo.clear(); }
 
-    /// Returns an `IteratorPair` over all the `DataNode`'s ids.
-    /// Ignores `filterInfo`, requires it being `NULL`.
-    IteratorPair getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo);
+    /// Returns `nullopt` for a `DataNode`. The ids are the indices
+    /// in the case of a column.
+    std::optional<IteratorPair> getIdsIterator(SelectInfo&, FilterInfo*);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.

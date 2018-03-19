@@ -71,7 +71,6 @@ void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
 }
 //---------------------------------------------------------------------------
 void DataNode::execute()
-// TODO: Ultimately we just want to update the status here.
 {
     {
         // Should never be called otherwise.
@@ -105,38 +104,12 @@ void DataNode::execute()
     }
 }
 //---------------------------------------------------------------------------
-IteratorPair DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
-// Returns an `IteratorPair` over all the `DataNode`'s ids.
-// TODO: We can do without this, without `id` vectors.
+// optional<IteratorPair> DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+optional<IteratorPair> DataNode::getIdsIterator(SelectInfo& , FilterInfo* )
+// Returns `nullopt` for a `DataNode`. The ids are the indices
+// in the case of a column.
 {
-    {
-        // Should not be called with some filter condition.
-        assert(filterInfo == NULL);
-        // Should have at least one column.
-        assert(!this->columnsInfo.empty());
-    }
-
-    unsigned c = 0;
-    RelationId relId = this->columnsInfo[0].relId;
-
-    vector<SelectInfo>::iterator it;
-    for (it = this->columnsInfo.begin(); it != this->columnsInfo.end(); ++it, ++c) {
-        if ((*it).relId != relId) {
-            ++c;
-            relId = (*it).relId;
-        }
-
-        if ((*it).relId == selectInfo.relId && (*it).binding == selectInfo.binding) {
-            break;
-        }
-    }
-
-    assert(c < this->columnsInfo.size());
-
-    return {
-        this->dataIds.begin() + c * this->size,
-        this->dataIds.begin() + (c + 1) * this->size,
-    };
+    return nullopt;
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> DataNode::getValuesIterator(SelectInfo& selectInfo,
