@@ -7,7 +7,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void FilterInfo::getFilteredIndices(const IteratorPair &valIter, vector<uint64_t> &indices)
+void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
+                                    vector<uint64Pair> &indices)
 // Returns the indices of `valIter` that satisfy `this` condition.
 {
     uint64_t c;
@@ -17,21 +18,21 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter, vector<uint64_t
         case FilterInfo::Comparison::Less:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) < this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;
         case FilterInfo::Comparison::Equal:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) == this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;
         case FilterInfo::Comparison::Greater:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) > this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;

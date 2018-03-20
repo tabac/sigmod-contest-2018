@@ -123,15 +123,17 @@ class AbstractOperatorNode : public AbstractNode {
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
     /// in `selections`.
+    template <size_t I>
     static void pushSelections(std::vector<SelectInfo> &selections,
-                               std::vector<uint64_t> &indices,
+                               std::vector<uint64Pair> &indices,
                                AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
+    template <size_t I>
     static void pushValuesByIndex(IteratorPair &valIter,
-                                  std::vector<uint64_t> &indices,
+                                  std::vector<uint64Pair> &indices,
                                   std::vector<uint64_t> &outValues);
 
     bool isBaseRelation() { return false; }
@@ -151,7 +153,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// Performs merge join between `leftPairs` and `rightPairs`.
     static void mergeJoin(std::vector<uint64Pair> &leftPairs,
                           std::vector<uint64Pair> &rightPairs,
-                          std::pair<std::vector<uint64_t>, std::vector<uint64_t>> &indexPairs);
+                          std::vector<uint64Pair> &indexPairs);
 
     /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
     /// sorted by value.

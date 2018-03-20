@@ -195,35 +195,40 @@ void JoinOperatorNode::execute()
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
-    pair<vector<uint64_t>, vector<uint64_t>> indexPairs;
+    vector<uint64Pair> indexPairs;
     JoinOperatorNode::mergeJoin(leftPairs, rightPairs, indexPairs);
 
-    assert(indexPairs.first.size() == indexPairs.second.size());
+
+    sort(indexPairs.begin(), indexPairs.end(),
+         [&](const uint64Pair &a, const uint64Pair &b) { return a.first > b.first; });
 
     // Set out DataNode size.
-    outNode->size = indexPairs.first.size();
+    outNode->size = indexPairs.size();
+
+    // Reserve memory for values in `outNode`.
+    outNode->dataValues.reserve(this->selections.size() * indexPairs.size());
 
     if (inLeftNode->isBaseRelation()) {
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.second,
+        AbstractOperatorNode::pushSelections<1>(this->selections,
+                                             indexPairs,
                                              inRightNode, outNode);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.first,
+        AbstractOperatorNode::pushSelections<0>(this->selections,
+                                             indexPairs,
                                              inLeftNode, outNode);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.first,
+        AbstractOperatorNode::pushSelections<0>(this->selections,
+                                             indexPairs,
                                              inLeftNode, outNode);
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections(this->selections,
-                                             indexPairs.second,
+        AbstractOperatorNode::pushSelections<1>(this->selections,
+                                             indexPairs,
                                              inRightNode, outNode);
     }
 
@@ -235,7 +240,7 @@ void JoinOperatorNode::execute()
 //---------------------------------------------------------------------------
 void JoinOperatorNode::mergeJoin(vector<uint64Pair> &leftPairs,
                                  vector<uint64Pair> &rightPairs,
-                                 pair<vector<uint64_t>, vector<uint64_t>> &indexPairs)
+                                 vector<uint64Pair> &indexPairs)
 {
     vector<uint64Pair>::iterator lt = leftPairs.begin();
     vector<uint64Pair>::iterator rt = rightPairs.begin();
@@ -248,8 +253,7 @@ void JoinOperatorNode::mergeJoin(vector<uint64Pair> &leftPairs,
         } else {
             vector<uint64Pair>::iterator tt;
             for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
-                indexPairs.first.push_back((*lt).first);
-                indexPairs.second.push_back((*tt).first);
+                indexPairs.push_back({lt->first, tt->first});
             }
 
             ++lt;
@@ -257,8 +261,9 @@ void JoinOperatorNode::mergeJoin(vector<uint64Pair> &leftPairs,
     }
 }
 //---------------------------------------------------------------------------
+template <size_t I>
 void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
-                                                 vector<uint64_t> &indices,
+                                                 vector<uint64Pair> &indices,
                                                  AbstractDataNode *inNode,
                                                  DataNode *outNode)
 {
@@ -293,20 +298,21 @@ void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
         outNode->columnsInfo.emplace_back((*it));
 
         // Push values by `indices` to next `DataNode`.
-        AbstractOperatorNode::pushValuesByIndex(valIter.value(), indices,
+        AbstractOperatorNode::pushValuesByIndex<I>(valIter.value(), indices,
                                                 outNode->dataValues);
     }
 }
 //---------------------------------------------------------------------------
+template <size_t I>
 void AbstractOperatorNode::pushValuesByIndex(IteratorPair &valIter,
-                                                    vector<uint64_t> &indices,
+                                                    vector<uint64Pair> &indices,
                                                     vector<uint64_t> &outValues)
 {
-    vector<uint64_t>::iterator it;
+    vector<uint64Pair>::iterator it;
     for (it = indices.begin(); it != indices.end(); ++it) {
-        assert(valIter.first + (*it) < valIter.second);
+        assert(valIter.first + get<I>((*it)) < valIter.second);
 
-        outValues.push_back(*(valIter.first + (*it)));
+        outValues.push_back(*(valIter.first + get<I>((*it))));
     }
 }
 //---------------------------------------------------------------------------
@@ -377,7 +383,7 @@ void FilterOperatorNode::execute()
     IteratorPair valIter = option.value();
 
     // Get indices that satisfy the given filter condition.
-    vector<uint64_t> indices;
+    vector<uint64Pair> indices;
     this->info.getFilteredIndices(valIter, indices);
 
     // Set the size of the new relation.
@@ -387,7 +393,7 @@ void FilterOperatorNode::execute()
     outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0>(this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -435,11 +441,11 @@ void FilterJoinOperatorNode::execute()
     IteratorPair rightIter = option.value();
 
     uint64_t i;
-    vector<uint64_t> indices;
+    vector<uint64Pair> indices;
     vector<uint64_t>::iterator it, jt;
     for (i = 0, it = leftIter.first, jt = rightIter.first; it != leftIter.second; ++i, ++it, ++jt) {
         if ((*it) == (*jt)) {
-            indices.push_back(i);
+            indices.push_back({i, 0});
         }
     }
 
@@ -452,7 +458,7 @@ void FilterJoinOperatorNode::execute()
     outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0>(this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);

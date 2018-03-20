@@ -49,7 +49,8 @@ struct FilterInfo {
     std::string dumpLabel() const;
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
-    void getFilteredIndices(const IteratorPair &valIter, std::vector<uint64_t> &indices);
+    void getFilteredIndices(const IteratorPair &valIter,
+                            std::vector<uint64Pair> &indices);
 
     /// The delimiter used in our text format
     static const char delimiter='&';
