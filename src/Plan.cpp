@@ -141,11 +141,6 @@ optional<IteratorPair> DataNode::getValuesIterator(SelectInfo& selectInfo,
     }
 }
 //---------------------------------------------------------------------------
-static bool compare(const uint64Pair &a, const uint64Pair &b)
-{
-    return a.second < b.second;
-}
-//---------------------------------------------------------------------------
 void JoinOperatorNode::execute()
 // Joins the two input `DataNode` instances.
 {
@@ -199,14 +194,11 @@ void JoinOperatorNode::execute()
     JoinOperatorNode::mergeJoin(leftPairs, rightPairs, indexPairs);
 
 
-    sort(indexPairs.begin(), indexPairs.end(),
-         [&](const uint64Pair &a, const uint64Pair &b) { return a.first > b.first; });
+    // sort(indexPairs.begin(), indexPairs.end(),
+         // [&](const uint64Pair &a, const uint64Pair &b) { return a.first < b.first; });
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
-
-    // Reserve memory for values in `outNode`.
-    outNode->dataValues.reserve(this->selections.size() * indexPairs.size());
 
     if (inLeftNode->isBaseRelation()) {
         // Get ouput columns for right relation and push
@@ -275,9 +267,6 @@ void AbstractOperatorNode::pushSelections(vector<SelectInfo> &selections,
         assert(inNode != NULL && outNode != NULL);
     }
 
-    // TODO: We do not reserve memory here. We should find a way
-    //       to reserve memory based on `selections`.
-
     outNode->dataValues.reserve(selections.size() * indices.size());
     vector<SelectInfo>::iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
@@ -332,7 +321,8 @@ void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
     JoinOperatorNode::getValuesIndexed(valIter, pairs);
 
     // Sort by `rowValue`.
-    sort(pairs.begin(), pairs.end(), compare);
+    sort(pairs.begin(), pairs.end(),
+         [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 }
 //---------------------------------------------------------------------------
 void AbstractOperatorNode::getValuesIndexed(IteratorPair &values,

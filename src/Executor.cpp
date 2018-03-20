@@ -1,4 +1,5 @@
 #include <queue>
+#include <future>
 #include <vector>
 #include <variant>
 #include <cstdint>
@@ -73,5 +74,6 @@ void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
     node->execute();
+    // async(launch::async, &AbstractNode::execute, node);
 }
 //---------------------------------------------------------------------------
