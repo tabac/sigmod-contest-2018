@@ -112,6 +112,8 @@ class DataNode : public AbstractDataNode {
 //---------------------------------------------------------------------------
 class AbstractOperatorNode : public AbstractNode {
     public:
+    unsigned queryId;
+
     /// Frees any resources allocated by the node.
     void freeResources() { }
 

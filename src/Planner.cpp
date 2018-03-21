@@ -1,5 +1,5 @@
-#include <iostream>
 #include <vector>
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -71,13 +71,16 @@ void Planner::setSelections(const SelectInfo &selection,
     }
 
 }
+
 //---------------------------------------------------------------------------
-void Planner::addFilter(Plan &plan, FilterInfo& filter,
+void Planner::addFilter(Plan &plan, FilterInfo& filter, const QueryInfo& query,
                         const unordered_set<SelectInfo> &selections,
                         unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
     FilterOperatorNode *filterNode = new FilterOperatorNode(filter);
+
+    filterNode->queryId = query.queryId;
 
     unsignedPair filterPair = {filter.filterColumn.relId,
                                filter.filterColumn.binding};
@@ -100,12 +103,14 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
 
 }
 //---------------------------------------------------------------------------
-void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
+void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
                       const unordered_set<SelectInfo> &selections,
                       unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
     JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
+
+    joinNode->queryId = query.queryId;
 
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
@@ -134,12 +139,14 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
 
 }
 //---------------------------------------------------------------------------
-void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
+void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
                             const unordered_set<SelectInfo> &selections,
                             unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
     FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
+
+    joinNode->queryId = query.queryId;
 
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
@@ -172,6 +179,8 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query,
 {
     DataNode *dataNode =  new DataNode();
     AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
+
+    aggregateNode->queryId = query.queryId;
 
     aggregateNode->selections = query.selections;
     dataNode->selections = query.selections;
@@ -231,7 +240,7 @@ void Planner::attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &q
     // Push filters.
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
-        Planner::addFilter(plan, (*ft), selections, lastAttached);
+        Planner::addFilter(plan, (*ft), query, selections, lastAttached);
     }
 
     // Push join predicates.
@@ -251,7 +260,7 @@ void Planner::attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &q
                 (*pt).left.binding == (*pt).right.binding) {
                 // If predicate refers to the same table
                 // add `FilterJoinOperatorNode`.
-                Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+                Planner::addFilterJoin(plan, (*pt), query, selections, lastAttached);
             } else {
                 unsignedPair leftPair = {(*pt).left.relId,
                                          (*pt).left.binding};
@@ -259,11 +268,11 @@ void Planner::attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &q
                                           (*pt).right.binding};
 
                 if (lastAttached[leftPair] == lastAttached[rightPair]) {
-                    Planner::addFilterJoin(plan, (*pt), selections, lastAttached);
+                    Planner::addFilterJoin(plan, (*pt), query, selections, lastAttached);
                 } else {
                     // If predicate refers to different tables
                     // add `JoinOperatorNode`.
-                    Planner::addJoin(plan, (*pt), selections, lastAttached);
+                    Planner::addJoin(plan, (*pt), query, selections, lastAttached);
                 }
             }
         }

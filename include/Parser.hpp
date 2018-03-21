@@ -81,6 +81,7 @@ struct PredicateInfo {
 //---------------------------------------------------------------------------
 class QueryInfo {
     public:
+    unsigned queryId;
     /// The relation ids
     std::vector<RelationId> relationIds;
     /// The predicates
@@ -118,6 +119,7 @@ class QueryInfo {
 
     /// The empty constructor
     QueryInfo() {}
+    QueryInfo(unsigned queryId) : queryId(queryId) { }
     /// The constructor that parses a query
     QueryInfo(std::string rawQuery);
 };
