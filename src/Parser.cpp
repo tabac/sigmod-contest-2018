@@ -301,20 +301,20 @@ string QueryInfo::dumpSQL()
     return sql.str();
 }
 //---------------------------------------------------------------------------
-void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections)
+void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections) const
 {
-    vector<PredicateInfo>::iterator pt;
+    vector<PredicateInfo>::const_iterator pt;
     for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
         selections.emplace(pt->left);
         selections.emplace(pt->right);
     }
 
-    vector<FilterInfo>::iterator ft;
+    vector<FilterInfo>::const_iterator ft;
     for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
         selections.emplace(ft->filterColumn);
     }
 
-    vector<SelectInfo>::iterator st;
+    vector<SelectInfo>::const_iterator st;
     for (st = this->selections.begin(); st != this->selections.end(); ++st) {
         selections.emplace((*st));
     }

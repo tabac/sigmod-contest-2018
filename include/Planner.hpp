@@ -8,28 +8,28 @@
 //---------------------------------------------------------------------------
 class Planner {
     public:
-    static void attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query);
+    static void attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &query);
 
     static void addFilter(Plan &plan, FilterInfo& filter,
-                          std::unordered_set<SelectInfo> &selections,
+                          const std::unordered_set<SelectInfo> &selections,
                           std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate,
-                        std::unordered_set<SelectInfo> &selections,
+                        const std::unordered_set<SelectInfo> &selections,
                         std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addFilterJoin(Plan& plan, PredicateInfo& predicate,
-                              std::unordered_set<SelectInfo> &selections,
+                              const std::unordered_set<SelectInfo> &selections,
                               std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
-    static void addAggregate(Plan &plan, QueryInfo& query,
+    static void addAggregate(Plan &plan, const QueryInfo& query,
                              std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void updateAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached,
                                const unsignedPair relationPair,
                                AbstractNode *newNode);
 
-    static Plan* generatePlan(DataEngine &engine, std::vector<QueryInfo> &queries);
+    static Plan* generatePlan(const DataEngine &engine, std::vector<QueryInfo> &queries);
 
     static void setSelections(const SelectInfo &selection,
                               const std::unordered_set<SelectInfo> &selections,

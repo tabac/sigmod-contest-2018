@@ -73,7 +73,7 @@ void Planner::setSelections(const SelectInfo &selection,
 }
 //---------------------------------------------------------------------------
 void Planner::addFilter(Plan &plan, FilterInfo& filter,
-                        unordered_set<SelectInfo> &selections,
+                        const unordered_set<SelectInfo> &selections,
                         unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -101,7 +101,7 @@ void Planner::addFilter(Plan &plan, FilterInfo& filter,
 }
 //---------------------------------------------------------------------------
 void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
-                      unordered_set<SelectInfo> &selections,
+                      const unordered_set<SelectInfo> &selections,
                       unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -135,7 +135,7 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate,
 }
 //---------------------------------------------------------------------------
 void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
-                            unordered_set<SelectInfo> &selections,
+                            const unordered_set<SelectInfo> &selections,
                             unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -167,7 +167,7 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate,
 
 }
 //---------------------------------------------------------------------------
-void Planner::addAggregate(Plan &plan, QueryInfo& query,
+void Planner::addAggregate(Plan &plan, const QueryInfo& query,
                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode =  new DataNode();
@@ -203,15 +203,15 @@ void Planner::addAggregate(Plan &plan, QueryInfo& query,
 
 }
 //---------------------------------------------------------------------------
-void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
+void Planner::attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &query)
 {
     unordered_map<unsignedPair, AbstractNode *> lastAttached;
 
     // Push original relations.
     unsigned bd;
-    vector<RelationId>::iterator rt;
+    vector<RelationId>::const_iterator rt;
     for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
-        vector<AbstractNode *>::iterator lt;
+        vector<AbstractNode *>::const_iterator lt;
         lt = find(plan.nodes.begin(), plan.nodes.end(), &engine.relations[(*rt)]);
 
         if (lt == plan.nodes.end()) {
@@ -272,7 +272,7 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     Planner::addAggregate(plan, query, lastAttached);
 }
 //---------------------------------------------------------------------------
-Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
+Plan* Planner::generatePlan(const DataEngine &engine, vector<QueryInfo> &queries)
 {
     Plan *plan = new Plan();
     AbstractNode* root = new DataNode();

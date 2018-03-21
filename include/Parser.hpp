@@ -113,7 +113,7 @@ class QueryInfo {
     std::string dumpSQL();
 
 
-    void getAllSelections(std::unordered_set<SelectInfo> &selections);
+    void getAllSelections(std::unordered_set<SelectInfo> &selections) const;
 
 
     /// The empty constructor
