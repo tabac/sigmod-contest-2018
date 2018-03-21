@@ -16,7 +16,8 @@ int targetCounter = 0;
 
 //---------------------------------------------------------------------------
 void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
-                             unsignedPair relationPair, AbstractNode *newNode)
+                             const unsignedPair relationPair,
+                             AbstractNode *newNode)
 {
     // Fail, total fail.
     AbstractNode *oldNode = lastAttached[relationPair];
@@ -33,13 +34,13 @@ void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAt
     }
 }
 //---------------------------------------------------------------------------
-void Planner::setSelections(SelectInfo &selection,
-                            unordered_set<SelectInfo> &selections,
+void Planner::setSelections(const SelectInfo &selection,
+                            const unordered_set<SelectInfo> &selections,
                             AbstractNode *node)
 {
     assert(!node->inAdjList.empty());
 
-    vector<AbstractNode *>::iterator it;
+    vector<AbstractNode *>::const_iterator it;
     for (it = node->inAdjList.begin(); it != node->inAdjList.end(); ++it) {
         assert(!(*it)->selections.empty());
 
@@ -47,7 +48,7 @@ void Planner::setSelections(SelectInfo &selection,
             // The parent node is a base relation.
             unsigned relId = (*it)->selections[0].relId;
 
-            unordered_set<SelectInfo>::iterator st;
+            unordered_set<SelectInfo>::const_iterator st;
             for (st = selections.begin(); st != selections.end(); ++st) {
                 if (((*st).relId == relId) &&
                     ((*st).relId == selection.relId) &&
@@ -60,7 +61,7 @@ void Planner::setSelections(SelectInfo &selection,
             }
         } else {
             // The parent node is not a base relation.
-            vector<SelectInfo>::iterator jt;
+            vector<SelectInfo>::const_iterator jt;
             for (jt = (*it)->selections.begin(); jt != (*it)->selections.end(); ++jt) {
                 if (!Utils::contains(node->selections, (*jt))) {
                     node->selections.emplace_back((*jt));
@@ -291,6 +292,8 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
         assert((*jt)->status ==  NodeStatus::fresh);
         assert((*jt)->visited == 0);
     }
+
+    printPlan(plan);
 #endif
 
     return plan;
@@ -301,13 +304,13 @@ void Planner::printPlan(Plan* plan)
 {
     vector<AbstractNode*>::iterator node;
     for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
-        cout << (*node)->label << ": ";
+        cerr << (*node)->label << ": ";
 
         vector<SelectInfo>::iterator jt;
         for (jt = (*node)->selections.begin(); jt != (*node)->selections.end(); ++jt) {
-            cout << (*jt).dumpLabel() << " ";
+            cerr << (*jt).dumpLabel() << " ";
         }
-        cout << endl;
+        cerr << endl;
     }
 
     for(node = plan->nodes.begin(); node != plan->nodes.end(); node++){
@@ -320,8 +323,8 @@ void Planner::printPlan(Plan* plan)
         for(ch = (*node)->inAdjList.begin(); ch != (*node)->inAdjList.end(); ch++){
            parents += (*ch)->label+" ";
         }
-        cout << "Node: " << (*node)->label << ", children: " << children;
-        cout << ", parents: " << parents << endl;
+        cerr << "Node: " << (*node)->label << ", children: " << children;
+        cerr << ", parents: " << parents << endl;
     }
 }
 //---------------------------------------------------------------------------
@@ -329,9 +332,9 @@ void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     unordered_map<unsignedPair, AbstractNode *>::iterator it;
     for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
-        cout << it->first.first << "." << it->first.second << " : " << it->second << " ";
+        cerr << it->first.first << "." << it->first.second << " : " << it->second << " ";
     }
-    cout << endl;
+    cerr << endl;
 }
 #endif
 //---------------------------------------------------------------------------

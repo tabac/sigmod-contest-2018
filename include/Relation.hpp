@@ -37,17 +37,17 @@ class Relation: public AbstractDataNode {
 
     /// Returns `nullopt` for a `Relation`. The ids are the indices
     /// in the case of a column.
-    std::optional<IteratorPair> getIdsIterator(SelectInfo&, FilterInfo*);
+    std::optional<IteratorPair> getIdsIterator(const SelectInfo&, const FilterInfo*);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
-                                                  FilterInfo* filterInfo);
+    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+                                                  const FilterInfo* filterInfo) const;
 
     /// Returns the size, that is the number of tuples.
-    uint64_t getSize() { return this->size; }
+    uint64_t getSize() const { return this->size; }
 
-    bool isBaseRelation() { return true; }
+    bool isBaseRelation() const { return true; }
 
     /// Constructor without mmap
     Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}

@@ -12,7 +12,7 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
 // Returns the indices of `valIter` that satisfy `this` condition.
 {
     uint64_t c;
-    vector<uint64_t>::iterator it;
+    vector<uint64_t>::const_iterator it;
 
     switch (this->comparison) {
         case FilterInfo::Comparison::Less:

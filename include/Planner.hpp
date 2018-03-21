@@ -26,12 +26,13 @@ class Planner {
                              std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void updateAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached,
-                               unsignedPair relationPair, AbstractNode *newNode);
+                               const unsignedPair relationPair,
+                               AbstractNode *newNode);
 
     static Plan* generatePlan(DataEngine &engine, std::vector<QueryInfo> &queries);
 
-    static void setSelections(SelectInfo &selection,
-                              std::unordered_set<SelectInfo> &selections,
+    static void setSelections(const SelectInfo &selection,
+                              const std::unordered_set<SelectInfo> &selections,
                               AbstractNode *node);
 
 #ifndef NDEBUG
