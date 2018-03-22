@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <time.h>
 #include "DataEngine.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -18,12 +19,18 @@ void DataEngine::addRelation(RelationId relId, const char* fileName)
 }
 //---------------------------------------------------------------------------
 void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuckets) {
+    clock_t startTime = clock();
+
     Relation& r = this->relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
         Histogram& h = *new Histogram(r, colID, r.size / sampleRatio);
-        h.createEquiWidth(numOfBuckets);
+        //h.createEquiWidth(numOfBuckets);
+        //h.createExactEquiWidth(numOfBuckets);
+        h.createEquiHeight(numOfBuckets);
         this->histograms.insert(pair<HistKey, Histogram> (pair<RelationId, unsigned>(rid, colID), h));
     }
+
+    cout << "Time taken: " << ((double)(clock() - startTime)/CLOCKS_PER_SEC) << endl;
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)

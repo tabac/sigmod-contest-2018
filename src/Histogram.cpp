@@ -20,6 +20,7 @@ Histogram::Histogram(Relation& r, unsigned colId, uint64_t budget):r(r), colId(c
 //---------------------------------------------------------------------------
 void Histogram::createEquiHeight(int numberOfBuckets) {
 
+    cout << endl;
     int invSampleRatio = (int) ceil(r.size / budget);
     float histogramHeight = ceil((float) budget / numberOfBuckets) * invSampleRatio;
 
@@ -40,7 +41,9 @@ void Histogram::createEquiHeight(int numberOfBuckets) {
         histo[sample[budget-1]] = freq;
     }
 
-    printHistogram();
+    #ifndef NDEBUG
+        printHistogram();
+    #endif
 
     delete[] sample;
 }
@@ -63,13 +66,17 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
         }
     }
 
-    cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
 
     uint64_t width = (maxVal-minVal)/numberOfBuckets;
 
-    cout << "Width: " << width << endl;
+    #ifndef NDEBUG
+        cout << endl;
+        cout << "Width: " << width << endl;
+        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
+    #endif
 
-    uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
+    //uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
+    uint64_t* bucketIndexing = new uint64_t[(int)ceil((maxVal-minVal)/width)+1];
     int bIndex = 0;
     for(uint64_t i = minVal+width; i < maxVal; i+=width){
         histo[i] = 0;
@@ -88,19 +95,73 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
     delete[] bucketIndexing;
     delete[] sample;
 
-    printHistogram();
+    #ifndef NDEBUG
+        printHistogram();
+    #endif
 }
 
 //---------------------------------------------------------------------------
+void Histogram::createExactEquiWidth(int numberOfBuckets) {
+
+    uint64_t minVal=UINT64_MAX, maxVal=0;
+    vector<uint64_t>::iterator begin (r.columns[colId]);
+    vector<uint64_t>::iterator end (r.columns[colId] + r.size);
+
+    vector<uint64_t>::iterator colIter;
+    for(colIter = begin; colIter!=end; colIter++){
+        if(*colIter > maxVal){
+            maxVal = *colIter;
+        }
+        if(*colIter < minVal){
+            minVal = *colIter;
+        }
+    }
+
+    uint64_t width = (maxVal-minVal)/numberOfBuckets;
+
+    #ifndef NDEBUG
+        cout << "Exact Histo" << endl;
+        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
+        cout << "Width: " << width << endl;
+    #endif
+
+    uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
+    int bIndex = 0;
+    for(uint64_t i = minVal+width; i < maxVal; i+=width){
+        histo[i] = 0;
+        bucketIndexing[bIndex] = i;
+        bIndex++;
+    }
+    histo[maxVal] = 0;
+    bucketIndexing[bIndex] = maxVal;
+
+
+    for(colIter = begin; colIter!=end; colIter++){
+        uint64_t bucketKey = bucketIndexing[(*colIter-minVal)/width];
+        histo[bucketKey]++;
+    }
+
+    delete[] bucketIndexing;
+    delete[] sample;
+
+    #ifndef NDEBUG
+        printHistogram();
+    #endif
+}
+//---------------------------------------------------------------------------
 
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
-    cout << "Histo Query: (" << lb << "," << ub << ")\n";
+    #ifndef NDEBUG
+        cout << "Histo Query: (" << lb << "," << ub << ")\n";
+    #endif
 
     uint64_t selectedKeys = 0;
     map<uint64_t,uint64_t>::iterator it;
     uint64_t prevKey = domainMinimum;
     for(it = histo.upper_bound(lb); it != histo.upper_bound(ub); it++){
-        cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+        #ifndef NDEBUG
+            cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+        #endif
 
         selectedKeys+= (it->first-lb)/(it->first-prevKey) * it->second;
         lb = it->first;
@@ -108,7 +169,9 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     }
     it = histo.upper_bound(ub);
     if(it != histo.end()) {
-        cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+        #ifndef NDEBUG
+            cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+        #endif
 
         selectedKeys += (ub - prevKey) / (it->first - prevKey) * it->second;
     }

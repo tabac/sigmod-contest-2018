@@ -20,7 +20,6 @@ int main(void)
         ++relId;
     }
 
-    //cout << "Finished" << endl;
     // Preparation phase (not timed)
     // Build histograms, indices,...
 

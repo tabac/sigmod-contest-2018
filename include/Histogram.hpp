@@ -24,10 +24,12 @@ class Histogram{
     /// Constructor of approximate histogram based on a relation, column ID and sampling budget
     Histogram(Relation& r, unsigned colId, uint64_t budget);
     Histogram & operator= ( const Histogram & ) = default;
-    /// Creates an equi-height histogram with `numberOfBuckets` buckets
+    /// Creates an equi-height histogram with `numberOfBuckets` buckets based on a sample
     void createEquiHeight(int numberOfBuckets);
-    /// Creates an equi-width histogram with `numberOfBuckets` buckets
+    /// Creates an equi-width histogram with `numberOfBuckets` buckets based on a sample
     void createEquiWidth(int numberOfBuckets);
+    /// Creates an equi-width exact histogram with `numberOfBuckets` buckets based on raw data
+    void createExactEquiWidth(int numberOfBuckets);
     /// Get the number of the estimated keys in the specified range
     uint64_t getEstimatedKeys(uint64_t lowerBound, uint64_t upperBound);
 
