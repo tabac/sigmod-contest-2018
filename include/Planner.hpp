@@ -11,15 +11,12 @@ class Planner {
     static void attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &query);
 
     static void addFilter(Plan &plan, FilterInfo& filter, const QueryInfo& query,
-                          const std::unordered_set<SelectInfo> &selections,
                           std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
-                        const std::unordered_set<SelectInfo> &selections,
                         std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
-                              const std::unordered_set<SelectInfo> &selections,
                               std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addAggregate(Plan &plan, const QueryInfo& query,
@@ -31,9 +28,7 @@ class Planner {
 
     static Plan* generatePlan(const DataEngine &engine, std::vector<QueryInfo> &queries);
 
-    static void setSelections(const SelectInfo &selection,
-                              const std::unordered_set<SelectInfo> &selections,
-                              AbstractNode *node);
+    static void setQuerySelections(Plan &plan, QueryInfo &query);
 
 #ifndef NDEBUG
     static void printPlan(Plan* plan);

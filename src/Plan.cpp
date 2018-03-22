@@ -266,6 +266,7 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         assert(inNode != NULL && outNode != NULL);
     }
 
+    outNode->columnsInfo.reserve(selections.size());
     outNode->dataValues.reserve(selections.size() * indices.size());
 
     vector<SelectInfo>::const_iterator it;
@@ -485,6 +486,7 @@ void AggregateOperatorNode::execute()
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Reserve memory for results.
+    outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size());
 
     // Set row count for outNode;

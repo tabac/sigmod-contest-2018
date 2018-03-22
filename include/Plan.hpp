@@ -32,8 +32,6 @@ class AbstractNode {
     /// Out-edge adjacency list.
     std::vector<AbstractNode *> outAdjList;
 
-    std::vector<SelectInfo> selections;
-
     /// Executes node-type related functionality.
     virtual void execute() = 0;
 
@@ -114,8 +112,10 @@ class AbstractOperatorNode : public AbstractNode {
     public:
     unsigned queryId;
 
+    std::vector<SelectInfo> selections;
+
     /// Frees any resources allocated by the node.
-    void freeResources() { }
+    void freeResources() { this->selections.clear(); }
 
     /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
     /// for the values in `values`.

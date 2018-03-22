@@ -301,25 +301,6 @@ string QueryInfo::dumpSQL()
     return sql.str();
 }
 //---------------------------------------------------------------------------
-void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections) const
-{
-    vector<PredicateInfo>::const_iterator pt;
-    for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
-        selections.emplace(pt->left);
-        selections.emplace(pt->right);
-    }
-
-    vector<FilterInfo>::const_iterator ft;
-    for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
-        selections.emplace(ft->filterColumn);
-    }
-
-    vector<SelectInfo>::const_iterator st;
-    for (st = this->selections.begin(); st != this->selections.end(); ++st) {
-        selections.emplace((*st));
-    }
-}
-//---------------------------------------------------------------------------
 void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selectionsMap) const
 {
     vector<PredicateInfo>::const_iterator pt;
