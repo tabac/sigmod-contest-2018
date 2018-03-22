@@ -20,7 +20,6 @@ Histogram::Histogram(Relation& r, unsigned colId, uint64_t budget):r(r), colId(c
 //---------------------------------------------------------------------------
 void Histogram::createEquiHeight(int numberOfBuckets) {
 
-    cout << endl;
     int invSampleRatio = (int) ceil(r.size / budget);
     float histogramHeight = ceil((float) budget / numberOfBuckets) * invSampleRatio;
 
@@ -42,6 +41,7 @@ void Histogram::createEquiHeight(int numberOfBuckets) {
     }
 
     #ifndef NDEBUG
+        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
         printHistogram();
     #endif
 
@@ -66,14 +66,7 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
         }
     }
 
-
     uint64_t width = (maxVal-minVal)/numberOfBuckets;
-
-    #ifndef NDEBUG
-        cout << endl;
-        cout << "Width: " << width << endl;
-        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
-    #endif
 
     //uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
     uint64_t* bucketIndexing = new uint64_t[(int)ceil((maxVal-minVal)/width)+1];
@@ -96,6 +89,9 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
     delete[] sample;
 
     #ifndef NDEBUG
+        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
+        cout << "Width: " << width << endl;
+        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
         printHistogram();
     #endif
 }
@@ -119,12 +115,6 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
 
     uint64_t width = (maxVal-minVal)/numberOfBuckets;
 
-    #ifndef NDEBUG
-        cout << "Exact Histo" << endl;
-        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
-        cout << "Width: " << width << endl;
-    #endif
-
     uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
     int bIndex = 0;
     for(uint64_t i = minVal+width; i < maxVal; i+=width){
@@ -145,6 +135,10 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
     delete[] sample;
 
     #ifndef NDEBUG
+        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
+        cout << "Exact Histo" << endl;
+        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
+        cout << "Width: " << width << endl;
         printHistogram();
     #endif
 }
@@ -154,6 +148,10 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     #ifndef NDEBUG
         cout << "Histo Query: (" << lb << "," << ub << ")\n";
     #endif
+
+//    if(ub == UINT64_MAX){
+//        ub = histo.lower_bound(ub)->first;
+//    }
 
     uint64_t selectedKeys = 0;
     map<uint64_t,uint64_t>::iterator it;

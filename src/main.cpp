@@ -1,9 +1,6 @@
 #include <iostream>
-#include <cassert>
 #include "Planner.hpp"
 #include "Executor.hpp"
-#include "DataEngine.hpp"
-#include "Histogram.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -20,14 +17,14 @@ int main(void)
         ++relId;
     }
 
+
     // Preparation phase (not timed)
     // Build histograms, indices,...
 
     // ------------ test histograms ---------------------------
-//    Histogram* h = new Histogram(engine.relations[0],0,engine.relations[0].size/10);
-//    //h->createEquiHeight(10);
-//    h->createEquiWidth(10);
-//    cout << "Result: " << h->getEstimatedKeys(1000, 2000) << " in range \n";
+
+    Histogram& h = engine.histograms.at(HistKey (13,6));
+    cout << "Result: " << h.getEstimatedKeys(7254, 8120) << endl;
     //return 0;
 
     // ------------ test histograms ---------------------------

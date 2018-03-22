@@ -17,7 +17,7 @@ class Histogram{
     ///
     /// Moreover, we respect the classic assumption that keys are uniformly distributed within each bucket
     std::map<uint64_t, uint64_t> histo;
-
+    /// default constructor
     Histogram();
     /// Constructor of approximate histogram based on a relation, column ID
     Histogram(Relation& r, unsigned colId);
