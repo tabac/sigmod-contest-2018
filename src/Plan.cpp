@@ -64,7 +64,6 @@ void AbstractNode::resetStatus()
 }
 //---------------------------------------------------------------------------
 void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
-// TODO: Why this cannot be inline???
 {
     left->outAdjList.push_back(right);
     right->inAdjList.push_back(left);
@@ -339,7 +338,6 @@ void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
 //---------------------------------------------------------------------------
 void FilterOperatorNode::execute()
 // Filters the input `DataNode` instance.
-// TODO: Take a closer look here, again!
 {
     {
         // Should never be called otherwise.
@@ -372,18 +370,18 @@ void FilterOperatorNode::execute()
     // Get id, values iterators for the filter column.
     optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn, NULL);
     assert(option.has_value());
-    IteratorPair valIter = option.value();
+    const IteratorPair valIter = option.value();
 
     // Get indices that satisfy the given filter condition.
     vector<uint64Pair> indices;
     this->info.getFilteredIndices(valIter, indices);
 
-    // Set the size of the new relation.
-    outNode->size = indices.size();
-
     // Reserve memory for ids, column names, column values.
     outNode->columnsInfo.reserve(this->selections.size());
-    outNode->dataValues.reserve(this->selections.size() * outNode->size);
+    outNode->dataValues.reserve(this->selections.size() * indices.size());
+
+    // Set the size of the new relation.
+    outNode->size = indices.size();
 
     AbstractOperatorNode::pushSelections<0>(this->selections, indices, inNode, outNode);
 

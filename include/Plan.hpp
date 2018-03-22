@@ -144,6 +144,9 @@ class AbstractOperatorNode : public AbstractNode {
 
     bool isBaseRelation() const { return false; }
 
+    // AbstractOperatorNode(unsigned queryId) : queryId(queryId) { }
+
+    ~AbstractOperatorNode() { }
 };
 //---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
@@ -153,8 +156,6 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     /// Joins the two input `DataNode` instances.
     void execute();
-
-    JoinOperatorNode(struct PredicateInfo &info) : info(info) {}
 
     /// Performs merge join between `leftPairs` and `rightPairs`.
     static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
@@ -175,6 +176,10 @@ class JoinOperatorNode : public AbstractOperatorNode {
         return this->info.left == selection || this->info.right == selection;
     }
 
+    JoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
+        this->queryId = queryId;
+    }
+
     ~JoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -186,14 +191,16 @@ class FilterOperatorNode : public AbstractOperatorNode {
     /// Filters the input `DataNode` instance.
     void execute();
 
-    FilterOperatorNode(FilterInfo &info) : info(info) {}
-
     bool hasBinding(const unsigned binding) const {
         return this->info.filterColumn.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
         return this->info.filterColumn == selection;
+    }
+
+    FilterOperatorNode(unsigned queryId, FilterInfo &info) : info(info) {
+        this->queryId = queryId;
     }
 
     ~FilterOperatorNode() { }
@@ -207,7 +214,6 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
     /// Filters the input `DataNode` instance.
     void execute();
 
-    FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding;
@@ -215,6 +221,10 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 
     bool hasSelection(const SelectInfo &selection) const {
         return this->info.left == selection;
+    }
+
+    FilterJoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
+        this->queryId = queryId;
     }
 
     ~FilterJoinOperatorNode() { }

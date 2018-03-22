@@ -10,8 +10,11 @@ class Planner {
     public:
     static void attachQueryPlan(Plan &plan, const DataEngine &engine, QueryInfo &query);
 
-    static void addFilter(Plan &plan, FilterInfo& filter, const QueryInfo& query,
-                          std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+    static void addFilters(Plan &plan, QueryInfo& query,
+                           std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+
+    static void addJoins(Plan& plan, QueryInfo& query,
+                         unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
                         std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);

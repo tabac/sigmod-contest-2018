@@ -36,15 +36,11 @@ float DataEngine::getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d)
     }
 }
 //---------------------------------------------------------------------------
-float DataEngine::getFilterSelectivity(FilterOperatorNode* filterOp, DataNode &d){
-    SelectInfo &si = (filterOp -> info).filterColumn;
-    RelationId r = si.relId;
-    //TODO:check statistics for this select and filter Info
-    //for now I just return a zero-selectivity.
+float DataEngine::getFilterSelectivity(FilterOperatorNode*, DataNode &){
     return 0.5;
 }
 //--------------------------------------------------------------------------
-float DataEngine::getJoinSelectivity(JoinOperatorNode* joinOp, DataNode &d){
-   return 0; 
+float DataEngine::getJoinSelectivity(JoinOperatorNode*, DataNode &){
+   return 0;
 }
 
