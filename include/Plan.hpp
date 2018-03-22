@@ -138,6 +138,10 @@ class AbstractOperatorNode : public AbstractNode {
                                   const std::vector<uint64Pair> &indices,
                                   std::vector<uint64_t> &outValues);
 
+    virtual bool hasBinding(const unsigned binding) const = 0;
+
+    virtual bool hasSelection(const SelectInfo &selection) const = 0;
+
     bool isBaseRelation() const { return false; }
 
 };
@@ -162,6 +166,15 @@ class JoinOperatorNode : public AbstractOperatorNode {
     static void getValuesIndexedSorted(std::vector<uint64Pair> &pairs,
                                        SelectInfo &selection,
                                        const AbstractDataNode* inNode);
+
+    bool hasBinding(const unsigned binding) const {
+        return this->info.left.binding == binding || this->info.right.binding == binding;
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return this->info.left == selection || this->info.right == selection;
+    }
+
     ~JoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -174,6 +187,14 @@ class FilterOperatorNode : public AbstractOperatorNode {
     void execute();
 
     FilterOperatorNode(FilterInfo &info) : info(info) {}
+
+    bool hasBinding(const unsigned binding) const {
+        return this->info.filterColumn.binding == binding;
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return this->info.filterColumn == selection;
+    }
 
     ~FilterOperatorNode() { }
 };
@@ -188,6 +209,14 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 
     FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
 
+    bool hasBinding(const unsigned binding) const {
+        return this->info.left.binding == binding;
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return this->info.left == selection;
+    }
+
     ~FilterJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -195,6 +224,10 @@ class AggregateOperatorNode : public AbstractOperatorNode {
     public:
     /// Calculates sums for the columns in the `selections` vector.
     void execute();
+
+    bool hasBinding(const unsigned) const { return true; }
+
+    bool hasSelection(const SelectInfo &) const { return true; }
 
     ~AggregateOperatorNode() { }
 };

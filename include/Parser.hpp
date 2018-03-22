@@ -3,6 +3,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <unordered_set>
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
@@ -115,6 +116,8 @@ class QueryInfo {
 
 
     void getAllSelections(std::unordered_set<SelectInfo> &selections) const;
+
+    void getSelectionsMap(std::unordered_map<SelectInfo, unsigned> &selectionsMap) const;
 
 
     /// The empty constructor

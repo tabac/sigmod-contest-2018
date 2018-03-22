@@ -320,6 +320,46 @@ void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections) con
     }
 }
 //---------------------------------------------------------------------------
+void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selectionsMap) const
+{
+    vector<PredicateInfo>::const_iterator pt;
+    for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
+        try {
+            selectionsMap.at(pt->left) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[pt->left] = 1;
+        }
+
+        try {
+            selectionsMap.at(pt->right) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[pt->right] = 1;
+        }
+    }
+
+    vector<FilterInfo>::const_iterator ft;
+    for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
+        try {
+            selectionsMap.at(ft->filterColumn) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[ft->filterColumn] = 1;
+        }
+    }
+
+    vector<SelectInfo>::const_iterator st;
+    for (st = this->selections.begin(); st != this->selections.end(); ++st) {
+        try {
+            selectionsMap.at((*st)) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[(*st)] = 1;
+        }
+    }
+}
+//---------------------------------------------------------------------------
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }
 //---------------------------------------------------------------------------
 bool SelectInfo::operator==(const SelectInfo& o) const {
