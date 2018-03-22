@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include "DataEngine.hpp"
+#include "Histogram.hpp"
 #include "Plan.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -9,6 +10,16 @@ void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
    this->relations.emplace_back(relId, fileName);
+}
+//---------------------------------------------------------------------------
+void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuckets) {
+    Relation& r = this->relations[rid];
+    for(unsigned colID = 0; colID < r.columns.size(); colID++){
+        Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
+        h->createEquiWidth(numOfBuckets);
+        Histogram& hist = *h;
+        this->histograms[pair(rid, colID)] = hist;
+    }
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
