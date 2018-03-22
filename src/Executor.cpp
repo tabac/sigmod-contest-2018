@@ -1,4 +1,5 @@
 #include <queue>
+#include <future>
 #include <vector>
 #include <variant>
 #include <cstdint>
@@ -65,7 +66,7 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {
-        resultsInfo.emplace_back((*it)->dataValues, (*it)->selections.size());
+        resultsInfo.emplace_back((*it)->dataValues, (*it)->columnsInfo.size());
     }
 }
 //---------------------------------------------------------------------------
@@ -73,5 +74,6 @@ void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
     node->execute();
+    // async(launch::async, &AbstractNode::execute, node);
 }
 //---------------------------------------------------------------------------

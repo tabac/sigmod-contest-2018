@@ -45,17 +45,14 @@ void Relation::execute()
     }
 }
 //---------------------------------------------------------------------------
-IteratorPair Relation::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
+optional<IteratorPair> Relation::getIdsIterator(const SelectInfo&, const FilterInfo*)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
-    assert(filterInfo == NULL);
-    assert(selectInfo.relId == this->relId);
-
-    return {this->ids.begin(), this->ids.end()};
+    return nullopt;
 }
 //---------------------------------------------------------------------------
-optional<IteratorPair> Relation::getValuesIterator(SelectInfo& selectInfo,
-                                                   FilterInfo* filterInfo)
+optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
+                                                   const FilterInfo* filterInfo) const
 // Returns an `IteratorPair` over all the `DataNode`'s values
 // of the column specified by `selectInfo`.
 {
@@ -163,12 +160,10 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
         this->columnsInfo.emplace_back(relId, 0, c);
     }
 
-    // Reserve memory for column names.
-    this->selections.reserve(this->columns.size());
-    // Create relations column `SelectInfo` objects.
-    for (unsigned c = 0; c < this->columns.size(); ++c) {
-        this->selections.emplace_back(relId, 0, c);
-    }
+#ifndef NDEBUG
+    this->label = "r" + to_string(this->relId);
+#endif
+
 }
 //---------------------------------------------------------------------------
 Relation::~Relation()
