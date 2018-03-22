@@ -1,10 +1,15 @@
 #include <vector>
 #include <iostream>
 #include "DataEngine.hpp"
-#include "Histogram.hpp"
-#include "Plan.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
+//---------------------------------------------------------------------------
+DataEngine::~DataEngine() {
+    unordered_map<HistKey , Histogram>::iterator it;
+    for(it = histograms.begin(); it != histograms.end(); it++){
+        delete &(it->second);
+    }
+}
 //---------------------------------------------------------------------------
 void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
@@ -15,10 +20,9 @@ void DataEngine::addRelation(RelationId relId, const char* fileName)
 void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuckets) {
     Relation& r = this->relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
-        Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
-        h->createEquiWidth(numOfBuckets);
-        Histogram& hist = *h;
-        this->histograms[pair(rid, colID)] = hist;
+        Histogram& h = *new Histogram(r, colID, r.size / sampleRatio);
+        h.createEquiWidth(numOfBuckets);
+        this->histograms.insert(pair<HistKey, Histogram> (pair<RelationId, unsigned>(rid, colID), h));
     }
 }
 //---------------------------------------------------------------------------
@@ -56,6 +60,6 @@ float DataEngine::getFilterSelectivity(FilterOperatorNode* filterOp, DataNode &d
 }
 //--------------------------------------------------------------------------
 float DataEngine::getJoinSelectivity(JoinOperatorNode* joinOp, DataNode &d){
-   return 0; 
+   return 0;
 }
 

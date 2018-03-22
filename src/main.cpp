@@ -20,6 +20,7 @@ int main(void)
         ++relId;
     }
 
+    //cout << "Finished" << endl;
     // Preparation phase (not timed)
     // Build histograms, indices,...
 
@@ -28,7 +29,7 @@ int main(void)
 //    //h->createEquiHeight(10);
 //    h->createEquiWidth(10);
 //    cout << "Result: " << h->getEstimatedKeys(1000, 2000) << " in range \n";
-    return 0;
+    //return 0;
 
     // ------------ test histograms ---------------------------
 

@@ -37,7 +37,7 @@ class Planner {
 #ifndef NDEBUG
     static void printPlan(Plan* plan);
 
-    static void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+    static void printAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 #endif
 
 };

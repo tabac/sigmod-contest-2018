@@ -117,11 +117,12 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
 }
 
 //---------------------------------------------------------------------------
-
+#ifndef NDEBUG
 void Histogram::printHistogram() {
     for( const auto& hpair : histo )
     {
         cout << hpair.first << "-->" << hpair.second << "\n" ;
     }
 }
+#endif
 

@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <map>
 #include "Relation.hpp"
@@ -22,12 +23,16 @@ class Histogram{
     Histogram(Relation& r, unsigned colId);
     /// Constructor of approximate histogram based on a relation, column ID and sampling budget
     Histogram(Relation& r, unsigned colId, uint64_t budget);
+    Histogram & operator= ( const Histogram & ) = default;
     /// Creates an equi-height histogram with `numberOfBuckets` buckets
     void createEquiHeight(int numberOfBuckets);
     /// Creates an equi-width histogram with `numberOfBuckets` buckets
     void createEquiWidth(int numberOfBuckets);
     /// Get the number of the estimated keys in the specified range
     uint64_t getEstimatedKeys(uint64_t lowerBound, uint64_t upperBound);
+
+#ifndef NDEBUG
     /// Print histogram for debug purposes
     void printHistogram();
+#endif
 };
