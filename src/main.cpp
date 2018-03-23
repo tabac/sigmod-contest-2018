@@ -25,6 +25,7 @@ int main(void)
 
     Histogram& h = engine.histograms.at(HistKey (13,6));
     cout << "Result: " << h.getEstimatedKeys(7254, 8120) << endl;
+    cout << "Result: " << h.getEstimatedKeys(4000, 10000) << endl;
     //return 0;
 
     // ------------ test histograms ---------------------------

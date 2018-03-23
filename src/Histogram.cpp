@@ -147,7 +147,12 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     #ifndef NDEBUG
         cout << "Histo Query: (" << lb << "," << ub << ")\n";
+
     #endif
+
+    if(ub == UINT64_MAX){
+        ub = (--histo.end())->first;
+    }
 
     float selectedKeys = 0;
     map<uint64_t,uint64_t>::iterator it;

@@ -230,6 +230,10 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     // Push filters.
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+        // gmytil================================================================
+//        uint64_t selec2 = engine.getFilterSelectivity(*ft);
+//        cout << "Second Selectivity: " << selec2 << endl;
+        //=======================================================================
         Planner::addFilter(plan, (*ft), selections, lastAttached);
     }
 
