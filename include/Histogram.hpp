@@ -24,6 +24,7 @@ class Histogram{
     /// Constructor of approximate histogram based on a relation, column ID and sampling budget
     Histogram(Relation& r, unsigned colId, uint64_t budget);
     Histogram & operator= ( const Histogram & ) = default;
+    ~Histogram();
     /// Creates an equi-height histogram with `numberOfBuckets` buckets based on a sample
     void createEquiHeight(int numberOfBuckets);
     /// Creates an equi-width histogram with `numberOfBuckets` buckets based on a sample

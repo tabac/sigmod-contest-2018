@@ -227,6 +227,8 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     unordered_set<SelectInfo> selections;
     query.getAllSelections(selections);
 
+    //TODO: sort filters by selectivity order.
+
     // Push filters.
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
@@ -236,6 +238,8 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
         //=======================================================================
         Planner::addFilter(plan, (*ft), selections, lastAttached);
     }
+
+    //TODO: sort joins by selectivity order. Smaller goes first.
 
     // Push join predicates.
     vector<PredicateInfo>::iterator pt, qt;

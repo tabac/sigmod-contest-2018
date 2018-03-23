@@ -19,7 +19,7 @@ namespace std {
     };
 }
 
-using HistCatalog = std::unordered_map<HistKey, Histogram>;
+using HistCatalog = std::unordered_map<HistKey, Histogram*>;
 //---------------------------------------------------------------------------
 class DataEngine {
   

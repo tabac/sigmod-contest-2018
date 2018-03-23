@@ -5,9 +5,9 @@
 using namespace std;
 //---------------------------------------------------------------------------
 DataEngine::~DataEngine() {
-    unordered_map<HistKey , Histogram>::iterator it;
-    for(it = histograms.begin(); it != histograms.end(); it++){
-        delete &(it->second);
+
+    for(unordered_map<HistKey, Histogram*>::iterator itr = histograms.begin(); itr != histograms.end(); itr++) {
+        delete itr->second;
     }
 }
 //---------------------------------------------------------------------------
@@ -18,18 +18,22 @@ void DataEngine::addRelation(RelationId relId, const char* fileName)
 }
 //---------------------------------------------------------------------------
 void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuckets) {
+    #ifndef NDEBUG
     clock_t startTime = clock();
+    #endif
 
     Relation& r = this->relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
-        Histogram& h = *new Histogram(r, colID, r.size / sampleRatio);
+        Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
         //h.createEquiWidth(numOfBuckets);
         //h.createExactEquiWidth(numOfBuckets);
-        h.createEquiHeight(numOfBuckets);
-        this->histograms.insert(pair<HistKey, Histogram> (pair<RelationId, unsigned>(rid, colID), h));
+        h->createEquiHeight(numOfBuckets);
+        this->histograms[pair<RelationId, unsigned>(rid, colID)] = h;
     }
 
+    #ifndef NDEBUG
     cout << "Time taken: " << ((double)(clock() - startTime)/CLOCKS_PER_SEC) << endl;
+    #endif
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
@@ -76,7 +80,7 @@ Relation& DataEngine::getRelation(unsigned relationId)
 //}
 //--------------------------------------------------------------------------
 uint64_t DataEngine::getFilterSelectivity(FilterInfo& filter){
-    Histogram& h = histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
+    Histogram& h = *histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
     if (filter.comparison == FilterInfo::Comparison::Less){
         return h.getEstimatedKeys(0, filter.constant);
     }else if(filter.comparison == FilterInfo::Comparison::Greater){
@@ -87,8 +91,8 @@ uint64_t DataEngine::getFilterSelectivity(FilterInfo& filter){
 }
 //--------------------------------------------------------------------------
 uint64_t DataEngine::getJoinSelectivity(PredicateInfo& predicate){
-    Histogram& hLeft = histograms.at(HistKey (predicate.left.relId, predicate.left.colId));
-    Histogram& hRight = histograms.at(HistKey (predicate.right.relId, predicate.right.colId));
+    Histogram& hLeft = *histograms.at(HistKey (predicate.left.relId, predicate.left.colId));
+    Histogram& hRight = *histograms.at(HistKey (predicate.right.relId, predicate.right.colId));
     uint64_t joinSize = 0;
 
     map<uint64_t,uint64_t>::iterator it;

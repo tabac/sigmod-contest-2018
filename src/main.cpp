@@ -23,10 +23,14 @@ int main(void)
 
     // ------------ test histograms ---------------------------
 
-    Histogram& h = engine.histograms.at(HistKey (13,6));
-    cout << "Result: " << h.getEstimatedKeys(7254, 8120) << endl;
-    cout << "Result: " << h.getEstimatedKeys(4000, 10000) << endl;
-    //return 0;
+//    Histogram& h = *new Histogram(engine.relations[0], 6, 4000/100);
+//    delete &h;
+
+//    Histogram& h = engine.histograms.at(HistKey (13,6));
+//    cout << "Result: " << h.getEstimatedKeys(7254, 8120) << endl;
+//    cout << "Result: " << h.getEstimatedKeys(4000, 10000) << endl;
+
+//    return 0;
 
     // ------------ test histograms ---------------------------
 

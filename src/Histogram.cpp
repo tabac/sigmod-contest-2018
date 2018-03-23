@@ -18,6 +18,12 @@ Histogram::Histogram(Relation& r, unsigned colId, uint64_t budget):r(r), colId(c
     }
 }
 //---------------------------------------------------------------------------
+Histogram::~Histogram() {
+    if(sample!=NULL){
+        delete[] sample;
+    }
+}
+//---------------------------------------------------------------------------
 void Histogram::createEquiHeight(int numberOfBuckets) {
 
     int invSampleRatio = (int) ceil(r.size / budget);
@@ -46,6 +52,7 @@ void Histogram::createEquiHeight(int numberOfBuckets) {
     #endif
 
     delete[] sample;
+    sample = NULL;
 }
 //---------------------------------------------------------------------------
 
