@@ -147,34 +147,50 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     #ifndef NDEBUG
         cout << "Histo Query: (" << lb << "," << ub << ")\n";
+//        map<uint64_t,uint64_t>::iterator it2;
+//        uint64_t pbucket = domainMinimum;
+//        for(it2 = histo.begin(); it2 != histo.end(); it2++){
+//            cout << "Available buckets: [" << pbucket << "," << it2->first << ")\n";
+//            pbucket= it2->first;
+//        }
+//
+//        cout << "First key to search is upper bound of lowest key, i.e., : " << histo.upper_bound(lb)->first << endl;
+//        cout << "And we have to search up to the upper bound of ub, i.e., :" << histo.upper_bound(ub)->first << endl;
     #endif
 
 //    if(ub == UINT64_MAX){
 //        ub = histo.lower_bound(ub)->first;
 //    }
 
-    uint64_t selectedKeys = 0;
-    map<uint64_t,uint64_t>::iterator it;
-    uint64_t prevKey = domainMinimum;
-    for(it = histo.upper_bound(lb); it != histo.upper_bound(ub); it++){
+    float selectedKeys = 0;
+    map<uint64_t,uint64_t>::iterator it, pKey;
+    for(it = histo.begin(); it != histo.end(); it++){
+        if(it->first >= lb){
+            break;
+        }
+        pKey = it;
+    }
+    uint64_t prevKey = pKey->first;
+    for(it = histo.lower_bound(lb); it != histo.lower_bound(ub); it++){
         #ifndef NDEBUG
             cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
         #endif
 
-        selectedKeys+= (it->first-lb)/(it->first-prevKey) * it->second;
+        selectedKeys+= (it->first-lb)/(float)(it->first-prevKey) * it->second;
         lb = it->first;
         prevKey = it->first;
     }
-    it = histo.upper_bound(ub);
+    it = histo.lower_bound(ub);
     if(it != histo.end()) {
         #ifndef NDEBUG
             cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
         #endif
 
-        selectedKeys += (ub - prevKey) / (it->first - prevKey) * it->second;
+        selectedKeys += (ub - prevKey) / (float)(it->first - prevKey) * it->second;
     }
 
-    return selectedKeys;
+    cout << "Early result: " << selectedKeys << endl;
+    return (uint64_t) selectedKeys;
 }
 
 //---------------------------------------------------------------------------
