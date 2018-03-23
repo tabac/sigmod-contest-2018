@@ -147,30 +147,16 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     #ifndef NDEBUG
         cout << "Histo Query: (" << lb << "," << ub << ")\n";
-//        map<uint64_t,uint64_t>::iterator it2;
-//        uint64_t pbucket = domainMinimum;
-//        for(it2 = histo.begin(); it2 != histo.end(); it2++){
-//            cout << "Available buckets: [" << pbucket << "," << it2->first << ")\n";
-//            pbucket= it2->first;
-//        }
-//
-//        cout << "First key to search is upper bound of lowest key, i.e., : " << histo.upper_bound(lb)->first << endl;
-//        cout << "And we have to search up to the upper bound of ub, i.e., :" << histo.upper_bound(ub)->first << endl;
     #endif
 
-//    if(ub == UINT64_MAX){
-//        ub = histo.lower_bound(ub)->first;
-//    }
-
     float selectedKeys = 0;
-    map<uint64_t,uint64_t>::iterator it, pKey;
+    map<uint64_t,uint64_t>::iterator it;
     for(it = histo.begin(); it != histo.end(); it++){
         if(it->first >= lb){
             break;
         }
-        pKey = it;
     }
-    uint64_t prevKey = pKey->first;
+    uint64_t prevKey = (--it)->first;
     for(it = histo.lower_bound(lb); it != histo.lower_bound(ub); it++){
         #ifndef NDEBUG
             cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
@@ -189,7 +175,6 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
         selectedKeys += (ub - prevKey) / (float)(it->first - prevKey) * it->second;
     }
 
-    cout << "Early result: " << selectedKeys << endl;
     return (uint64_t) selectedKeys;
 }
 
