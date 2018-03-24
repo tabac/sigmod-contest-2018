@@ -26,7 +26,8 @@ class DataEngine {
 
   public:
 
-    //~DataEngine();
+//    static DataEngine();
+//    static ~DataEngine();
   /// All available relations.
   static std::vector<Relation> relations;
   /// All available histograms indexed by relation and column ID

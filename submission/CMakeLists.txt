@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -fsanitize=address -Wall"
 include_directories(include)
 
 
-add_library(database Relation.cpp Parser.cpp Utils.cpp Plan.cpp Executor.cpp Planner.cpp DataEngine.cpp)
+add_library(database Relation.cpp Parser.cpp Utils.cpp Plan.cpp Executor.cpp Planner.cpp DataEngine.cpp Histogram.cpp)
 target_include_directories(database PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

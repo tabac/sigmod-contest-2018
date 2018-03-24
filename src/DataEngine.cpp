@@ -32,6 +32,7 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
         Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
         //h.createEquiWidth(numOfBuckets);
         //h.createExactEquiWidth(numOfBuckets);
+
         h->createEquiHeight(numOfBuckets);
         histograms[pair<RelationId, unsigned>(rid, colID)] = h;
     }

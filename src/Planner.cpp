@@ -108,8 +108,9 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 void Planner::addFilters(Plan &plan, QueryInfo& query,
                         unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
+
     // sort filters by selectivity order.
-    sort(query.filters.begin(), (--query.filters.end()), filterComparator);
+    sort(query.filters.begin(), query.filters.end(), filterComparator);
 
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
@@ -138,8 +139,9 @@ void Planner::addFilters(Plan &plan, QueryInfo& query,
 void Planner::addJoins(Plan& plan, QueryInfo& query,
                        unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
+
     //sort joins by selectivity order. Smaller goes first.
-    sort(query.predicates.begin(), (--query.predicates.end()), predicateComparator);
+    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {

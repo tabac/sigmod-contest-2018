@@ -69,12 +69,14 @@ int main(void)
 
 
     // clear histogram pointers
-    for(unordered_map<HistKey, Histogram*>::iterator itr = DataEngine::histograms.begin();
-        itr != DataEngine::histograms.end(); itr++) {
+//    for(unordered_map<HistKey, Histogram*>::iterator itr = DataEngine::histograms.begin();
+//        itr != DataEngine::histograms.end(); itr++) {
+//
+//        delete itr->second;
+//    }
+//    vector<Relation>().swap(DataEngine::relations);
+//    unordered_map<HistKey, Histogram*>().swap(DataEngine::histograms);
 
-        delete itr->second;
-    }
-    DataEngine::histograms.clear();
 
     return 0;
 }
