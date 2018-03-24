@@ -73,7 +73,7 @@ void DataNode::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -82,7 +82,7 @@ void DataNode::execute()
 
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
-            assert(this->outAdjList[0]->isStatusFresh());
+            // assert(this->outAdjList[0]->isStatusFresh());
         }
     }
 
@@ -100,6 +100,8 @@ void DataNode::execute()
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
+    } else {
+        this->setStatus(fresh);
     }
 }
 //---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ void JoinOperatorNode::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only two incoming edges.
         assert(this->inAdjList.size() == 2);
@@ -164,11 +166,9 @@ void JoinOperatorNode::execute()
     // finished processing.
     if (!this->inAdjList[0]->isStatusProcessed() ||
         !this->inAdjList[1]->isStatusProcessed()) {
+        this->setStatus(fresh);
         return;
     }
-
-    // Set status to processing.
-    this->setStatus(processing);
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join." + this->label);
@@ -341,7 +341,7 @@ void FilterOperatorNode::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -355,9 +355,6 @@ void FilterOperatorNode::execute()
         // with bindings...
         assert(this->selections.size() != 0);
     }
-
-    // Set status to processing.
-    this->setStatus(processing);
 
 #ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
@@ -394,7 +391,7 @@ void FilterJoinOperatorNode::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -408,9 +405,6 @@ void FilterJoinOperatorNode::execute()
         // with bindings...
         assert(!this->selections.empty());
     }
-
-    // Set status to processing.
-    this->setStatus(processing);
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join Filter." + this->label);
@@ -458,7 +452,7 @@ void AggregateOperatorNode::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -471,9 +465,6 @@ void AggregateOperatorNode::execute()
         // Should have at least one column.
         assert(this->selections.size() > 0);
     }
-
-    // Set status to processing.
-    this->setStatus(processing);
 
 #ifndef NDEBUG
     DEBUGLN("Executing Aggregate." + this->label);

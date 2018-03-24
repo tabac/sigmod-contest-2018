@@ -15,7 +15,7 @@ void Relation::execute()
 {
     {
         // Should never be called otherwise.
-        assert(this->isStatusFresh());
+        // assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);

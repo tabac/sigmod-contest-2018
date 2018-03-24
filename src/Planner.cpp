@@ -60,7 +60,7 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
         }
     }
 }
-//---------------------------------------------------------------------------//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 static Relation *findRelationBySelection(Plan &plan, const SelectInfo &selection)
 {
     vector<AbstractNode *>::const_iterator it;
@@ -76,7 +76,7 @@ static Relation *findRelationBySelection(Plan &plan, const SelectInfo &selection
 
     return NULL;
 }
-//---------------------------------------------------------------------------//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 {
     unordered_map<SelectInfo, unsigned> selectionsMap;
