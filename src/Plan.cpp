@@ -1,3 +1,4 @@
+#include <thread>
 #include <vector>
 #include <cstdint>
 #include <cassert>
@@ -69,7 +70,7 @@ void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
     right->inAdjList.push_back(left);
 }
 //---------------------------------------------------------------------------
-void DataNode::execute()
+void DataNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
@@ -100,8 +101,6 @@ void DataNode::execute()
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
-    } else {
-        this->setStatus(fresh);
     }
 }
 //---------------------------------------------------------------------------
@@ -142,7 +141,7 @@ optional<IteratorPair> DataNode::getValuesIterator(const SelectInfo& selectInfo,
     }
 }
 //---------------------------------------------------------------------------
-void JoinOperatorNode::execute()
+void JoinOperatorNode::execute(vector<thread> &threads)
 // Joins the two input `DataNode` instances.
 {
     {
@@ -166,9 +165,17 @@ void JoinOperatorNode::execute()
     // finished processing.
     if (!this->inAdjList[0]->isStatusProcessed() ||
         !this->inAdjList[1]->isStatusProcessed()) {
-        this->setStatus(fresh);
         return;
     }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    threads.emplace_back(&JoinOperatorNode::executeAsync, this);
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::executeAsync(void)
+{
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join." + this->label);
@@ -336,7 +343,7 @@ void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
     }
 }
 //---------------------------------------------------------------------------
-void FilterOperatorNode::execute()
+void FilterOperatorNode::execute(vector<thread> &threads)
 // Filters the input `DataNode` instance.
 {
     {
@@ -355,6 +362,15 @@ void FilterOperatorNode::execute()
         // with bindings...
         assert(this->selections.size() != 0);
     }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    threads.emplace_back(&FilterOperatorNode::executeAsync, this);
+}
+
+void FilterOperatorNode::executeAsync(void)
+{
 
 #ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
@@ -386,7 +402,7 @@ void FilterOperatorNode::execute()
     this->setStatus(processed);
 }
 //---------------------------------------------------------------------------
-void FilterJoinOperatorNode::execute()
+void FilterJoinOperatorNode::execute(vector<thread> &threads)
 // Filters the input `DataNode` instance.
 {
     {
@@ -405,6 +421,15 @@ void FilterJoinOperatorNode::execute()
         // with bindings...
         assert(!this->selections.empty());
     }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    threads.emplace_back(&FilterJoinOperatorNode::executeAsync, this);
+}
+
+void FilterJoinOperatorNode::executeAsync(void)
+{
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join Filter." + this->label);
@@ -448,7 +473,7 @@ void FilterJoinOperatorNode::execute()
     this->setStatus(processed);
 }
 //---------------------------------------------------------------------------
-void AggregateOperatorNode::execute()
+void AggregateOperatorNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
@@ -465,6 +490,15 @@ void AggregateOperatorNode::execute()
         // Should have at least one column.
         assert(this->selections.size() > 0);
     }
+
+    // Set status to processing.
+    this->setStatus(processing);
+
+    threads.emplace_back(&AggregateOperatorNode::executeAsync, this);
+}
+
+void AggregateOperatorNode::executeAsync(void)
+{
 
 #ifndef NDEBUG
     DEBUGLN("Executing Aggregate." + this->label);

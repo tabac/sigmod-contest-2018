@@ -1,4 +1,5 @@
 #pragma once
+#include <future>
 #include <vector>
 #include <cstdint>
 #include <cassert>
@@ -33,7 +34,7 @@ class AbstractNode {
     std::vector<AbstractNode *> outAdjList;
 
     /// Executes node-type related functionality.
-    virtual void execute() = 0;
+    virtual void execute(std::vector<std::thread> &threads) = 0;
 
     /// Status setter.
     void setStatus(NodeStatus status) { this->status = status; };
@@ -89,7 +90,7 @@ class DataNode : public AbstractDataNode {
 
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
-    void execute();
+    void execute(std::vector<std::thread> &threads);
     /// Frees any resources allocated by the node.
     void freeResources() { this->dataValues.clear(); this->columnsInfo.clear(); }
 
@@ -155,7 +156,9 @@ class JoinOperatorNode : public AbstractOperatorNode {
     PredicateInfo &info;
 
     /// Joins the two input `DataNode` instances.
-    void execute();
+    void execute(std::vector<std::thread> &threads);
+
+    void executeAsync(void);
 
     /// Performs merge join between `leftPairs` and `rightPairs`.
     static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
@@ -189,7 +192,9 @@ class FilterOperatorNode : public AbstractOperatorNode {
     FilterInfo& info;
 
     /// Filters the input `DataNode` instance.
-    void execute();
+    void execute(std::vector<std::thread> &threads);
+
+    void executeAsync(void);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.filterColumn.binding == binding;
@@ -212,8 +217,9 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
     PredicateInfo &info;
 
     /// Filters the input `DataNode` instance.
-    void execute();
+    void execute(std::vector<std::thread> &threads);
 
+    void executeAsync(void);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding;
@@ -233,7 +239,9 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 class AggregateOperatorNode : public AbstractOperatorNode {
     public:
     /// Calculates sums for the columns in the `selections` vector.
-    void execute();
+    void execute(std::vector<std::thread> &threads);
+
+    void executeAsync(void);
 
     bool hasBinding(const unsigned) const { return true; }
 

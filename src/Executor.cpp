@@ -83,7 +83,7 @@ void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
     // Sequential version:
-    // node->execute();
+    node->execute(threads);
 
     // Async version, using async:
     // async(launch::async, &AbstractNode::execute, node);
@@ -91,9 +91,8 @@ void Executor::executeOperator(AbstractNode *node)
     // Async version, using threads:
 
     // Set status to processing.
-    node->setStatus(processing);
 
     // Create thread and run `execute`.
-    threads.emplace_back(&AbstractNode::execute, node);
+    // threads.emplace_back(&AbstractNode::execute, node);
 }
 //---------------------------------------------------------------------------
