@@ -7,31 +7,32 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void FilterInfo::getFilteredIndices(const IteratorPair &valIter, vector<uint64_t> &indices)
+void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
+                                    vector<uint64Pair> &indices)
 // Returns the indices of `valIter` that satisfy `this` condition.
 {
     uint64_t c;
-    vector<uint64_t>::iterator it;
+    vector<uint64_t>::const_iterator it;
 
     switch (this->comparison) {
         case FilterInfo::Comparison::Less:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) < this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;
         case FilterInfo::Comparison::Equal:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) == this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;
         case FilterInfo::Comparison::Greater:
             for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
                 if ((*it) > this->constant) {
-                    indices.push_back(c);
+                    indices.emplace_back(c, 0);
                 }
             }
             break;
@@ -300,22 +301,43 @@ string QueryInfo::dumpSQL()
     return sql.str();
 }
 //---------------------------------------------------------------------------
-void QueryInfo::getAllSelections(std::unordered_set<SelectInfo> &selections)
+void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selectionsMap) const
 {
-    vector<PredicateInfo>::iterator pt;
+    vector<PredicateInfo>::const_iterator pt;
     for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
-        selections.emplace(pt->left);
-        selections.emplace(pt->right);
+        try {
+            selectionsMap.at(pt->left) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[pt->left] = 1;
+        }
+
+        try {
+            selectionsMap.at(pt->right) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[pt->right] = 1;
+        }
     }
 
-    vector<FilterInfo>::iterator ft;
+    vector<FilterInfo>::const_iterator ft;
     for (ft = this->filters.begin(); ft != this->filters.end(); ++ft) {
-        selections.emplace(ft->filterColumn);
+        try {
+            selectionsMap.at(ft->filterColumn) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[ft->filterColumn] = 1;
+        }
     }
 
-    vector<SelectInfo>::iterator st;
+    vector<SelectInfo>::const_iterator st;
     for (st = this->selections.begin(); st != this->selections.end(); ++st) {
-        selections.emplace((*st));
+        try {
+            selectionsMap.at((*st)) += 1;
+        }
+        catch (const out_of_range &) {
+            selectionsMap[(*st)] = 1;
+        }
     }
 }
 //---------------------------------------------------------------------------

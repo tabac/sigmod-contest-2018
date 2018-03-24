@@ -3,6 +3,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <unordered_set>
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
@@ -49,7 +50,8 @@ struct FilterInfo {
     std::string dumpLabel() const;
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
-    void getFilteredIndices(const IteratorPair &valIter, std::vector<uint64_t> &indices);
+    void getFilteredIndices(const IteratorPair &valIter,
+                            std::vector<uint64Pair> &indices);
 
     /// The delimiter used in our text format
     static const char delimiter='&';
@@ -80,6 +82,7 @@ struct PredicateInfo {
 //---------------------------------------------------------------------------
 class QueryInfo {
     public:
+    unsigned queryId;
     /// The relation ids
     std::vector<RelationId> relationIds;
     /// The predicates
@@ -112,11 +115,12 @@ class QueryInfo {
     std::string dumpSQL();
 
 
-    void getAllSelections(std::unordered_set<SelectInfo> &selections);
+    void getSelectionsMap(std::unordered_map<SelectInfo, unsigned> &selectionsMap) const;
 
 
     /// The empty constructor
     QueryInfo() {}
+    QueryInfo(unsigned queryId) : queryId(queryId) { }
     /// The constructor that parses a query
     QueryInfo(std::string rawQuery);
 };

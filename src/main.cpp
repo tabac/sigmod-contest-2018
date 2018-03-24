@@ -45,8 +45,9 @@ int main(void)
     vector<ResultInfo> resultsInfo;
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
+        unsigned q = 0;
         do {
-            queries.emplace_back().parseQuery(line);
+            queries.emplace_back(q++).parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
         // Reserve memory for results if necessary.

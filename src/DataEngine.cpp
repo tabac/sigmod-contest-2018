@@ -62,14 +62,14 @@ uint64_t DataEngine::getFilterSelectivity(const FilterInfo& filter){
     }
 }
 //--------------------------------------------------------------------------
-uint64_t DataEngine::getJoinSelectivity(const PredicateInfo& predicate){
-    Histogram& hLeft = *histograms.at(HistKey (predicate.left.relId, predicate.left.colId));
-    Histogram& hRight = *histograms.at(HistKey (predicate.right.relId, predicate.right.colId));
+uint64_t DataEngine::getJoinSelectivity(const PredicateInfo& predicate) {
+    Histogram &hLeft = *histograms.at(HistKey(predicate.left.relId, predicate.left.colId));
+    Histogram &hRight = *histograms.at(HistKey(predicate.right.relId, predicate.right.colId));
     uint64_t joinSize = 0;
 
-    map<uint64_t,uint64_t>::iterator it;
+    map<uint64_t, uint64_t>::iterator it;
     uint64_t prevBound = hRight.domainMinimum;
-    for(it = hLeft.histo.begin(); it != hLeft.histo.end(); it++){
+    for (it = hLeft.histo.begin(); it != hLeft.histo.end(); it++) {
         joinSize += it->second * hRight.getEstimatedKeys(prevBound, it->first);
         prevBound = it->first;
     }
