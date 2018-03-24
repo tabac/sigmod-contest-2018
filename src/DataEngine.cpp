@@ -1,20 +1,25 @@
-#include <vector>
 #include <iostream>
+#include <vector>
+#include <unordered_map>
+#include "Relation.hpp"
+#include "Histogram.hpp"
+
 #include "DataEngine.hpp"
+
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-DataEngine::~DataEngine() {
-
-    for(unordered_map<HistKey, Histogram*>::iterator itr = histograms.begin(); itr != histograms.end(); itr++) {
-        delete itr->second;
-    }
-}
+//DataEngine::~DataEngine() {
+//
+//    for(unordered_map<HistKey, Histogram*>::iterator itr = histograms.begin(); itr != histograms.end(); itr++) {
+//        delete itr->second;
+//    }
+//}
 //---------------------------------------------------------------------------
 void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
-   this->relations.emplace_back(relId, fileName);
+    relations.emplace_back(relId, fileName);
 }
 //---------------------------------------------------------------------------
 void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuckets) {
@@ -22,13 +27,13 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
     clock_t startTime = clock();
     #endif
 
-    Relation& r = this->relations[rid];
+    Relation& r = relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
         Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
         //h.createEquiWidth(numOfBuckets);
         //h.createExactEquiWidth(numOfBuckets);
         h->createEquiHeight(numOfBuckets);
-        this->histograms[pair<RelationId, unsigned>(rid, colID)] = h;
+        histograms[pair<RelationId, unsigned>(rid, colID)] = h;
     }
 
     #ifndef NDEBUG
@@ -39,13 +44,38 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
 Relation& DataEngine::getRelation(unsigned relationId)
 // Loads a relation from disk
 {
-   if (relationId >= this->relations.size()) {
+   if (relationId >= relations.size()) {
       cerr << "Relation with id: " << relationId << " does not exist" << endl;
       throw;
    }
-   return this->relations[relationId];
+   return relations[relationId];
 }
 //---------------------------------------------------------------------------
+uint64_t DataEngine::getFilterSelectivity(const FilterInfo& filter){
+    Histogram& h = *histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
+    if (filter.comparison == FilterInfo::Comparison::Less){
+        return h.getEstimatedKeys(0, filter.constant);
+    }else if(filter.comparison == FilterInfo::Comparison::Greater){
+        return h.getEstimatedKeys(filter.constant, UINT64_MAX);
+    }else{
+        return h.getEstimatedKeys(filter.constant, filter.constant);
+    }
+}
+//--------------------------------------------------------------------------
+uint64_t DataEngine::getJoinSelectivity(const PredicateInfo& predicate){
+    Histogram& hLeft = *histograms.at(HistKey (predicate.left.relId, predicate.left.colId));
+    Histogram& hRight = *histograms.at(HistKey (predicate.right.relId, predicate.right.colId));
+    uint64_t joinSize = 0;
+
+    map<uint64_t,uint64_t>::iterator it;
+    uint64_t prevBound = hRight.domainMinimum;
+    for(it = hLeft.histo.begin(); it != hLeft.histo.end(); it++){
+        joinSize += it->second * hRight.getEstimatedKeys(prevBound, it->first);
+        prevBound = it->first;
+    }
+    return joinSize;
+}
+//--------------------------------------------------------------------------
 //uint64_t DataEngine::getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d){
 //    FilterOperatorNode* filterOp;
 //    JoinOperatorNode* joinOp;
@@ -66,7 +96,7 @@ Relation& DataEngine::getRelation(unsigned relationId)
 //       return 0;
 //    }
 //}
-////---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 //uint64_t DataEngine::getFilterSelectivity(FilterOperatorNode* filterOp, DataNode &d){
 //    SelectInfo &si = (filterOp -> info).filterColumn;
 //    Histogram& h = histograms.at(HistKey (si.relId, si.colId));
@@ -78,31 +108,6 @@ Relation& DataEngine::getRelation(unsigned relationId)
 //        return h.getEstimatedKeys((filterOp-> info).constant, (filterOp-> info).constant);
 //    }
 //}
-//--------------------------------------------------------------------------
-uint64_t DataEngine::getFilterSelectivity(FilterInfo& filter){
-    Histogram& h = *histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
-    if (filter.comparison == FilterInfo::Comparison::Less){
-        return h.getEstimatedKeys(0, filter.constant);
-    }else if(filter.comparison == FilterInfo::Comparison::Greater){
-        return h.getEstimatedKeys(filter.constant, UINT64_MAX);
-    }else{
-        return h.getEstimatedKeys(filter.constant, filter.constant);
-    }
-}
-//--------------------------------------------------------------------------
-uint64_t DataEngine::getJoinSelectivity(PredicateInfo& predicate){
-    Histogram& hLeft = *histograms.at(HistKey (predicate.left.relId, predicate.left.colId));
-    Histogram& hRight = *histograms.at(HistKey (predicate.right.relId, predicate.right.colId));
-    uint64_t joinSize = 0;
-
-    map<uint64_t,uint64_t>::iterator it;
-    uint64_t prevBound = hRight.domainMinimum;
-    for(it = hLeft.histo.begin(); it != hLeft.histo.end(); it++){
-        joinSize += it->second * hRight.getEstimatedKeys(prevBound, it->first);
-        prevBound = it->first;
-    }
-    return joinSize;
-}
 //--------------------------------------------------------------------------
 //uint64_t DataEngine::getJoinSelectivity(JoinOperatorNode* joinOp, DataNode &d){
 //    SelectInfo &leftRelation = (joinOp -> info).left;

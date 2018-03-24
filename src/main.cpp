@@ -1,19 +1,22 @@
 #include <iostream>
+#include "DataEngine.hpp"
 #include "Planner.hpp"
 #include "Executor.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
+vector<Relation> DataEngine::relations;
+HistCatalog DataEngine::histograms;
 //---------------------------------------------------------------------------
 int main(void)
 {
-    DataEngine engine;
+    //DataEngine engine;
 
     // Read join relations
     string line;
     unsigned relId = 0;
     while (getline(cin, line) && line != "Done") {
-        engine.addRelation(relId, line.c_str());
-        engine.buildCompleteHist(relId, 100, 10);
+        DataEngine::addRelation(relId, line.c_str());
+        DataEngine::buildCompleteHist(relId, 100, 10);
         ++relId;
     }
 
@@ -49,7 +52,7 @@ int main(void)
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
         // Generate an execution plan for all `queries`.
-        Plan *plan = Planner::generatePlan(engine, queries);
+        Plan *plan = Planner::generatePlan(queries);
         // Execute the generated plan.
         Executor::executePlan(*plan, resultsInfo);
 
@@ -62,6 +65,15 @@ int main(void)
 
         delete plan;
     }
+
+
+    // clear histogram pointers
+    for(unordered_map<HistKey, Histogram*>::iterator itr = DataEngine::histograms.begin();
+        itr != DataEngine::histograms.end(); itr++) {
+
+        delete itr->second;
+    }
+    DataEngine::histograms.clear();
 
     return 0;
 }

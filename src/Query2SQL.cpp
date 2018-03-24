@@ -1,8 +1,12 @@
 #include <iostream>
 #include <vector>
+#include "DataEngine.hpp"
 #include "Relation.hpp"
 #include "Utils.hpp"
 #include "Parser.hpp"
+//---------------------------------------------------------------------------
+std::vector<Relation> DataEngine::relations;
+HistCatalog DataEngine::histograms;
 //---------------------------------------------------------------------------
 int main (void)
 {

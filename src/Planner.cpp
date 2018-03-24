@@ -1,11 +1,9 @@
 #include <iostream>
-#include <vector>
-#include <unordered_map>
-#include <unordered_set>
 #include <algorithm>
+#include "Planner.hpp"
+#include "DataEngine.hpp"
 #include "Plan.hpp"
 #include "Parser.hpp"
-#include "Planner.hpp"
 #include "Relation.hpp"
 #include "Utils.hpp"
 //---------------------------------------------------------------------------
@@ -13,7 +11,16 @@ using namespace std;
 //---------------------------------------------------------------------------
 int intermDataCounter = 0;
 int targetCounter = 0;
-
+//---------------------------------------------------------------------------
+bool Planner::filterComparator(const FilterInfo& f1, const FilterInfo& f2)
+{
+    return DataEngine::getFilterSelectivity(f1) < DataEngine::getFilterSelectivity(f2);
+}
+//---------------------------------------------------------------------------
+bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2)
+{
+    return DataEngine::getJoinSelectivity(p1) < DataEngine::getJoinSelectivity(p2);
+}
 //---------------------------------------------------------------------------
 void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
                              unsignedPair relationPair, AbstractNode *newNode)
@@ -202,7 +209,7 @@ void Planner::addAggregate(Plan &plan, QueryInfo& query,
 
 }
 //---------------------------------------------------------------------------
-void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
+void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
 {
     unordered_map<unsignedPair, AbstractNode *> lastAttached;
 
@@ -211,10 +218,10 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     vector<RelationId>::iterator rt;
     for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
         vector<AbstractNode *>::iterator lt;
-        lt = find(plan.nodes.begin(), plan.nodes.end(), &engine.relations[(*rt)]);
+        lt = find(plan.nodes.begin(), plan.nodes.end(), &DataEngine::relations[(*rt)]);
 
         if (lt == plan.nodes.end()) {
-            plan.nodes.push_back((AbstractNode *) &engine.relations[(*rt)]);
+            plan.nodes.push_back((AbstractNode *) &DataEngine::relations[(*rt)]);
 
             AbstractNode::connectNodes(plan.root, plan.nodes.back());
             lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
@@ -227,19 +234,17 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     unordered_set<SelectInfo> selections;
     query.getAllSelections(selections);
 
-    //TODO: sort filters by selectivity order.
+    // sort filters by selectivity order.
+    sort(query.filters.begin(), (--query.filters.end()), filterComparator);
 
     // Push filters.
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
-        // gmytil================================================================
-//        uint64_t selec2 = engine.getFilterSelectivity(*ft);
-//        cout << "Second Selectivity: " << selec2 << endl;
-        //=======================================================================
         Planner::addFilter(plan, (*ft), selections, lastAttached);
     }
 
-    //TODO: sort joins by selectivity order. Smaller goes first.
+    //sort joins by selectivity order. Smaller goes first.
+    sort(query.predicates.begin(), (--query.predicates.end()), predicateComparator);
 
     // Push join predicates.
     vector<PredicateInfo>::iterator pt, qt;
@@ -279,7 +284,7 @@ void Planner::attachQueryPlan(Plan &plan, DataEngine &engine, QueryInfo &query)
     Planner::addAggregate(plan, query, lastAttached);
 }
 //---------------------------------------------------------------------------
-Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
+Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 {
     Plan *plan = new Plan();
     AbstractNode* root = new DataNode();
@@ -289,7 +294,7 @@ Plan* Planner::generatePlan(DataEngine &engine, vector<QueryInfo> &queries)
 
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {
-        Planner::attachQueryPlan(*plan, engine, (*it));
+        Planner::attachQueryPlan(*plan, (*it));
     }
 
 #ifndef NDEBUG
