@@ -8,7 +8,7 @@ using namespace std;
 void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
-   this->relations.emplace_back(relId, fileName);
+    this->relations.emplace_back(relId, fileName);
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
@@ -19,6 +19,17 @@ Relation& DataEngine::getRelation(unsigned relationId)
       throw;
    }
    return this->relations[relationId];
+}
+//---------------------------------------------------------------------------
+void DataEngine::createSortedIndexes(void)
+{
+    vector<Relation>::iterator it;
+    for (it = this->relations.begin(); it != this->relations.end(); ++it) {
+        it->createIndex(it->columnsInfo[0]);
+        if (it->columnsInfo.size() > 1) {
+            it->createIndex(it->columnsInfo[1]);
+        }
+    }
 }
 //---------------------------------------------------------------------------
 float DataEngine::getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d){

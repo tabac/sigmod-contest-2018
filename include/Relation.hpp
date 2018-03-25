@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 #include <thread>
 #include <vector>
 #include <string>
@@ -8,7 +9,8 @@
 #include "Plan.hpp"
 #include "Index.hpp"
 //---------------------------------------------------------------------------
-const bool USE_INDEXES = true;
+const bool INDEXES_ON = true;
+const bool INDEXES_ADAPTIVE_ON = true;
 //---------------------------------------------------------------------------
 class Relation: public AbstractDataNode {
     private:
@@ -26,6 +28,8 @@ class Relation: public AbstractDataNode {
     /// The join column containing the keys
     std::vector<uint64_t*> columns;
 
+    /// Indexes mutex, for thread safety.
+    std::mutex *indexMut;
     /// Number of indexes to create.
     static const unsigned MAX_INDEX_COUNT = 3;
     /// The table's indexes.

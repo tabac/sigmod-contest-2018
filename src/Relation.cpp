@@ -1,3 +1,4 @@
+#include <mutex>
 #include <thread>
 #include <fcntl.h>
 #include <iostream>
@@ -57,21 +58,29 @@ optional<IteratorPair> Relation::getIdsIterator(const SelectInfo& selectInfo,
         assert(filterInfo == NULL || filterInfo->filterColumn.relId == this->relId);
     }
 
-    if (filterInfo != NULL && USE_INDEXES) {
+    if (filterInfo != NULL && INDEXES_ON) {
         SortedIndex *index = this->getIndex(selectInfo);
 
         if (index != NULL) {
             // We have an index for this `selectInfo`, use it.
             return index->getIdsIterator(selectInfo, filterInfo);
-        } else if (this->MAX_INDEX_COUNT < indexes.size()) {
+        } else if (INDEXES_ADAPTIVE_ON && this->MAX_INDEX_COUNT < indexes.size()) {
             // We don't have an index for this `selectInfo`.
             // In the adaptive version we should create one.
 
-            /*
-            this->createIndex(selectInfo);
+            if (this->indexMut->try_lock()) {
+                // In case we don't lock the indexes, go without.
 
-            return this->getIdsIterator(selectInfo, filterInfo);
-            */
+                index = this->getIndex(selectInfo);
+                if (index == NULL) {
+                    // Verify that we still don't have an index
+                    // before creating one.
+                    this->createIndex(selectInfo);
+                }
+                this->indexMut->unlock();
+
+                return this->getIdsIterator(selectInfo, filterInfo);
+            }
         }
     }
 
@@ -88,21 +97,29 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
     if (selectInfo.relId != this->relId) {
         return nullopt;
     } else {
-        if (filterInfo != NULL && USE_INDEXES) {
+        if (filterInfo != NULL && INDEXES_ON) {
             SortedIndex *index = this->getIndex(selectInfo);
 
             if (index != NULL) {
                 // We have an index for this `selectInfo`, use it.
                 return index->getValuesIterator(selectInfo, filterInfo);
-            } else {
+            } else if (INDEXES_ADAPTIVE_ON && this->MAX_INDEX_COUNT < indexes.size()) {
                 // We don't have an index for this `selectInfo`.
                 // In the adaptive version we should create one.
 
-                /*
-                this->createIndex(selectInfo);
+                if (this->indexMut->try_lock()) {
+                    // In case we don't lock the indexes, go without.
 
-                return this->getValuesIterator(selectInfo, filterInfo);
-                */
+                    index = this->getIndex(selectInfo);
+                    if (index == NULL) {
+                        // Verify that we still don't have an index
+                        // before creating one.
+                        this->createIndex(selectInfo);
+                    }
+                    this->indexMut->unlock();
+
+                    return this->getValuesIterator(selectInfo, filterInfo);
+                }
             }
         }
     }
@@ -229,6 +246,11 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
         this->columnsInfo.emplace_back(relId, 0, c);
     }
 
+    // TODO: Should be done better, no pointer, but member.
+    //       Adding it as a member leads to move constructor
+    //       delirium.
+    this->indexMut = new mutex();
+
 #ifndef NDEBUG
     this->label = "r" + to_string(this->relId);
 #endif
@@ -238,6 +260,13 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
 Relation::~Relation()
   // Destructor
 {
+    /////////////////////////////////////////////////////////////////////
+    // TODO: Should be done better, no pointer, but member.
+    //       Adding it as a member leads to move constructor
+    //       delirium.
+    // delete this->indexMut;
+    /////////////////////////////////////////////////////////////////////
+
     if (ownsMemory) {
         for (auto c : columns)
             delete[] c;

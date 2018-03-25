@@ -14,7 +14,7 @@ class Planner {
                            std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoins(Plan& plan, QueryInfo& query,
-                         unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+                         std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
                         std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
@@ -36,7 +36,7 @@ class Planner {
 #ifndef NDEBUG
     static void printPlan(Plan* plan);
 
-    static void printAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached);
+    static void printAttached(std::unordered_map<unsignedPair, AbstractNode *> &lastAttached);
 #endif
 
 };

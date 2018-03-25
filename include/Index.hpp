@@ -1,7 +1,7 @@
 #pragma once
 #include "Parser.hpp"
 #include "Mixins.hpp"
-
+// ---------------------------------------------------------------------------
 class IdValuePair{
     public:
     uint64_t id, value;
@@ -13,9 +13,6 @@ class IdValuePair{
         return this->value < o.value;
     }
 };
-
-
-
 // ---------------------------------------------------------------------------
 class AbstractIndex {
     /// Index class is the base class for all Index implementations.
