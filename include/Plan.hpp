@@ -96,7 +96,8 @@ class DataNode : public AbstractDataNode {
 
     /// Returns `nullopt` for a `DataNode`. The ids are the indices
     /// in the case of a column.
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo&, const FilterInfo*);
+    std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
+                                               const FilterInfo* filterInfo) const;
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.

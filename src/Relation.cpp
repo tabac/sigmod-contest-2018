@@ -46,7 +46,7 @@ void Relation::execute(vector<thread> &)
     }
 }
 //---------------------------------------------------------------------------
-optional<IteratorPair> Relation::getIdsIterator(const SelectInfo&, const FilterInfo*)
+optional<IteratorPair> Relation::getIdsIterator(const SelectInfo&, const FilterInfo*) const
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
     return nullopt;

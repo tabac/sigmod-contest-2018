@@ -105,7 +105,7 @@ void DataNode::execute(vector<thread> &)
 }
 //---------------------------------------------------------------------------
 // optional<IteratorPair> DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
-optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const FilterInfo* )
+optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const FilterInfo* ) const
 // Returns `nullopt` for a `DataNode`. The ids are the indices
 // in the case of a column.
 {
@@ -380,14 +380,19 @@ void FilterOperatorNode::executeAsync(void)
     const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
-    // Get id, values iterators for the filter column.
-    optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn, NULL);
+    // Get values iterator for the filter column.
+    optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
+                                                              &this->info);
     assert(option.has_value());
     const IteratorPair valIter = option.value();
 
+    // Get ids iterator for the filter column.
+    optional<IteratorPair> idsOption = inNode->getIdsIterator(this->info.filterColumn,
+                                                              &this->info);
+
     // Get indices that satisfy the given filter condition.
     vector<uint64Pair> indices;
-    this->info.getFilteredIndices(valIter, indices);
+    this->info.getFilteredIndices(valIter, idsOption, indices);
 
     // Reserve memory for ids, column names, column values.
     outNode->columnsInfo.reserve(this->selections.size());

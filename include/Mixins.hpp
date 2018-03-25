@@ -29,7 +29,7 @@ class DataReaderMixin {
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of ids.
     virtual std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
-                                                       const FilterInfo* filterInfo) = 0;
+                                                       const FilterInfo* filterInfo) const = 0;
 
     /// Should be implemented by any class intended as a data storer
     /// and return the values of the column specified by `selectInfo

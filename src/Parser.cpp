@@ -8,31 +8,68 @@
 using namespace std;
 //---------------------------------------------------------------------------
 void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
-                                    vector<uint64Pair> &indices)
+                                    const optional<IteratorPair> &idsOption,
+                                    vector<uint64Pair> &indices) const
 // Returns the indices of `valIter` that satisfy `this` condition.
 {
     uint64_t c;
-    vector<uint64_t>::const_iterator it;
+    vector<uint64_t>::const_iterator it, jt;
 
     switch (this->comparison) {
         case FilterInfo::Comparison::Less:
-            for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
-                if ((*it) < this->constant) {
-                    indices.emplace_back(c, 0);
+            if (idsOption.has_value()) {
+                const IteratorPair idsIter = idsOption.value();
+
+                assert(valIter.second - valIter.first == idsIter.second - idsIter.first);
+
+                for (it = valIter.first, jt = idsIter.first; it != valIter.second; ++it, ++jt) {
+                    if ((*it) < this->constant) {
+                        indices.emplace_back((*jt), 0);
+                    }
+                }
+            } else {
+                for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
+                    if ((*it) < this->constant) {
+                        indices.emplace_back(c, 0);
+                    }
                 }
             }
             break;
         case FilterInfo::Comparison::Equal:
-            for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
-                if ((*it) == this->constant) {
-                    indices.emplace_back(c, 0);
+            if (idsOption.has_value()) {
+                const IteratorPair idsIter = idsOption.value();
+
+                assert(valIter.second - valIter.first == idsIter.second - idsIter.first);
+
+                for (it = valIter.first, jt = idsIter.first; it != valIter.second; ++it, ++jt) {
+                    if ((*it) == this->constant) {
+                        indices.emplace_back((*jt), 0);
+                    }
+                }
+            } else {
+                for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
+                    if ((*it) == this->constant) {
+                        indices.emplace_back(c, 0);
+                    }
                 }
             }
             break;
         case FilterInfo::Comparison::Greater:
-            for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
-                if ((*it) > this->constant) {
-                    indices.emplace_back(c, 0);
+            if (idsOption.has_value()) {
+                const IteratorPair idsIter = idsOption.value();
+
+                assert(valIter.second - valIter.first == idsIter.second - idsIter.first);
+
+                for (it = valIter.first, jt = idsIter.first; it != valIter.second; ++it, ++jt) {
+                    if ((*it) > this->constant) {
+                        indices.emplace_back((*jt), 0);
+                    }
+                }
+            } else {
+                for (c = 0, it = valIter.first; it != valIter.second; ++it, ++c) {
+                    if ((*it) > this->constant) {
+                        indices.emplace_back(c, 0);
+                    }
                 }
             }
             break;

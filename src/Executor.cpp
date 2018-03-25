@@ -13,8 +13,6 @@ vector<thread> threads;
 //---------------------------------------------------------------------------
 void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 // Executes a `Plan`.
-// TODO: This should clear vectors of intermediate nodes if
-//       they are not used anymore.
 // TODO: This should wait on a condition variable and not
 //       spin on this `counter`.
 {
@@ -83,17 +81,6 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
-    // Sequential version:
     node->execute(threads);
-
-    // Async version, using async:
-    // async(launch::async, &AbstractNode::execute, node);
-
-    // Async version, using threads:
-
-    // Set status to processing.
-
-    // Create thread and run `execute`.
-    // threads.emplace_back(&AbstractNode::execute, node);
 }
 //---------------------------------------------------------------------------
