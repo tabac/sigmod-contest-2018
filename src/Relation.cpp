@@ -12,11 +12,11 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void Relation::execute(vector<thread> &threads)
+void Relation::execute(vector<thread> &)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);

@@ -70,11 +70,11 @@ void AbstractNode::connectNodes(AbstractNode *left, AbstractNode *right)
     right->inAdjList.push_back(left);
 }
 //---------------------------------------------------------------------------
-void DataNode::execute(vector<thread> &threads)
+void DataNode::execute(vector<thread> &)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -83,7 +83,7 @@ void DataNode::execute(vector<thread> &threads)
 
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
-            // assert(this->outAdjList[0]->isStatusFresh());
+            assert(this->outAdjList[0]->isStatusFresh());
         }
     }
 
@@ -146,7 +146,7 @@ void JoinOperatorNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only two incoming edges.
         assert(this->inAdjList.size() == 2);
@@ -348,7 +348,7 @@ void FilterOperatorNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -407,7 +407,7 @@ void FilterJoinOperatorNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
@@ -477,7 +477,7 @@ void AggregateOperatorNode::execute(vector<thread> &threads)
 {
     {
         // Should never be called otherwise.
-        // assert(this->isStatusFresh());
+        assert(this->isStatusFresh());
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);

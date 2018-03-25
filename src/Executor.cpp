@@ -72,6 +72,7 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
             tt->join();
         }
     }
+    threads.clear();
 
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {

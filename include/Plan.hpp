@@ -90,7 +90,7 @@ class DataNode : public AbstractDataNode {
 
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
-    void execute(std::vector<std::thread> &threads);
+    void execute(std::vector<std::thread> &);
     /// Frees any resources allocated by the node.
     void freeResources() { this->dataValues.clear(); this->columnsInfo.clear(); }
 
