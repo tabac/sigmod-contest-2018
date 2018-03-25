@@ -4,8 +4,11 @@
 #include <string>
 #include <cstdint>
 #include <optional>
-#include "Plan.hpp"
 #include "Mixins.hpp"
+#include "Plan.hpp"
+#include "Index.hpp"
+//---------------------------------------------------------------------------
+const bool USE_INDEXES = true;
 //---------------------------------------------------------------------------
 class Relation: public AbstractDataNode {
     private:
@@ -23,6 +26,11 @@ class Relation: public AbstractDataNode {
     /// The join column containing the keys
     std::vector<uint64_t*> columns;
 
+    /// Number of indexes to create.
+    static const unsigned MAX_INDEX_COUNT = 3;
+    /// The table's indexes.
+    std::vector<SortedIndex> indexes;
+
     /// Stores a relation into a file (binary)
     void storeRelation(const std::string& fileName);
     /// Stores a relation into a file (csv)
@@ -39,15 +47,20 @@ class Relation: public AbstractDataNode {
     /// Returns `nullopt` for a `Relation`. The ids are the indices
     /// in the case of a column.
     std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
-                                               const FilterInfo* filterInfo) const;
+                                               const FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo) const;
+                                                  const FilterInfo* filterInfo);
 
     /// Returns the size, that is the number of tuples.
+    /// TODO: This is bad, take a look at TODO above ^.
     uint64_t getSize() const { return this->size; }
+
+    SortedIndex *getIndex(const SelectInfo &selection);
+
+    void createIndex(const SelectInfo &selection);
 
     bool isBaseRelation() const { return true; }
 

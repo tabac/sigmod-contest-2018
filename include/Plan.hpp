@@ -97,12 +97,12 @@ class DataNode : public AbstractDataNode {
     /// Returns `nullopt` for a `DataNode`. The ids are the indices
     /// in the case of a column.
     std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
-                                               const FilterInfo* filterInfo) const;
+                                               const FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo) const;
+                                                  const FilterInfo* filterInfo);
 
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() const { return this->size; }
@@ -130,7 +130,7 @@ class AbstractOperatorNode : public AbstractNode {
     template <size_t I>
     static void pushSelections(const std::vector<SelectInfo> &selections,
                                const std::vector<uint64Pair> &indices,
-                               const AbstractDataNode *inNode,
+                               AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
@@ -170,7 +170,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// sorted by value.
     static void getValuesIndexedSorted(std::vector<uint64Pair> &pairs,
                                        SelectInfo &selection,
-                                       const AbstractDataNode* inNode);
+                                       AbstractDataNode* inNode);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding || this->info.right.binding == binding;

@@ -104,8 +104,7 @@ void DataNode::execute(vector<thread> &)
     }
 }
 //---------------------------------------------------------------------------
-// optional<IteratorPair> DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
-optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const FilterInfo* ) const
+optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const FilterInfo* )
 // Returns `nullopt` for a `DataNode`. The ids are the indices
 // in the case of a column.
 {
@@ -113,7 +112,7 @@ optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const Filter
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> DataNode::getValuesIterator(const SelectInfo& selectInfo,
-                                                   const FilterInfo* filterInfo) const
+                                                   const FilterInfo* filterInfo)
 {
     {
         // Should not be called with some filter condition.
@@ -182,8 +181,8 @@ void JoinOperatorNode::executeAsync(void)
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
-    const AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
+    AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get sorted vector<{rowIndex, rowValue}> for left column.
@@ -261,7 +260,7 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
 template <size_t I>
 void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
                                           const vector<uint64Pair> &indices,
-                                          const AbstractDataNode *inNode,
+                                          AbstractDataNode *inNode,
                                           DataNode *outNode)
 {
     {
@@ -315,7 +314,7 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
 //---------------------------------------------------------------------------
 void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
                                               SelectInfo &selection,
-                                              const AbstractDataNode* inNode)
+                                              AbstractDataNode* inNode)
 {
     // Reserve memory for pairs.
     pairs.reserve(inNode->getSize());
@@ -377,7 +376,7 @@ void FilterOperatorNode::executeAsync(void)
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get values iterator for the filter column.
@@ -441,7 +440,7 @@ void FilterJoinOperatorNode::executeAsync(void)
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get values iterator for the left column.
@@ -510,7 +509,7 @@ void AggregateOperatorNode::executeAsync(void)
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Reserve memory for results.

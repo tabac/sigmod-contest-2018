@@ -2,6 +2,7 @@
 #include <cassert>
 #include "Planner.hpp"
 #include "Executor.hpp"
+#include "Relation.hpp"
 #include "DataEngine.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -23,6 +24,13 @@ int main(void)
     // Build histograms, indices,...
 
     // Do index crazy.
+    vector<Relation>::iterator it;
+    for (it = engine.relations.begin(); it != engine.relations.end(); ++it) {
+        it->createIndex(it->columnsInfo[0]);
+        if (it->columnsInfo.size() > 1) {
+            it->createIndex(it->columnsInfo[1]);
+        }
+    }
 
     // The test harness will send the first query after 1 second.
 
