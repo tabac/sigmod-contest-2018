@@ -5,7 +5,6 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-// Class constructor
 SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter) : selection(selection)
 {
     vector<IdValuePair> pairs;
@@ -28,10 +27,10 @@ SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter
         this->values.push_back(jt->value);
     }
 }
-
-// Returns an iterator with the ids of the Tuples that satisfy FilterInfo
+//---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
                                                    const FilterInfo* filterInfo)
+// Returns an iterator with the ids of the Tuples that satisfy FilterInfo
 {
     {
         assert(selectInfo == this->selection);
@@ -48,10 +47,10 @@ optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
         this->ids.begin() + range.second
     }};
 }
-
-// Returns an iterator with the values of the Tuples that satisfy the FilterInfo
+//---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectInfo,
                                                       const FilterInfo* filterInfo)
+// Returns an iterator with the values of the Tuples that satisfy the FilterInfo
 {
     {
         assert(selectInfo == this->selection);
@@ -68,54 +67,36 @@ optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectIn
         this->values.begin() + range.second
     }};
 }
-
-// returns the index of the specific element. If the element does not exist,
-// the index of the smaller closer element is returned.
+//---------------------------------------------------------------------------
 uint64_t SortedIndex::findElement(uint64_t value)
 {
-    uint64_t start = 0, finish = this->values.size() - 1;
-    uint64_t median;
-    while(finish - start > 1) {
-        median = (finish + start)/2;
-        if (value > this->values[median]) {
-            start = median;
-        } else { // equality
-            finish = median;
+    uint64_t l = 0, r = this->values.size();
+    while(r > l) {
+        uint64_t m = (l + r) / 2;
+
+        if (value > this->values[m]) {
+            l = m + 1;
+        } else {
+            r = m;
         }
     }
 
-    return (value < this->values[finish]? start : finish);
+    return l;
 }
+//---------------------------------------------------------------------------
 uint64Pair SortedIndex::estimateIndexes(const FilterInfo *filterInfo)
 {
     uint64Pair range;
 
     if (filterInfo->comparison == FilterInfo::Comparison::Less){
-        range.first = 0;
-
-        range.second = this->findElement(filterInfo->constant);
-
-        if(filterInfo->constant < this->values[range.second]){
-            range.second = 0;
-        }
-
-        if(filterInfo->constant > this->values[range.second]){
-            range.second += 1;
-        }
-
+        range = {0, this->findElement(filterInfo->constant)};
     } else if (filterInfo->comparison == FilterInfo::Comparison::Greater){
-        range.first = this->findElement(filterInfo->constant + 1);
-
-        if(filterInfo->constant > this->values[range.first]){
-            range.first = this->values.size();
-        }
-
-        range.second = this->values.size();
-
-
+        range = {this->findElement(filterInfo->constant + 1), this->values.size()};
     } else if (filterInfo->comparison == FilterInfo::Comparison::Equal){
-        range.first = this->findElement(filterInfo->constant);
-        range.second = this->findElement(filterInfo->constant + 1);
+        range = {
+            this->findElement(filterInfo->constant),
+            this->findElement(filterInfo->constant + 1)
+        };
 
         if(this->values[range.second] == filterInfo->constant) {
             range.second +=1;

@@ -17,19 +17,20 @@ class IdValuePair{
 
 
 // ---------------------------------------------------------------------------
-// Index class is the base class for all Index implementations.
 class AbstractIndex {
+    /// Index class is the base class for all Index implementations.
     public:
     std::vector<uint64_t> ids, values;
 };
 // ---------------------------------------------------------------------------
-// SortedIndex represents a simple index that sorts a column of a Relation
-// and responds to queries based on DataReaderMixin
 class SortedIndex : public AbstractIndex, public DataReaderMixin {
+    /// SortedIndex represents a simple index that sorts a column of a Relation
+    /// and responds to queries based on DataReaderMixin
+
     private:
-    // findElement traverses the index and returns the position of the
-    // specified value. If the specified value does not exist, it returns the
-    // index of the directly smallest value.
+    /// findElement traverses the index and returns the position of the
+    /// specified value. If the specified value does not exist, it returns the
+    /// index of the directly smallest value.
     uint64_t findElement(uint64_t value);
 
     uint64Pair estimateIndexes(const FilterInfo *);
