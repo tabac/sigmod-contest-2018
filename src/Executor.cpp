@@ -9,6 +9,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
+vector<thread> threads;
+//---------------------------------------------------------------------------
 void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 // Executes a `Plan`.
 // TODO: This should clear vectors of intermediate nodes if
@@ -64,6 +66,14 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 
     assert(resultsInfo.size() == 0);
 
+    vector<thread>::iterator tt;
+    for (tt = threads.begin(); tt != threads.end(); ++tt) {
+        if (tt->joinable()) {
+            tt->join();
+        }
+    }
+    threads.clear();
+
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {
         resultsInfo.emplace_back((*it)->dataValues, (*it)->columnsInfo.size());
@@ -73,7 +83,17 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
-    node->execute();
+    // Sequential version:
+    node->execute(threads);
+
+    // Async version, using async:
     // async(launch::async, &AbstractNode::execute, node);
+
+    // Async version, using threads:
+
+    // Set status to processing.
+
+    // Create thread and run `execute`.
+    // threads.emplace_back(&AbstractNode::execute, node);
 }
 //---------------------------------------------------------------------------

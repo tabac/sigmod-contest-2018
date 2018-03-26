@@ -1,4 +1,5 @@
 #pragma once
+#include <thread>
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -31,7 +32,7 @@ class Relation: public AbstractDataNode {
 
     /// Checks if the nodes it depends on are `processed`
     /// and if so sets its flag to processed too.
-    void execute();
+    void execute(std::vector<std::thread> &);
     /// Frees any resources allocated by the node.
     void freeResources() { }
 

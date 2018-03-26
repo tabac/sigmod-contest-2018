@@ -1,3 +1,4 @@
+#include <thread>
 #include <fcntl.h>
 #include <iostream>
 #include <fstream>
@@ -11,7 +12,7 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-void Relation::execute()
+void Relation::execute(vector<thread> &)
 {
     {
         // Should never be called otherwise.
