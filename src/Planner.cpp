@@ -27,9 +27,7 @@ bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& 
     return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
 //---------------------------------------------------------------------------
-void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
-                             const unsignedPair relationPair,
-                             AbstractNode *newNode)
+void Planner::updateAttached(OriginTracker &lastAttached, const unsignedPair relationPair, AbstractNode *newNode)
 {
     // Fail, total fail.
     AbstractNode *oldNode = lastAttached[relationPair];
@@ -110,8 +108,7 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
     }
 }
 //---------------------------------------------------------------------------
-unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
-                        unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+unsigned Planner::addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
 {
 
     unsigned counter = 0;
@@ -123,7 +120,7 @@ unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
             cout << "FILTER SELECTIVITY " << selectivity << endl;
 #endif
             DataNode *dataNode = new DataNode();
-            FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
+            FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
 
             unsignedPair filterPair = {ft->filterColumn.relId,
                                        ft->filterColumn.binding};
@@ -152,15 +149,14 @@ unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
     return counter;
 }
 //---------------------------------------------------------------------------
-void Planner::addFilters2(Plan &plan, QueryInfo& query,
-                             unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
 {
 
     unsigned counter = 0;
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
             DataNode *dataNode = new DataNode();
-            FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
+            FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
 
             unsignedPair filterPair = {ft->filterColumn.relId,
                                        ft->filterColumn.binding};
@@ -186,15 +182,14 @@ void Planner::addFilters2(Plan &plan, QueryInfo& query,
 }
 
 //---------------------------------------------------------------------------
-void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft,
-                                                 unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft, OriginTracker &lastAttached)
 {
 
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin()+pft; ft != query.filters.end(); ++ft){
 
         DataNode *dataNode = new DataNode();
-        FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
+        FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
 
         unsignedPair filterPair = {ft->filterColumn.relId,
                                    ft->filterColumn.binding};
@@ -215,8 +210,7 @@ void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft,
     }
 }
 //---------------------------------------------------------------------------
-void Planner::addJoins(Plan& plan, QueryInfo& query,
-                       unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached)
 {
 
     vector<PredicateInfo>::iterator pt, qt;
@@ -254,11 +248,10 @@ void Planner::addJoins(Plan& plan, QueryInfo& query,
     }
 }
 //---------------------------------------------------------------------------
-void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
-                      unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
     DataNode *dataNode = new DataNode();
-    JoinOperatorNode *joinNode = new JoinOperatorNode(query.queryId, predicate);
+    JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
 
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
@@ -282,11 +275,10 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
 
 }
 //---------------------------------------------------------------------------
-void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query,
-                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
     DataNode *dataNode = new DataNode();
-    FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(query.queryId, predicate);
+    FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
 
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
@@ -311,8 +303,7 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
 
 }
 //---------------------------------------------------------------------------
-void Planner::addAggregate(Plan &plan, const QueryInfo& query,
-                           unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &lastAttached)
 {
     DataNode *dataNode =  new DataNode();
     AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
@@ -348,10 +339,9 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query,
 
 }
 //---------------------------------------------------------------------------
-void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
+OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query)
 {
-    unordered_map<unsignedPair, AbstractNode *> lastAttached;
-
+    OriginTracker lastAttached;
     // Push original relations.
     unsigned bd;
     vector<RelationId>::const_iterator rt;
@@ -369,6 +359,13 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
             lastAttached[make_pair((*rt), bd)] = (*lt);
         }
     }
+    return lastAttached;
+}
+//---------------------------------------------------------------------------
+void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
+{
+
+    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
 
     // sort filters by selectivity order.
     //sort(query.filters.begin(), query.filters.end(), filterComparator);
@@ -411,6 +408,21 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------
+JoinCatalog Planner::findCommonJoins(vector<QueryInfo> &batch)
+{
+    unordered_map<size_t, JoinOperatorNode> joins;
+    vector<QueryInfo>::iterator it;
+    for(it = batch.begin(); it != batch.end(); ++it) {
+        for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
+            if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
+                // if it is not a filter join
+                JoinOperatorNode *joinNode = new JoinOperatorNode(*pt);
+
+            }
+        }
+    }
+};
+//---------------------------------------------------------------------------
 Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 {
     Plan *plan = new Plan();
@@ -418,6 +430,8 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
     plan->nodes.push_back(root);
     plan->root = root;
+
+    JoinCatalog commonJoins = Planner::findCommonJoins(queries);
 
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {

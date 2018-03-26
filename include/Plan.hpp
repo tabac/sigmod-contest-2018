@@ -145,8 +145,6 @@ class AbstractOperatorNode : public AbstractNode {
 
     bool isBaseRelation() const { return false; }
 
-    // AbstractOperatorNode(unsigned queryId) : queryId(queryId) { }
-
     ~AbstractOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -179,9 +177,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
         return this->info.left == selection || this->info.right == selection;
     }
 
-    JoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
+    JoinOperatorNode(PredicateInfo &info) : info(info) {}
 
     ~JoinOperatorNode() { }
 };
@@ -204,9 +200,7 @@ class FilterOperatorNode : public AbstractOperatorNode {
         return this->info.filterColumn == selection;
     }
 
-    FilterOperatorNode(unsigned queryId, FilterInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
+    FilterOperatorNode(FilterInfo &info) : info(info) {}
 
     ~FilterOperatorNode() { }
 };
@@ -229,9 +223,7 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
         return this->info.left == selection;
     }
 
-    FilterJoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
+    FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
 
     ~FilterJoinOperatorNode() { }
 };
