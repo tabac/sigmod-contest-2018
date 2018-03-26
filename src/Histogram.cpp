@@ -8,7 +8,9 @@
 using namespace std;
 
 //---------------------------------------------------------------------------
-Histogram::Histogram(Relation& r, unsigned colId):r(r), colId(colId){}
+Histogram::Histogram(Relation& r, unsigned colId):r(r), colId(colId){
+    sample = NULL;
+}
 //---------------------------------------------------------------------------
 Histogram::Histogram(Relation& r, unsigned colId, uint64_t budget):r(r), colId(colId), budget(budget){
     srand((unsigned)time(0));
@@ -73,10 +75,11 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
         }
     }
 
+    domainMinimum = minVal;
     uint64_t width = (maxVal-minVal)/numberOfBuckets;
 
-    //uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
-    uint64_t* bucketIndexing = new uint64_t[(int)ceil((maxVal-minVal)/width)+1];
+    uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
+    //uint64_t* bucketIndexing = new uint64_t[(int)ceil((maxVal-minVal)/width)+1];
     int bIndex = 0;
     for(uint64_t i = minVal+width; i < maxVal; i+=width){
         histo[i] = 0;
@@ -120,6 +123,7 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
         }
     }
 
+    domainMinimum = minVal;
     uint64_t width = (maxVal-minVal)/numberOfBuckets;
 
     uint64_t* bucketIndexing = new uint64_t[numberOfBuckets+1];
@@ -139,7 +143,7 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
     }
 
     delete[] bucketIndexing;
-    delete[] sample;
+    //delete[] sample;
 
     #ifndef NDEBUG
         cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;

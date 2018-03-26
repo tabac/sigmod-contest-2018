@@ -22,10 +22,10 @@ bool Planner::filterComparator(const FilterInfo& f1, const FilterInfo& f2)
 //---------------------------------------------------------------------------
 bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2)
 {
-    cout << "COMPARING " << DataEngine::getJoinSelectivity(p1) << " with " << DataEngine::getJoinSelectivity(p2) << endl;
-    cout << "COMPARING " << DataEngine::getJoinEstimatedTuples(p1) << " with " << DataEngine::getJoinEstimatedTuples(p2) << endl;
-    return DataEngine::getJoinSelectivity(p1) <= DataEngine::getJoinSelectivity(p2);
-    //return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
+//    cout << "COMPARING " << DataEngine::getJoinSelectivity(p1) << " with " << DataEngine::getJoinSelectivity(p2) << endl;
+//    cout << "COMPARING " << DataEngine::getJoinEstimatedTuples(p1) << " with " << DataEngine::getJoinEstimatedTuples(p2) << endl;
+//    return DataEngine::getJoinSelectivity(p1) <= DataEngine::getJoinSelectivity(p2);
+    return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
 //---------------------------------------------------------------------------
 void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
