@@ -50,6 +50,7 @@ int main(void)
             queries.emplace_back(q++).parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
+        cout << "NEW BATCH" << endl;
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
         // Generate an execution plan for all `queries`.

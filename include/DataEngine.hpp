@@ -26,8 +26,6 @@ class DataEngine {
 
   public:
 
-//    static DataEngine();
-//    static ~DataEngine();
   /// All available relations.
   static std::vector<Relation> relations;
   /// All available histograms indexed by relation and column ID
@@ -42,15 +40,11 @@ class DataEngine {
   /// Returns a reference to a `Relation` instance by id.
   static Relation& getRelation(unsigned id);
   /// Estimates the selectivity of FilterInfo `filter`
-  static uint64_t getFilterSelectivity(const FilterInfo& filter);
+  static uint64_t getFilterEstimatedTuples(const FilterInfo& filter);
+    static float getFilterSelectivity(const FilterInfo& filter);
     /// Estimates the selectivity of PredicateInfo `predicate`
-  static uint64_t getJoinSelectivity(const PredicateInfo& predicate);
-
-//  private:
-//  /// Estimates the selectivity of filter operator `FilterOperatorNode` on dataset `DataNode `
-//  uint64_t getFilterSelectivity(FilterOperatorNode* filterOp, DataNode &d);
-//  /// Estimates the selectivity of join operator `JoinOperatorNode` on dataset `DataNode `
-//  uint64_t getJoinSelectivity(JoinOperatorNode* filterOp, DataNode &d);
+  static uint64_t getJoinEstimatedTuples(const PredicateInfo& predicate);
+    static float getJoinSelectivity(const PredicateInfo& predicate);
 
 };
 //---------------------------------------------------------------------------

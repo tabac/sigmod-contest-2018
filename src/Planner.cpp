@@ -6,6 +6,8 @@
 #include "Parser.hpp"
 #include "Relation.hpp"
 #include "Utils.hpp"
+
+#define FILTER_SELECT_THRES 0.5
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -14,12 +16,16 @@ int targetCounter = 0;
 //---------------------------------------------------------------------------
 bool Planner::filterComparator(const FilterInfo& f1, const FilterInfo& f2)
 {
-    return DataEngine::getFilterSelectivity(f1) < DataEngine::getFilterSelectivity(f2);
+    return DataEngine::getFilterSelectivity(f1) <= DataEngine::getFilterSelectivity(f2);
+    //return DataEngine::getFilterEstimatedTuples(f1) < DataEngine::getFilterEstimatedTuples(f2);
 }
 //---------------------------------------------------------------------------
 bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2)
 {
-    return DataEngine::getJoinSelectivity(p1) < DataEngine::getJoinSelectivity(p2);
+    cout << "COMPARING " << DataEngine::getJoinSelectivity(p1) << " with " << DataEngine::getJoinSelectivity(p2) << endl;
+    cout << "COMPARING " << DataEngine::getJoinEstimatedTuples(p1) << " with " << DataEngine::getJoinEstimatedTuples(p2) << endl;
+    return DataEngine::getJoinSelectivity(p1) <= DataEngine::getJoinSelectivity(p2);
+    //return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
 //---------------------------------------------------------------------------
 void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAttached,
@@ -105,15 +111,52 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
     }
 }
 //---------------------------------------------------------------------------
-void Planner::addFilters(Plan &plan, QueryInfo& query,
+unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
                         unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
 
-    // sort filters by selectivity order.
-    sort(query.filters.begin(), query.filters.end(), filterComparator);
-
+    unsigned counter = 0;
     vector<FilterInfo>::iterator ft;
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+        float selectivity;
+        if ((selectivity = DataEngine::getFilterSelectivity(*ft)) <= FILTER_SELECT_THRES){
+            cout << "FILTER SELECTIVITY " << selectivity << endl;
+            DataNode *dataNode = new DataNode();
+            FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
+
+            unsignedPair filterPair = {ft->filterColumn.relId,
+                                       ft->filterColumn.binding};
+
+            AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+            AbstractNode::connectNodes(filterNode, dataNode);
+
+            Planner::updateAttached(lastAttached, filterPair, dataNode);
+
+            plan.nodes.push_back((AbstractNode *) filterNode);
+            plan.nodes.push_back((AbstractNode *) dataNode);
+            counter++;
+
+#ifndef NDEBUG
+            filterNode->label = filterNode->info.dumpLabel();
+            dataNode->label = "d" + to_string(intermDataCounter++);
+#endif
+        }else{
+            break;
+        }
+    }
+
+    cout << "Start from counter " << counter << endl;
+
+    return counter;
+}
+//---------------------------------------------------------------------------
+void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft,
+                                                 unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+
+    vector<FilterInfo>::iterator ft;
+    for(ft = query.filters.begin()+pft; ft != query.filters.end(); ++ft){
+
         DataNode *dataNode = new DataNode();
         FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
 
@@ -129,8 +172,8 @@ void Planner::addFilters(Plan &plan, QueryInfo& query,
         plan.nodes.push_back((AbstractNode *) dataNode);
 
 #ifndef NDEBUG
-        filterNode->label = filterNode->info.dumpLabel();
-        dataNode->label = "d" + to_string(intermDataCounter++);
+            filterNode->label = filterNode->info.dumpLabel();
+            dataNode->label = "d" + to_string(intermDataCounter++);
 #endif
 
     }
@@ -139,9 +182,6 @@ void Planner::addFilters(Plan &plan, QueryInfo& query,
 void Planner::addJoins(Plan& plan, QueryInfo& query,
                        unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
-
-    //sort joins by selectivity order. Smaller goes first.
-    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
@@ -294,18 +334,31 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
         }
     }
 
-//<<<<<<< HEAD
-//    // Get all selections used in the query.
-//    unordered_set<SelectInfo> selections;
-//    query.getAllSelections(selections);
-//
-//=======
-//>>>>>>> devel
-    // Push filters.
-    Planner::addFilters(plan, query, lastAttached);
+    // sort filters by selectivity order.
+    sort(query.filters.begin(), query.filters.end(), filterComparator);
+
+    cout << "Add all high selectivity filters." << endl;
+
+    // Push selective filters.
+    unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
+
+    //sort joins by selectivity order. Smaller goes first.
+    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
+
+    cout << "Add all joins." << endl;
 
     // Push join predicates.
     Planner::addJoins(plan, query, lastAttached);
+
+    cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
+    cout << "Add all low selectivity filters." << endl;
+
+    if(remainingFiltersIndex < query.filters.size()){
+        // add remaining filters
+        addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
+    }
+
+    cout << "Add aggregates" << endl;
 
     // Push aggregate.
     Planner::addAggregate(plan, query, lastAttached);

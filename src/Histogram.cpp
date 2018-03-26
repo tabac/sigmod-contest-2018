@@ -153,7 +153,7 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
 
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     #ifndef NDEBUG
-        cout << "Histo Query: (" << lb << "," << ub << ")\n";
+        //cout << "Histo Query: (" << lb << "," << ub << ")\n";
     #endif
 
     if(ub == UINT64_MAX){
@@ -170,7 +170,7 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     uint64_t prevKey = (--it)->first;
     for(it = histo.lower_bound(lb); it != histo.lower_bound(ub); it++){
         #ifndef NDEBUG
-            cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+           // cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
         #endif
 
         selectedKeys+= (it->first-lb)/(float)(it->first-prevKey) * it->second;
@@ -180,7 +180,7 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     it = histo.lower_bound(ub);
     if(it != histo.end()) {
         #ifndef NDEBUG
-            cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
+           // cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
         #endif
 
         selectedKeys += (ub - prevKey) / (float)(it->first - prevKey) * it->second;

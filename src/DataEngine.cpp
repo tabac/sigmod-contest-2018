@@ -30,8 +30,8 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
     Relation& r = relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
         Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
-        //h.createEquiWidth(numOfBuckets);
-        //h.createExactEquiWidth(numOfBuckets);
+        //h->createEquiWidth(numOfBuckets);
+        //h->createExactEquiWidth(numOfBuckets);
 
         h->createEquiHeight(numOfBuckets);
         histograms[pair<RelationId, unsigned>(rid, colID)] = h;
@@ -52,7 +52,7 @@ Relation& DataEngine::getRelation(unsigned relationId)
    return relations[relationId];
 }
 //---------------------------------------------------------------------------
-uint64_t DataEngine::getFilterSelectivity(const FilterInfo& filter){
+uint64_t DataEngine::getFilterEstimatedTuples(const FilterInfo& filter){
     Histogram& h = *histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
     if (filter.comparison == FilterInfo::Comparison::Less){
         return h.getEstimatedKeys(0, filter.constant);
@@ -63,18 +63,26 @@ uint64_t DataEngine::getFilterSelectivity(const FilterInfo& filter){
     }
 }
 //--------------------------------------------------------------------------
-uint64_t DataEngine::getJoinSelectivity(const PredicateInfo& predicate) {
+uint64_t DataEngine::getJoinEstimatedTuples(const PredicateInfo& predicate) {
     Histogram &hLeft = *histograms.at(HistKey(predicate.left.relId, predicate.left.colId));
     Histogram &hRight = *histograms.at(HistKey(predicate.right.relId, predicate.right.colId));
     uint64_t joinSize = 0;
 
     map<uint64_t, uint64_t>::iterator it;
-    uint64_t prevBound = hRight.domainMinimum;
+    uint64_t prevBound = hLeft.domainMinimum;
     for (it = hLeft.histo.begin(); it != hLeft.histo.end(); it++) {
         joinSize += it->second * hRight.getEstimatedKeys(prevBound, it->first);
         prevBound = it->first;
     }
     return joinSize;
+}
+//--------------------------------------------------------------------------
+float DataEngine::getFilterSelectivity(const FilterInfo& filter){
+    return getFilterEstimatedTuples(filter) / (float) relations[filter.filterColumn.relId].size;
+}
+//--------------------------------------------------------------------------
+float DataEngine::getJoinSelectivity(const PredicateInfo& predicate) {
+    return getJoinEstimatedTuples(predicate)/(float)(relations[predicate.left.relId].size * relations[predicate.right.relId].size);
 }
 //--------------------------------------------------------------------------
 //uint64_t DataEngine::getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d){
