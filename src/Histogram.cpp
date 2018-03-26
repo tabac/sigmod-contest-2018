@@ -126,7 +126,6 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
     for(uint64_t i = minVal+width; i < maxVal; i+=width){
         histo[i] = 0;
         bucketIndexing[bIndex] = i;
-        cout << bIndex << " "<<i <<endl;
         bIndex++;
     }
     histo[maxVal] = 0;

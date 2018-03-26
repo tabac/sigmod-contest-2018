@@ -7,7 +7,7 @@
 #include "Relation.hpp"
 #include "Utils.hpp"
 
-#define FILTER_SELECT_THRES 0.5
+#define FILTER_SELECT_THRES 0.8
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -17,7 +17,6 @@ int targetCounter = 0;
 bool Planner::filterComparator(const FilterInfo& f1, const FilterInfo& f2)
 {
     return DataEngine::getFilterSelectivity(f1) <= DataEngine::getFilterSelectivity(f2);
-    //return DataEngine::getFilterEstimatedTuples(f1) < DataEngine::getFilterEstimatedTuples(f2);
 }
 //---------------------------------------------------------------------------
 bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2)
@@ -152,6 +151,40 @@ unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
 
     return counter;
 }
+//---------------------------------------------------------------------------
+void Planner::addFilters2(Plan &plan, QueryInfo& query,
+                             unordered_map<unsignedPair, AbstractNode *> &lastAttached)
+{
+
+    unsigned counter = 0;
+    vector<FilterInfo>::iterator ft;
+    for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+            DataNode *dataNode = new DataNode();
+            FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
+
+            unsignedPair filterPair = {ft->filterColumn.relId,
+                                       ft->filterColumn.binding};
+
+            AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+            AbstractNode::connectNodes(filterNode, dataNode);
+
+            Planner::updateAttached(lastAttached, filterPair, dataNode);
+
+            plan.nodes.push_back((AbstractNode *) filterNode);
+            plan.nodes.push_back((AbstractNode *) dataNode);
+            counter++;
+
+#ifndef NDEBUG
+            filterNode->label = filterNode->info.dumpLabel();
+            dataNode->label = "d" + to_string(intermDataCounter++);
+#endif
+
+    }
+#ifndef NDEBUG
+    cout << "Start from counter " << counter << endl;
+#endif
+}
+
 //---------------------------------------------------------------------------
 void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft,
                                                  unordered_map<unsignedPair, AbstractNode *> &lastAttached)
@@ -338,16 +371,16 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     }
 
     // sort filters by selectivity order.
-    sort(query.filters.begin(), query.filters.end(), filterComparator);
+    //sort(query.filters.begin(), query.filters.end(), filterComparator);
 
 #ifndef NDEBUG
     cout << "Add all high selectivity filters." << endl;
 #endif
 
     // Push selective filters.
-    unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
+    //unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
+    Planner::addFilters2(plan, query, lastAttached);
 
-    //sort joins by selectivity order. Smaller goes first.
     sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
 #ifndef NDEBUG
@@ -358,14 +391,14 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     Planner::addJoins(plan, query, lastAttached);
 
 #ifndef NDEBUG
-    cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
+    //cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
     cout << "Add all low selectivity filters." << endl;
 #endif
 
-    if(remainingFiltersIndex < query.filters.size()){
-        // add remaining filters
-        addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
-    }
+//    if(remainingFiltersIndex < query.filters.size()){
+//        // add remaining filters
+//        addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
+//    }
 
 #ifndef NDEBUG
     cout << "Add aggregates" << endl;
