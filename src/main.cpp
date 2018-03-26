@@ -16,26 +16,13 @@ int main(void)
     unsigned relId = 0;
     while (getline(cin, line) && line != "Done") {
         DataEngine::addRelation(relId, line.c_str());
-        DataEngine::buildCompleteHist(relId, 100, 10);
+        // relation, 1/samplingRatio, buckets
+        DataEngine::buildCompleteHist(relId, 100, 200);
         ++relId;
     }
 
-
     // Preparation phase (not timed)
     // Build histograms, indices,...
-
-    // ------------ test histograms ---------------------------
-
-//    Histogram& h = *new Histogram(engine.relations[0], 6, 4000/100);
-//    delete &h;
-
-//    Histogram& h = engine.histograms.at(HistKey (13,6));
-//    cout << "Result: " << h.getEstimatedKeys(7254, 8120) << endl;
-//    cout << "Result: " << h.getEstimatedKeys(4000, 10000) << endl;
-
-//    return 0;
-
-    // ------------ test histograms ---------------------------
 
     // Do index crazy.
 
@@ -50,7 +37,9 @@ int main(void)
             queries.emplace_back(q++).parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
+#ifndef NDEBUG
         cout << "NEW BATCH" << endl;
+#endif
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
         // Generate an execution plan for all `queries`.

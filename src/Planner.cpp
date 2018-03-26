@@ -24,7 +24,7 @@ bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& 
 {
 //    cout << "COMPARING " << DataEngine::getJoinSelectivity(p1) << " with " << DataEngine::getJoinSelectivity(p2) << endl;
 //    cout << "COMPARING " << DataEngine::getJoinEstimatedTuples(p1) << " with " << DataEngine::getJoinEstimatedTuples(p2) << endl;
-//    return DataEngine::getJoinSelectivity(p1) <= DataEngine::getJoinSelectivity(p2);
+//    return DataEngine::getJoinSelectivity(p1) < DataEngine::getJoinSelectivity(p2);
     return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
 //---------------------------------------------------------------------------
@@ -120,7 +120,9 @@ unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
         float selectivity;
         if ((selectivity = DataEngine::getFilterSelectivity(*ft)) <= FILTER_SELECT_THRES){
+#ifndef NDEBUG
             cout << "FILTER SELECTIVITY " << selectivity << endl;
+#endif
             DataNode *dataNode = new DataNode();
             FilterOperatorNode *filterNode = new FilterOperatorNode(query.queryId, (*ft));
 
@@ -144,8 +146,9 @@ unsigned Planner::addFilters(Plan &plan, QueryInfo& query,
             break;
         }
     }
-
+#ifndef NDEBUG
     cout << "Start from counter " << counter << endl;
+#endif
 
     return counter;
 }
@@ -337,7 +340,9 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     // sort filters by selectivity order.
     sort(query.filters.begin(), query.filters.end(), filterComparator);
 
+#ifndef NDEBUG
     cout << "Add all high selectivity filters." << endl;
+#endif
 
     // Push selective filters.
     unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
@@ -345,20 +350,26 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     //sort joins by selectivity order. Smaller goes first.
     sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
+#ifndef NDEBUG
     cout << "Add all joins." << endl;
+#endif
 
     // Push join predicates.
     Planner::addJoins(plan, query, lastAttached);
 
+#ifndef NDEBUG
     cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
     cout << "Add all low selectivity filters." << endl;
+#endif
 
     if(remainingFiltersIndex < query.filters.size()){
         // add remaining filters
         addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
     }
 
+#ifndef NDEBUG
     cout << "Add aggregates" << endl;
+#endif
 
     // Push aggregate.
     Planner::addAggregate(plan, query, lastAttached);
