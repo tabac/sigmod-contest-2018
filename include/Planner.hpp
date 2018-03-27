@@ -6,21 +6,15 @@
 #include "Parser.hpp"
 
 using OriginTracker = std::unordered_map<unsignedPair, AbstractNode *>;
-using JoinCatalog = std::unordered_map<size_t, JoinOperatorNode>;
-using JoinKey = std::pair<std::pair<RelationId, unsigned>, std::pair<RelationId, unsigned>>;
+using JoinCatalog = std::unordered_map<PredicateInfo, JoinOperatorNode *>;
 
-//namespace std {
-//    template <>
-//    struct hash<JoinKey> {
-//        size_t operator ()(JoinKey jKey) const {
-//
-//
-//            auto h1 = std::hash<RelationId>{}(relationColumnPair.first);
-//            auto h2 = std::hash<unsigned>{}(relationColumnPair.second);
-//            return h1 ^ h2;
-//        }
-//    };
+//template <class T>
+//inline void hash_combine(std::size_t& seed, const T& v)
+//{
+//    std::hash<T> hasher;
+//    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 //}
+
 
 class Planner {
     public:

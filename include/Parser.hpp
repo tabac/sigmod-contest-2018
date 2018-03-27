@@ -74,6 +74,8 @@ struct PredicateInfo {
     /// Dump SQL
     std::string dumpSQL();
 
+    bool operator==(const PredicateInfo& o) const;
+
     /// The delimiter used in our text format
     static const char delimiter='&';
     /// The delimiter used in SQL
@@ -135,6 +137,37 @@ namespace std {
             ::hash_combine(seed, s.relId);
             ::hash_combine(seed, s.binding);
             ::hash_combine(seed, s.colId);
+
+            return seed;
+        }
+    };
+
+    template <>
+    struct hash<PredicateInfo> {
+        inline size_t operator ()(const PredicateInfo & jKey) const
+        {
+            RelationId h1,h2;
+            unsigned  h3,h4;
+            if(jKey.left.relId < jKey.right.relId){
+                h1 = jKey.left.relId;
+                h2 = jKey.right.relId;
+            }else{
+                h1 = jKey.right.relId;
+                h2 = jKey.left.relId;
+
+            }
+            if(jKey.left.colId < jKey.right.colId){
+                h3 = jKey.left.colId;
+                h4 = jKey.right.colId;
+            }else{
+                h3 = jKey.right.colId;
+                h4 = jKey.left.colId;
+            }
+            size_t seed = 0;
+            ::hash_combine(seed, h1);
+            ::hash_combine(seed, h2);
+            ::hash_combine(seed, h3);
+            ::hash_combine(seed, h4);
 
             return seed;
         }

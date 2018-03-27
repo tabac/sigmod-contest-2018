@@ -410,17 +410,20 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
 //---------------------------------------------------------------------------
 JoinCatalog Planner::findCommonJoins(vector<QueryInfo> &batch)
 {
-    unordered_map<size_t, JoinOperatorNode> joins;
+    JoinCatalog joins;
     vector<QueryInfo>::iterator it;
     for(it = batch.begin(); it != batch.end(); ++it) {
         for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
+            // if it is a pure join and not a filter join
             if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
-                // if it is not a filter join
-                JoinOperatorNode *joinNode = new JoinOperatorNode(*pt);
-
+                // if this join does not exist in the catalog
+                if(joins.find(*pt) == joins.end()){
+                    joins[*pt] = new JoinOperatorNode(*pt);
+                }
             }
         }
     }
+    return joins;
 };
 //---------------------------------------------------------------------------
 Plan* Planner::generatePlan(vector<QueryInfo> &queries)

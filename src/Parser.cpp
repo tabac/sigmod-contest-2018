@@ -347,3 +347,28 @@ bool SelectInfo::operator==(const SelectInfo& o) const {
     return o.relId == relId && o.binding == binding && o.colId == colId;
 }
 //---------------------------------------------------------------------------
+bool PredicateInfo::operator==(const PredicateInfo& o) const {
+
+    if((this->left).relId == o.left.relId){
+        if((this->left).colId == o.left.colId &&
+                (this->right).relId == o.right.relId &&
+                (this->right).colId == o.right.colId)
+        {
+            return true;
+        }else{
+            return false;
+        }
+    }else if((this->left).relId == o.right.relId){
+        if((this->left).colId == o.right.colId &&
+           (this->right).relId == o.left.relId &&
+           (this->right).colId == o.left.colId)
+        {
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    return false;
+}
+//---------------------------------------------------------------------------
