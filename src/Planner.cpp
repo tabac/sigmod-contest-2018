@@ -52,7 +52,19 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
         while (!o->outAdjList[0]->outAdjList.empty()) {
             o->selections.emplace_back(selection);
 
-            o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
+           // o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
+
+           // mias kai twra exw shared pragmata, mporei ena datanode na exei > 1 outedges. opote prepei
+           // na psaksw gia to swsto.
+
+//            vector<AbstractNode *>::iterator jt;
+//            for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
+//                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+//
+//                if (o->hasBinding(it->first.binding)) {
+//                    propagateSelection(query, o, it->first, it->second);
+//                }
+//            }
         }
     } else {
         while (!o->outAdjList[0]->outAdjList.empty()) {
@@ -101,7 +113,7 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
         for (jt = r->outAdjList.begin(); jt != r->outAdjList.end(); ++jt) {
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
 
-            if ((o->queryId == query.queryId) && o->hasBinding(it->first.binding)) {
+            if (o->hasBinding(it->first.binding)) {
                 propagateSelection(query, o, it->first, it->second);
             }
         }
@@ -248,6 +260,48 @@ void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached
     }
 }
 //---------------------------------------------------------------------------
+void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached, JoinCatalog sharedJoins)
+{
+
+    vector<PredicateInfo>::iterator pt, qt;
+    for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
+
+        if(sharedJoins.find(*pt)!=sharedJoins.end()){
+            continue;
+        }
+        // Check if the symmetric predicate is already added.
+        // If so skip current predicate
+        bool skip_predicate = false;
+        for (qt = query.predicates.begin(); qt != pt; ++qt) {
+            if ((*qt).left == (*pt).right && (*qt).right == (*pt).left) {
+                skip_predicate = true;
+            }
+        }
+
+        if (!skip_predicate) {
+            if ((*pt).left.relId == (*pt).right.relId &&
+                (*pt).left.binding == (*pt).right.binding) {
+                // If predicate refers to the same table
+                // add `FilterJoinOperatorNode`.
+                Planner::addFilterJoin(plan, (*pt), query, lastAttached);
+            } else {
+                unsignedPair leftPair = {(*pt).left.relId,
+                                         (*pt).left.binding};
+                unsignedPair rightPair = {(*pt).right.relId,
+                                          (*pt).right.binding};
+
+                if (lastAttached[leftPair] == lastAttached[rightPair]) {
+                    Planner::addFilterJoin(plan, (*pt), query, lastAttached);
+                } else {
+                    // If predicate refers to different tables
+                    // add `JoinOperatorNode`.
+                    Planner::addJoin(plan, (*pt), query, lastAttached);
+                }
+            }
+        }
+    }
+}
+//---------------------------------------------------------------------------
 void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
     DataNode *dataNode = new DataNode();
@@ -269,7 +323,34 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
     plan.nodes.push_back((AbstractNode *) dataNode);
 
 #ifndef NDEBUG
-    joinNode->label = joinNode->info.dumpLabel();
+    joinNode->label = predicate.dumpLabel();
+    dataNode->label = "d" + to_string(intermDataCounter++);
+#endif
+
+}
+//---------------------------------------------------------------------------
+void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached,
+JoinOperatorNode* joinNode)
+{
+    DataNode *dataNode = new DataNode();
+
+    unsignedPair leftPair = {predicate.left.relId,
+                             predicate.left.binding};
+    unsignedPair rightPair = {predicate.right.relId,
+                              predicate.right.binding};
+
+    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+    AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+    AbstractNode::connectNodes(joinNode, dataNode);
+
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
+
+    plan.nodes.push_back((AbstractNode *) joinNode);
+    plan.nodes.push_back((AbstractNode *) dataNode);
+
+#ifndef NDEBUG
+    joinNode->label = predicate.dumpLabel();
     dataNode->label = "d" + to_string(intermDataCounter++);
 #endif
 
@@ -367,6 +448,7 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
 
     OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
 
+
     // sort filters by selectivity order.
     //sort(query.filters.begin(), query.filters.end(), filterComparator);
 
@@ -408,22 +490,54 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------
-JoinCatalog Planner::findCommonJoins(vector<QueryInfo> &batch)
+void Planner::attachQueryPlan(Plan &plan, QueryInfo &query, JoinCatalog sharedJoins)
 {
-    JoinCatalog joins;
+
+    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
+
+    // check if this query contains one of the shared joins and push it first
+    for(vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++){
+        if(sharedJoins.find(*pt)!=sharedJoins.end()){
+            cout << "SHARED JOIN FOUND" << endl;
+            Planner::addJoin(plan,*pt, query, lastAttached, sharedJoins.at(*pt));
+        }
+    }
+
+    // push filters
+    Planner::addFilters2(plan, query, lastAttached);
+
+    // push remaining joins in order
+    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
+
+    // Push join predicates.
+    Planner::addJoins(plan, query, lastAttached, sharedJoins);
+
+    // Push aggregate.
+    Planner::addAggregate(plan, query, lastAttached);
+
+    // Setup selections for OperatorNodes.
+    setQuerySelections(plan, query);
+}
+//---------------------------------------------------------------------------
+CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
+{
+    CommonJoinCounter commonJoins;
     vector<QueryInfo>::iterator it;
     for(it = batch.begin(); it != batch.end(); ++it) {
         for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
             // if it is a pure join and not a filter join
             if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
                 // if this join does not exist in the catalog
-                if(joins.find(*pt) == joins.end()){
-                    joins[*pt] = new JoinOperatorNode(*pt);
+                try {
+                    commonJoins.at(*pt) += 1;
+                }
+                catch (const out_of_range &) {
+                    commonJoins[*pt] = 1;
                 }
             }
         }
     }
-    return joins;
+    return commonJoins;
 };
 //---------------------------------------------------------------------------
 Plan* Planner::generatePlan(vector<QueryInfo> &queries)
@@ -434,11 +548,18 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     plan->nodes.push_back(root);
     plan->root = root;
 
-    JoinCatalog commonJoins = Planner::findCommonJoins(queries);
+    JoinCatalog sharedJoins;
+    CommonJoinCounter commonJoins = Planner::findCommonJoins(queries);
+    for(CommonJoinCounter::iterator ctr = commonJoins.begin(); ctr != commonJoins.end(); ctr++){
+        if(ctr->second > 1){
+            PredicateInfo cjoin = PredicateInfo(ctr->first);
+            sharedJoins[ctr->first] = new JoinOperatorNode(cjoin);
+        }
+    }
 
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {
-        Planner::attachQueryPlan(*plan, (*it));
+        Planner::attachQueryPlan(*plan, (*it), sharedJoins);
     }
 
 #ifndef NDEBUG
@@ -451,6 +572,11 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
     printPlan(plan);
 #endif
+
+    // clear join catalog
+    for(JoinCatalog::iterator jtr = sharedJoins.begin(); jtr != sharedJoins.end(); jtr++){
+        delete jtr->second;
+    }
 
     return plan;
 }

@@ -7,6 +7,7 @@
 
 using OriginTracker = std::unordered_map<unsignedPair, AbstractNode *>;
 using JoinCatalog = std::unordered_map<PredicateInfo, JoinOperatorNode *>;
+using CommonJoinCounter = std::unordered_map<PredicateInfo, int>;
 
 //template <class T>
 //inline void hash_combine(std::size_t& seed, const T& v)
@@ -20,10 +21,11 @@ class Planner {
     public:
 
     static void attachQueryPlan(Plan &plan, QueryInfo &query);
+    static void attachQueryPlan(Plan &plan, QueryInfo &query, JoinCatalog sharedJoins);
 
     static OriginTracker connectQueryBaseRelations(Plan &plan, QueryInfo &query);
 
-    static JoinCatalog findCommonJoins(std::vector<QueryInfo> &batch);
+    static CommonJoinCounter findCommonJoins(std::vector<QueryInfo> &batch);
 
     static unsigned addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached);
 
@@ -33,8 +35,12 @@ class Planner {
     static void addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft, OriginTracker &lastAttached);
 
     static void addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached);
+    static void addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached, JoinCatalog sharedJoins);
 
     static void addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached);
+
+    static void addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached,
+                          JoinOperatorNode* joinNode);
 
     static void addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached);
 

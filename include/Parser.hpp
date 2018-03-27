@@ -74,6 +74,8 @@ struct PredicateInfo {
     /// Dump SQL
     std::string dumpSQL();
 
+    PredicateInfo(const PredicateInfo& o) : left(o.left), right(o.right) {}
+
     bool operator==(const PredicateInfo& o) const;
 
     /// The delimiter used in our text format

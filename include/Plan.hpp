@@ -151,7 +151,15 @@ class AbstractOperatorNode : public AbstractNode {
 class JoinOperatorNode : public AbstractOperatorNode {
     public:
     /// Reference to the corresponding `PredicateInfo` instance.
-    PredicateInfo &info;
+
+    /// Since the same join operator can be shared among different queries, we have to preserve a list
+    /// with all the specified bindings for its predicates
+
+    PredicateInfo& info;
+    //std::vector<PredicateInfo> info;
+
+
+
 
     /// Joins the two input `DataNode` instances.
     void execute(std::vector<std::thread> &threads);
@@ -170,14 +178,30 @@ class JoinOperatorNode : public AbstractOperatorNode {
                                        const AbstractDataNode* inNode);
 
     bool hasBinding(const unsigned binding) const {
+//        for(std::vector<PredicateInfo>::iterator pt = info.begin(); pt != info.end(); pt++){
+//            if((*pt).left.binding == binding || (*pt).right.binding == binding){
+//                return true;
+//            }
+//        }
+//        return false;
         return this->info.left.binding == binding || this->info.right.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
+//        for(std::vector<PredicateInfo>::iterator pt = info.begin(); pt != info.end(); pt++){
+//            if((*pt).left == selection || (*pt).right == selection){
+//                return true;
+//            }
+//        }
+//        return false;
         return this->info.left == selection || this->info.right == selection;
     }
 
     JoinOperatorNode(PredicateInfo &info) : info(info) {}
+
+//    JoinOperatorNode(PredicateInfo &info) {
+//        this->info.push_back(info);
+//    }
 
     ~JoinOperatorNode() { }
 };
