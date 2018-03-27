@@ -370,29 +370,32 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     JoinOperatorNode* joinNode;
     DataNode *dataNode;
 
-    if(plan.sharedJoins.find(predicate)!=plan.sharedJoins.end()){
-        joinNode = plan.sharedJoins.at(predicate);
-        joinNode->updateBindings(predicate);
-        dataNode = (DataNode*) joinNode->outAdjList[0];
-    }else{
-        //PredicateInfo cjoin = PredicateInfo(ctr->first);
-        //cout << cjoin.dumpLabel() << " APPEARED " << ctr->second << " times" << endl;
-        JoinOperatorNode* joinNode = new JoinOperatorNode(predicate);
-        dataNode = new DataNode();
-        plan.sharedJoins[predicate] = joinNode;
-
-        AbstractNode::connectNodes(joinNode, dataNode);
-        plan.nodes.push_back((AbstractNode *) joinNode);
-        plan.nodes.push_back((AbstractNode *) dataNode);
-    }
-
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
     unsignedPair rightPair = {predicate.right.relId,
                               predicate.right.binding};
 
-    AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
-    AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+    try {
+        joinNode = plan.sharedJoins.at(predicate);
+        joinNode->updateBindings(predicate);
+        dataNode = (DataNode*) joinNode->outAdjList[0];
+        cout << "ALREADY EXISTS" << endl;
+    }
+    catch (const out_of_range &) {
+        cout << "CREATE FOR FIRST TIME" << endl;
+        joinNode = new JoinOperatorNode(predicate);
+        dataNode = new DataNode();
+
+        plan.sharedJoins[predicate] = joinNode;
+
+        AbstractNode::connectNodes(joinNode, dataNode);
+        plan.nodes.push_back((AbstractNode *) joinNode);
+        plan.nodes.push_back((AbstractNode *) dataNode);
+
+        AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
+        AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+
+    }
 
     Planner::updateAttached(lastAttached, leftPair, dataNode);
     Planner::updateAttached(lastAttached, rightPair, dataNode);

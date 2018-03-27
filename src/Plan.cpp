@@ -85,6 +85,7 @@ void DataNode::execute(vector<thread> &)
         ///datanode. Thus, this datanode can have more than one outputs.
         // assert(this->outAdjList.size() < 2);
 
+        //TODO: check how to modify this assertion
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
             assert(this->outAdjList[0]->isStatusFresh());
@@ -154,6 +155,8 @@ void JoinOperatorNode::execute(vector<thread> &threads)
 
         // Sould have only two incoming edges.
         assert(this->inAdjList.size() == 2);
+
+
         // Sould have only one outgoing edge.
         assert(this->outAdjList.size() == 1);
 
