@@ -182,6 +182,17 @@ class JoinOperatorNode : public AbstractOperatorNode {
                                        const AbstractDataNode* inNode);
 
 
+    void updateBindings(PredicateInfo& p){
+        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.left)
+           == (this->boundSelections).end()){
+            this->boundSelections.push_back(p.left);
+        }
+        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.right)
+           == (this->boundSelections).end()){
+            this->boundSelections.push_back(p.right);
+        }
+    }
+
     bool hasBinding(const unsigned binding) const {
         for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
             st != (this->boundSelections).end(); st++){
@@ -199,18 +210,21 @@ class JoinOperatorNode : public AbstractOperatorNode {
         != (this->boundSelections).end();
     }
 
-    //JoinOperatorNode(PredicateInfo &info) : info(info) {}
-
-    JoinOperatorNode(PredicateInfo &info): info(info) {
-        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.left)
-           == (this->boundSelections).end()){
-            this->boundSelections.push_back(info.left);
-        }
-        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.right)
-           == (this->boundSelections).end()){
-            this->boundSelections.push_back(info.right);
-        }
+    JoinOperatorNode(PredicateInfo &info) : info(info) {
+        this->boundSelections.push_back(info.left);
+        this->boundSelections.push_back(info.right);
     }
+
+//    JoinOperatorNode(PredicateInfo &info): info(info) {
+//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.left)
+//           == (this->boundSelections).end()){
+//            this->boundSelections.push_back(info.left);
+//        }
+//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.right)
+//           == (this->boundSelections).end()){
+//            this->boundSelections.push_back(info.right);
+//        }
+//    }
 
     ~JoinOperatorNode() { }
 };
@@ -285,6 +299,7 @@ class Plan {
     /// All the exit nodes of the plan(s).
     std::vector<DataNode *> exitNodes;
 
+    std::unordered_map<PredicateInfo, int> commonJoins;
     std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
 
     ~Plan();

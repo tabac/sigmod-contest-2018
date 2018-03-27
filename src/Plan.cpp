@@ -78,7 +78,11 @@ void DataNode::execute(vector<thread> &)
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
+
         // Sould have one or zero outgoing edges.
+        ///Deprecated assertion. A shared operator can have more than one outputs.
+        ///With shared nodes, operators of different queries can be applied on the same
+        ///datanode. Thus, this datanode can have more than one outputs.
         // assert(this->outAdjList.size() < 2);
 
         if (this->outAdjList.size() == 1) {

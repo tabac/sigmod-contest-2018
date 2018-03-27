@@ -294,13 +294,13 @@ void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached
     }
 }
 //---------------------------------------------------------------------------
-void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached, JoinCatalog sharedJoins)
+void Planner::addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached)
 {
 
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
 
-        if(sharedJoins.find(*pt)!=sharedJoins.end()){
+        if(plan.sharedJoins.find(*pt)!=plan.sharedJoins.end()){
             continue;
         }
         // Check if the symmetric predicate is already added.
@@ -341,6 +341,7 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
     DataNode *dataNode = new DataNode();
     JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
 
+
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
     unsignedPair rightPair = {predicate.right.relId,
@@ -363,10 +364,27 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
 
 }
 //---------------------------------------------------------------------------
-void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached,
-JoinOperatorNode* joinNode)
+void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
-    DataNode *dataNode = new DataNode();
+
+    JoinOperatorNode* joinNode;
+    DataNode *dataNode;
+
+    if(plan.sharedJoins.find(predicate)!=plan.sharedJoins.end()){
+        joinNode = plan.sharedJoins.at(predicate);
+        joinNode->updateBindings(predicate);
+        dataNode = (DataNode*) joinNode->outAdjList[0];
+    }else{
+        //PredicateInfo cjoin = PredicateInfo(ctr->first);
+        //cout << cjoin.dumpLabel() << " APPEARED " << ctr->second << " times" << endl;
+        JoinOperatorNode* joinNode = new JoinOperatorNode(predicate);
+        dataNode = new DataNode();
+        plan.sharedJoins[predicate] = joinNode;
+
+        AbstractNode::connectNodes(joinNode, dataNode);
+        plan.nodes.push_back((AbstractNode *) joinNode);
+        plan.nodes.push_back((AbstractNode *) dataNode);
+    }
 
     unsignedPair leftPair = {predicate.left.relId,
                              predicate.left.binding};
@@ -375,13 +393,9 @@ JoinOperatorNode* joinNode)
 
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
-    AbstractNode::connectNodes(joinNode, dataNode);
 
     Planner::updateAttached(lastAttached, leftPair, dataNode);
     Planner::updateAttached(lastAttached, rightPair, dataNode);
-
-    plan.nodes.push_back((AbstractNode *) joinNode);
-    plan.nodes.push_back((AbstractNode *) dataNode);
 
 #ifndef NDEBUG
     joinNode->label = predicate.dumpLabel();
@@ -524,16 +538,16 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------
-void Planner::attachQueryPlan(Plan &plan, QueryInfo &query, JoinCatalog sharedJoins)
+void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
 {
 
     OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
 
     // check if this query contains one of the shared joins and push it first
     for(vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++){
-        if(sharedJoins.find(*pt)!=sharedJoins.end()){
+        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
             cout << "SHARED JOIN FOUND" << endl;
-            Planner::addJoin(plan,*pt, query, lastAttached, sharedJoins.at(*pt));
+           Planner::addSharedJoin(plan, *pt, query, lastAttached);
         }
     }
 
@@ -544,7 +558,7 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query, JoinCatalog sharedJo
     sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     // Push join predicates.
-    Planner::addJoins(plan, query, lastAttached, sharedJoins);
+    Planner::addNonSharedJoins(plan, query, lastAttached);
 
     // Push aggregate.
     Planner::addAggregate(plan, query, lastAttached);
@@ -582,18 +596,19 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     plan->nodes.push_back(root);
     plan->root = root;
 
-    JoinCatalog& sharedJoins = plan->sharedJoins;
-    CommonJoinCounter commonJoins = Planner::findCommonJoins(queries);
-    for(CommonJoinCounter::iterator ctr = commonJoins.begin(); ctr != commonJoins.end(); ctr++){
-        if(ctr->second > 1){
-            PredicateInfo cjoin = PredicateInfo(ctr->first);
-            sharedJoins[ctr->first] = new JoinOperatorNode(cjoin);
-        }
-    }
+    plan->commonJoins = Planner::findCommonJoins(queries);
+
+//    for(CommonJoinCounter::iterator ctr = commonJoins.begin(); ctr != commonJoins.end(); ctr++){
+//        if(ctr->second > 1){
+//            PredicateInfo cjoin = PredicateInfo(ctr->first);
+//            //cout << cjoin.dumpLabel() << " APPEARED " << ctr->second << " times" << endl;
+//            sharedJoins[ctr->first] = new JoinOperatorNode(cjoin);
+//        }
+//    }
 
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {
-        Planner::attachQueryPlan(*plan, (*it), sharedJoins);
+        Planner::attachQueryPlanShared(*plan, (*it));
     }
 
 #ifndef NDEBUG
