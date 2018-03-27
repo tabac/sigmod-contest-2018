@@ -48,8 +48,10 @@ static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *
                                const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
+
     if (Utils::contains(query.selections, selection)) {
         if (!o->outAdjList[0]->outAdjList.empty()) {
+            //cout << "ADD SELECTION TO " << o->label << endl;
             o->selections.emplace_back(selection);
 
             // mias kai twra exw shared pragmata, mporei ena datanode na exei > 1 outedges. opote prepei
@@ -71,6 +73,7 @@ static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *
             }
 
             if (count != 0) {
+                //cout << "ADD SELECTION TO " << o->label << endl;
                 o->selections.emplace_back(selection);
 
                 vector<AbstractNode *>::iterator jt;
@@ -554,19 +557,24 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
         }
     }
 
+    cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
     Planner::addFilters2(plan, query, lastAttached);
 
+    cout << "FINITO WITH FILTERS" << endl;
     // push remaining joins in order
     sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
 
+    cout << "FINITO WITH NON SHARED JOINS" << endl;
     // Push aggregate.
     Planner::addAggregate(plan, query, lastAttached);
 
+    cout << "FINITO WITH AGGREGATES" << endl;
     // Setup selections for OperatorNodes.
+    cout << "ADDING SELECTIONS" << endl;
     setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------

@@ -197,7 +197,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
         for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
             st != (this->boundSelections).end(); st++){
 
-            if((*st).binding == binding || (*st).binding == binding){
+            if((*st).binding == binding){
                 return true;
             }
         }
@@ -215,16 +215,6 @@ class JoinOperatorNode : public AbstractOperatorNode {
         this->boundSelections.push_back(info.right);
     }
 
-//    JoinOperatorNode(PredicateInfo &info): info(info) {
-//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.left)
-//           == (this->boundSelections).end()){
-//            this->boundSelections.push_back(info.left);
-//        }
-//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.right)
-//           == (this->boundSelections).end()){
-//            this->boundSelections.push_back(info.right);
-//        }
-//    }
 
     ~JoinOperatorNode() { }
 };
