@@ -44,6 +44,50 @@ void Planner::updateAttached(OriginTracker &lastAttached, const unsignedPair rel
     }
 }
 //---------------------------------------------------------------------------
+static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *o,
+                               const SelectInfo &selection, unsigned count)
+{
+    assert(o->hasBinding(selection.binding));
+    if (Utils::contains(query.selections, selection)) {
+        if (!o->outAdjList[0]->outAdjList.empty()) {
+            o->selections.emplace_back(selection);
+
+            // mias kai twra exw shared pragmata, mporei ena datanode na exei > 1 outedges. opote prepei
+            // na psaksw gia to swsto.
+
+            vector<AbstractNode *>::iterator jt;
+            for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
+                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+
+                if (o->hasBinding(selection.binding)) {
+                    recursivePropagateSelection(query, o, selection, count);
+                }
+            }
+        }
+    } else {
+        if (!o->outAdjList[0]->outAdjList.empty()) {
+            if (o->hasSelection(selection)) {
+                --count;
+            }
+
+            if (count != 0) {
+                o->selections.emplace_back(selection);
+
+                vector<AbstractNode *>::iterator jt;
+                for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
+                    AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+
+                    if (o->hasBinding(selection.binding)) {
+                        recursivePropagateSelection(query, o, selection, count);
+                    }
+                }
+            } else {
+                return;
+            }
+        }
+    }
+}
+//---------------------------------------------------------------------------
 static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
                                const SelectInfo &selection, unsigned count)
 {
@@ -52,19 +96,8 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
         while (!o->outAdjList[0]->outAdjList.empty()) {
             o->selections.emplace_back(selection);
 
-           // o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
+            o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
 
-           // mias kai twra exw shared pragmata, mporei ena datanode na exei > 1 outedges. opote prepei
-           // na psaksw gia to swsto.
-
-//            vector<AbstractNode *>::iterator jt;
-//            for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
-//                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-//
-//                if (o->hasBinding(it->first.binding)) {
-//                    propagateSelection(query, o, it->first, it->second);
-//                }
-//            }
         }
     } else {
         while (!o->outAdjList[0]->outAdjList.empty()) {
@@ -114,7 +147,8 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
 
             if (o->hasBinding(it->first.binding)) {
-                propagateSelection(query, o, it->first, it->second);
+                //propagateSelection(query, o, it->first, it->second);
+                recursivePropagateSelection(query, o, it->first, it->second);
             }
         }
     }
@@ -548,7 +582,7 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     plan->nodes.push_back(root);
     plan->root = root;
 
-    JoinCatalog sharedJoins;
+    JoinCatalog& sharedJoins = plan->sharedJoins;
     CommonJoinCounter commonJoins = Planner::findCommonJoins(queries);
     for(CommonJoinCounter::iterator ctr = commonJoins.begin(); ctr != commonJoins.end(); ctr++){
         if(ctr->second > 1){
@@ -572,11 +606,6 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
     printPlan(plan);
 #endif
-
-    // clear join catalog
-    for(JoinCatalog::iterator jtr = sharedJoins.begin(); jtr != sharedJoins.end(); jtr++){
-        delete jtr->second;
-    }
 
     return plan;
 }

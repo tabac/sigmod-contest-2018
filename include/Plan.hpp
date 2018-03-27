@@ -1,6 +1,7 @@
 #pragma once
 #include <future>
 #include <vector>
+#include <unordered_map>
 #include <cstdint>
 #include <cassert>
 #include <optional>
@@ -156,9 +157,12 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// with all the specified bindings for its predicates
 
     PredicateInfo& info;
-    //std::vector<PredicateInfo> info;
 
-
+    /// All these `SelectInfo` objects should have the same (relationID, colID) with either `info.left`
+    /// or `info.right`. What differs is only the binding as the same join may be expressed with different
+    /// bindings depending on the query.
+    //TODO: add set for more efficient lookup?
+    std::vector<SelectInfo> boundSelections;
 
 
     /// Joins the two input `DataNode` instances.
@@ -177,31 +181,36 @@ class JoinOperatorNode : public AbstractOperatorNode {
                                        SelectInfo &selection,
                                        const AbstractDataNode* inNode);
 
+
     bool hasBinding(const unsigned binding) const {
-//        for(std::vector<PredicateInfo>::iterator pt = info.begin(); pt != info.end(); pt++){
-//            if((*pt).left.binding == binding || (*pt).right.binding == binding){
-//                return true;
-//            }
-//        }
-//        return false;
-        return this->info.left.binding == binding || this->info.right.binding == binding;
+        for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
+            st != (this->boundSelections).end(); st++){
+
+            if((*st).binding == binding || (*st).binding == binding){
+                return true;
+            }
+        }
+        return false;
+//        return this->info.left.binding == binding || this->info.right.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
-//        for(std::vector<PredicateInfo>::iterator pt = info.begin(); pt != info.end(); pt++){
-//            if((*pt).left == selection || (*pt).right == selection){
-//                return true;
-//            }
-//        }
-//        return false;
-        return this->info.left == selection || this->info.right == selection;
+        return std::find((this->boundSelections).begin(), (this->boundSelections).end(), selection)
+        != (this->boundSelections).end();
     }
 
-    JoinOperatorNode(PredicateInfo &info) : info(info) {}
+    //JoinOperatorNode(PredicateInfo &info) : info(info) {}
 
-//    JoinOperatorNode(PredicateInfo &info) {
-//        this->info.push_back(info);
-//    }
+    JoinOperatorNode(PredicateInfo &info): info(info) {
+        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.left)
+           == (this->boundSelections).end()){
+            this->boundSelections.push_back(info.left);
+        }
+        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), info.right)
+           == (this->boundSelections).end()){
+            this->boundSelections.push_back(info.right);
+        }
+    }
 
     ~JoinOperatorNode() { }
 };
@@ -275,6 +284,8 @@ class Plan {
     std::vector<AbstractNode *> nodes;
     /// All the exit nodes of the plan(s).
     std::vector<DataNode *> exitNodes;
+
+    std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
 
     ~Plan();
 };

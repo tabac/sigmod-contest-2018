@@ -558,6 +558,12 @@ Plan::~Plan()
         }
     }
 
+    unordered_map<PredicateInfo, JoinOperatorNode *>::iterator jtr;
+    for(jtr = sharedJoins.begin(); jtr != sharedJoins.end(); jtr++){
+        delete jtr->second;
+    }
+
+
     delete this->root;
 }
 //---------------------------------------------------------------------------
