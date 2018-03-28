@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <queue>
 #include "Planner.hpp"
 #include "DataEngine.hpp"
 #include "Plan.hpp"
@@ -48,44 +49,53 @@ static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *
                                const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
+    queue<AbstractOperatorNode *> q;
+
+    q.push(o);
 
     if (Utils::contains(query.selections, selection)) {
-        if (!o->outAdjList[0]->outAdjList.empty()) {
-            //cout << "ADD SELECTION TO " << o->label << endl;
-            o->selections.emplace_back(selection);
+        while(!q.empty()) {
+            AbstractOperatorNode *cur = q.front();
+            q.pop();
 
-            // mias kai twra exw shared pragmata, mporei ena datanode na exei > 1 outedges. opote prepei
-            // na psaksw gia to swsto.
+            if (!cur->outAdjList[0]->outAdjList.empty()) {
 
-            vector<AbstractNode *>::iterator jt;
-            for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
-                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+                cur->selections.emplace_back(selection);
 
-                if (o->hasBinding(selection.binding)) {
-                    recursivePropagateSelection(query, o, selection, count);
+                vector<AbstractNode *>::iterator jt;
+                for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
+                    AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+                    q.push(o);
+//                    if (o->hasBinding(selection.binding)) {
+//                        q.push(o);
+//                    }
                 }
             }
         }
     } else {
-        if (!o->outAdjList[0]->outAdjList.empty()) {
-            if (o->hasSelection(selection)) {
-                --count;
-            }
+        while(!q.empty()) {
+            AbstractOperatorNode *cur = q.front();
+            q.pop();
 
-            if (count != 0) {
-                //cout << "ADD SELECTION TO " << o->label << endl;
-                o->selections.emplace_back(selection);
-
-                vector<AbstractNode *>::iterator jt;
-                for (jt = o->outAdjList[0]->outAdjList.begin(); jt != o->outAdjList[0]->outAdjList.end(); ++jt) {
-                    AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-
-                    if (o->hasBinding(selection.binding)) {
-                        recursivePropagateSelection(query, o, selection, count);
-                    }
+            if (!cur->outAdjList[0]->outAdjList.empty()) {
+                if (cur->hasSelection(selection)) {
+                    --count;
                 }
-            } else {
-                return;
+
+                if (count != 0) {
+                    cur->selections.emplace_back(selection);
+
+                    vector<AbstractNode *>::iterator jt;
+                    for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
+                        AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+                        q.push(o);
+//                        if (o->hasBinding(selection.binding)) {
+//                            q.push(o);
+//                        }
+                    }
+                } else {
+                    break;
+                }
             }
         }
     }
@@ -382,10 +392,8 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         joinNode = plan.sharedJoins.at(predicate);
         joinNode->updateBindings(predicate);
         dataNode = (DataNode*) joinNode->outAdjList[0];
-        cout << "ALREADY EXISTS" << endl;
     }
     catch (const out_of_range &) {
-        cout << "CREATE FOR FIRST TIME" << endl;
         joinNode = new JoinOperatorNode(predicate);
         dataNode = new DataNode();
 
@@ -551,9 +559,12 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
 
     // check if this query contains one of the shared joins and push it first
     for(vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++){
-        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
-            cout << "SHARED JOIN FOUND" << endl;
-           Planner::addSharedJoin(plan, *pt, query, lastAttached);
+//        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
+//            cout << "SHARED JOIN FOUND" << endl;
+//           Planner::addSharedJoin(plan, *pt, query, lastAttached);
+//        }
+        if(*pt == plan.cJoin.back()){
+            Planner::addSharedJoin(plan, *pt, query, lastAttached);
         }
     }
 
@@ -609,13 +620,16 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
     plan->commonJoins = Planner::findCommonJoins(queries);
 
-//    for(CommonJoinCounter::iterator ctr = commonJoins.begin(); ctr != commonJoins.end(); ctr++){
-//        if(ctr->second > 1){
-//            PredicateInfo cjoin = PredicateInfo(ctr->first);
-//            //cout << cjoin.dumpLabel() << " APPEARED " << ctr->second << " times" << endl;
-//            sharedJoins[ctr->first] = new JoinOperatorNode(cjoin);
-//        }
-//    }
+
+    //=========================================
+    for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
+        if(cj->second > 1){
+            (plan->cJoin).push_back(cj->first);
+            break;
+        }
+    }
+    //==========================================
+
 
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {

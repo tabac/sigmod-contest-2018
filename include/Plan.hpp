@@ -292,6 +292,8 @@ class Plan {
     std::unordered_map<PredicateInfo, int> commonJoins;
     std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
 
+    std::vector<PredicateInfo> cJoin;
+
     ~Plan();
 };
 //---------------------------------------------------------------------------
