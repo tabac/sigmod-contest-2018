@@ -385,7 +385,7 @@ bool SelectInfo::operator==(const SelectInfo& o) const {
     }
 }
 //---------------------------------------------------------------------------
-bool SelectInfo::logicalEq(const SelectInfo& o) const {
+bool SelectInfo::logicalEq(const SelectInfo& o) const{
     return o.relId == relId && o.colId == colId;
 }
 //---------------------------------------------------------------------------

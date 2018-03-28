@@ -193,13 +193,39 @@ void JoinOperatorNode::executeAsync(void)
     const AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
+//    //============ gmytil ========================
+//    cout << "LEFT Binding: " << info.left.binding << endl;
+//    cout << "LEFT Auxiliary: "<< endl;
+//    for(vector<unsigned>::iterator it = info.left.auxiliaryBindings.begin(); it != info.left.auxiliaryBindings.end(); it++){
+//        cout << *it << ",";
+//    }
+//    cout << endl;
+//    //============================================
+
     // Get sorted vector<{rowIndex, rowValue}> for left column.
     vector<uint64Pair> leftPairs;
     JoinOperatorNode::getValuesIndexedSorted(leftPairs, this->info.left, inLeftNode);
 
+//    //============ gmytil ========================
+//    cout << "GOOD LEFT" << endl;
+//    //============================================
+//
+//    //============ gmytil ========================
+//    cout << "RIGHT Binding: " << info.right.binding << endl;
+//    cout << "RIGHT Auxiliary: "<< endl;
+//    for(vector<unsigned>::iterator it = info.right.auxiliaryBindings.begin(); it != info.right.auxiliaryBindings.end(); it++){
+//        cout << *it << ",";
+//    }
+//    cout << endl;
+//    //============================================
+
     // Get sorted vector<{rowIndex, rowValue}> for right column.
     vector<uint64Pair> rightPairs;
     JoinOperatorNode::getValuesIndexedSorted(rightPairs, this->info.right, inRightNode);
+
+//    //============ gmytil ========================
+//    cout << "GOOD RIGHT" << endl;
+//    //============================================
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
@@ -545,6 +571,7 @@ void AggregateOperatorNode::executeAsync(void)
             outNode->dataValues.push_back(sum);
         }
     }
+
 
     assert(outNode->dataValues.size() == 0 ||
            outNode->columnsInfo.size() == outNode->dataValues.size());
