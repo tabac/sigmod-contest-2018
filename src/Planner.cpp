@@ -45,7 +45,7 @@ void Planner::updateAttached(OriginTracker &lastAttached, const unsignedPair rel
     }
 }
 //---------------------------------------------------------------------------
-static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *o,
+static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o,
                                const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
@@ -65,10 +65,10 @@ static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                    q.push(o);
-//                    if (o->hasBinding(selection.binding)) {
-//                        q.push(o);
-//                    }
+//                    q.push(o);
+                    if (o->hasBinding(selection.binding)) {
+                        q.push(o);
+                    }
                 }
             }
         }
@@ -88,10 +88,10 @@ static void recursivePropagateSelection(QueryInfo &query, AbstractOperatorNode *
                     vector<AbstractNode *>::iterator jt;
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                        q.push(o);
-//                        if (o->hasBinding(selection.binding)) {
-//                            q.push(o);
-//                        }
+//                        q.push(o);
+                        if (o->hasBinding(selection.binding)) {
+                            q.push(o);
+                        }
                     }
                 } else {
                     break;
@@ -161,12 +161,31 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 
             if (o->hasBinding(it->first.binding)) {
                 //propagateSelection(query, o, it->first, it->second);
-                recursivePropagateSelection(query, o, it->first, it->second);
+                recursivePropagateSelection(query,o, it->first, it->second);
             }
         }
     }
 }
 //---------------------------------------------------------------------------
+//void Planner::setQuerySelections(Plan &plan, unordered_map<SelectInfo, unsigned> &selectionsMap)
+//{
+//    unordered_map<SelectInfo, unsigned>::const_iterator it;
+//    for (it = selectionsMap.begin(); it != selectionsMap.end(); ++it) {
+//        Relation *r = (Relation *) findRelationBySelection(plan, it->first);
+//
+//        vector<AbstractNode *>::iterator jt;
+//        for (jt = r->outAdjList.begin(); jt != r->outAdjList.end(); ++jt) {
+//            AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+//
+//            if (o->hasBinding(it->first.binding)) {
+//                //propagateSelection(query, o, it->first, it->second);
+//                recursivePropagateSelection(query,o, it->first, it->second);
+//            }
+//        }
+//    }
+//}
+//---------------------------------------------------------------------------
+
 unsigned Planner::addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
 {
 
@@ -557,36 +576,40 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
 
     OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
 
-    // check if this query contains one of the shared joins and push it first
-    for(vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++){
+    if(!plan.cJoin.empty())
+    {
+        // check if this query contains one of the shared joins and push it first
+        for (vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++) {
 //        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
 //            cout << "SHARED JOIN FOUND" << endl;
 //           Planner::addSharedJoin(plan, *pt, query, lastAttached);
 //        }
-        if(*pt == plan.cJoin.back()){
-            Planner::addSharedJoin(plan, *pt, query, lastAttached);
+
+            if (*pt == plan.cJoin.back()) {
+                Planner::addSharedJoin(plan, *pt, query, lastAttached);
+            }
         }
     }
 
-    cout << "FINITO WITH SHARED JOINS" << endl;
+    //cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
     Planner::addFilters2(plan, query, lastAttached);
 
-    cout << "FINITO WITH FILTERS" << endl;
+    //cout << "FINITO WITH FILTERS" << endl;
     // push remaining joins in order
     sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
 
-    cout << "FINITO WITH NON SHARED JOINS" << endl;
+    //cout << "FINITO WITH NON SHARED JOINS" << endl;
     // Push aggregate.
     Planner::addAggregate(plan, query, lastAttached);
 
-    cout << "FINITO WITH AGGREGATES" << endl;
+    //cout << "FINITO WITH AGGREGATES" << endl;
     // Setup selections for OperatorNodes.
-    cout << "ADDING SELECTIONS" << endl;
-    setQuerySelections(plan, query);
+    //cout << "ADDING SELECTIONS" << endl;
+    //setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------
 CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
@@ -624,17 +647,24 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     //=========================================
     for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
         if(cj->second > 1){
+            cout << "SHARED JOIN FOUND" << endl;
             (plan->cJoin).push_back(cj->first);
             break;
         }
     }
     //==========================================
 
-
     vector<QueryInfo>::iterator it;
+    //unordered_map<SelectInfo, unsigned> selectionsMap;
     for(it = queries.begin(); it != queries.end(); ++it) {
         Planner::attachQueryPlanShared(*plan, (*it));
+        //(*it).getSelectionsMap(selectionsMap);
     }
+
+    for(it = queries.begin(); it != queries.end(); ++it) {
+        setQuerySelections(*plan, *it);
+    }
+
 
 #ifndef NDEBUG
     root->label = "global_root";

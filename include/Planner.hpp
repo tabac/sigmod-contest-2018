@@ -45,6 +45,8 @@ class Planner {
 
     static void setQuerySelections(Plan &plan, QueryInfo &query);
 
+    //static void setQuerySelections(Plan &plan, std::unordered_map<SelectInfo, unsigned> &selectionsMap);
+
     static bool filterComparator(const FilterInfo& f1, const FilterInfo& f2);
 
     static bool predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2);

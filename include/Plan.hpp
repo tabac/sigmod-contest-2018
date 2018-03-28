@@ -1,4 +1,6 @@
 #pragma once
+
+#include <iostream>
 #include <future>
 #include <vector>
 #include <unordered_map>
@@ -162,7 +164,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// or `info.right`. What differs is only the binding as the same join may be expressed with different
     /// bindings depending on the query.
     //TODO: add set for more efficient lookup?
-    std::vector<SelectInfo> boundSelections;
+    //std::vector<SelectInfo> boundSelections;
 
 
     /// Joins the two input `DataNode` instances.
@@ -183,37 +185,97 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
 
     void updateBindings(PredicateInfo& p){
-        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.left)
-           == (this->boundSelections).end()){
-            this->boundSelections.push_back(p.left);
+
+        if(info.left.logicalEq(p.left)){
+            // update bindings of info.left with p.left and info.right with p.right
+            if(info.left.binding != p.left.binding) {
+                if (std::find(info.left.auxiliaryBindings.begin(), info.left.auxiliaryBindings.end(), p.left.binding)
+                    == info.left.auxiliaryBindings.end()) {
+                    info.left.auxiliaryBindings.push_back(p.left.binding);
+                }
+            }
+
+            if(info.right.binding != p.right.binding) {
+                if (std::find(info.right.auxiliaryBindings.begin(), info.right.auxiliaryBindings.end(), p.right.binding)
+                    == info.right.auxiliaryBindings.end()) {
+                    info.right.auxiliaryBindings.push_back(p.right.binding);
+                }
+            }
+        }else if(info.left.logicalEq(p.right)){
+            // update bindings of info.left with p.right and info.right with p.left
+            if(info.left.binding != p.right.binding) {
+                if (std::find(info.left.auxiliaryBindings.begin(), info.left.auxiliaryBindings.end(), p.right.binding)
+                    == info.left.auxiliaryBindings.end()) {
+                    info.left.auxiliaryBindings.push_back(p.right.binding);
+                }
+            }
+
+            if(info.right.binding != p.left.binding) {
+                if (std::find(info.right.auxiliaryBindings.begin(), info.right.auxiliaryBindings.end(), p.left.binding)
+                    == info.right.auxiliaryBindings.end()) {
+                    info.right.auxiliaryBindings.push_back(p.left.binding);
+                }
+            }
+        }else{
+//#ifndef NDEBUG
+//            cout << "UNREACHABLE PIECE OF CODE" << endl;
+//#endif
+//            assert(false);
         }
-        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.right)
-           == (this->boundSelections).end()){
-            this->boundSelections.push_back(p.right);
-        }
+
+
+//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.left)
+//           == (this->boundSelections).end()){
+//            this->boundSelections.push_back(p.left);
+//        }
+//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.right)
+//           == (this->boundSelections).end()){
+//            this->boundSelections.push_back(p.right);
+//        }
     }
 
     bool hasBinding(const unsigned binding) const {
-        for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
-            st != (this->boundSelections).end(); st++){
 
-            if((*st).binding == binding){
-                return true;
+        if(this->info.left.binding == binding || this->info.right.binding == binding){
+            return true;
+        }else{
+            for(std::vector<unsigned >::const_iterator bd = info.left.auxiliaryBindings.begin();
+                bd != info.left.auxiliaryBindings.end(); bd++){
+
+                if( *bd == binding){
+                    return true;
+                }
             }
+            for(std::vector<unsigned >::const_iterator bd = info.right.auxiliaryBindings.begin();
+                bd != info.right.auxiliaryBindings.end(); bd++){
+
+                if( *bd == binding){
+                    return true;
+                }
+            }
+
+            return false;
         }
-        return false;
+
+//        for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
+//            st != (this->boundSelections).end(); st++){
+//
+//            if((*st).binding == binding){
+//                return true;
+//            }
+//        }
+//        return false;
 //        return this->info.left.binding == binding || this->info.right.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
-        return std::find((this->boundSelections).begin(), (this->boundSelections).end(), selection)
-        != (this->boundSelections).end();
+
+        return info.left.logicalEq(selection) || info.right.logicalEq(selection);
+//        return std::find((this->boundSelections).begin(), (this->boundSelections).end(), selection)
+//        != (this->boundSelections).end();
     }
 
-    JoinOperatorNode(PredicateInfo &info) : info(info) {
-        this->boundSelections.push_back(info.left);
-        this->boundSelections.push_back(info.right);
-    }
+    JoinOperatorNode(PredicateInfo &info) : info(info) {}
 
 
     ~JoinOperatorNode() { }

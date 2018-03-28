@@ -344,7 +344,49 @@ void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selections
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }
 //---------------------------------------------------------------------------
 bool SelectInfo::operator==(const SelectInfo& o) const {
-    return o.relId == relId && o.binding == binding && o.colId == colId;
+    //return o.relId == relId && o.binding == binding && o.colId == colId;
+
+    if(o.relId == relId && o.colId == colId){
+        if(o.binding == binding){
+            return true;
+        }else if(auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()) {
+
+                for(vector<unsigned>::const_iterator it = o.auxiliaryBindings.begin();
+                    it != o.auxiliaryBindings.end(); it++){
+                    if(binding == *it){
+                        return true;
+                    }
+                }
+
+                return false;
+            } else if(!auxiliaryBindings.empty() && o.auxiliaryBindings.empty()){
+                for(vector<unsigned>::const_iterator it = auxiliaryBindings.begin();
+                    it != auxiliaryBindings.end(); it++){
+                    if(o.binding == *it){
+                        return true;
+                    }
+                }
+            }else if(!auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()){
+                for(vector<unsigned>::const_iterator ot = auxiliaryBindings.begin();
+                    ot != auxiliaryBindings.end(); ot++){
+                    for(vector<unsigned>::const_iterator it = o.auxiliaryBindings.begin();
+                        it != o.auxiliaryBindings.end(); it++){
+                        if(*ot == *it){
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }else{
+                return false;
+            }
+    }else{
+        return false;
+    }
+}
+//---------------------------------------------------------------------------
+bool SelectInfo::logicalEq(const SelectInfo& o) const {
+    return o.relId == relId && o.colId == colId;
 }
 //---------------------------------------------------------------------------
 bool PredicateInfo::operator==(const PredicateInfo& o) const {

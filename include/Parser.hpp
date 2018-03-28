@@ -12,12 +12,16 @@ struct SelectInfo {
     RelationId relId;
     /// Binding for the relation
     unsigned binding;
+    /// Auxiliary bindings used for shared operators only
+    std::vector<unsigned> auxiliaryBindings;
     /// Column id
     unsigned colId;
     /// The constructor
     SelectInfo(RelationId relId,unsigned b,unsigned colId) : relId(relId), binding(b), colId(colId){};
     /// Equality operator
     bool operator==(const SelectInfo& o) const;
+    /// Logical equality: checks only if two `SelectInfo` objects refer to the same join
+    bool logicalEq(const SelectInfo& o) const;
     /// Dump text format
     std::string dumpText();
     /// Dump graph label in text format
