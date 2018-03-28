@@ -186,6 +186,9 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     void updateBindings(PredicateInfo& p){
 
+        std::cout << "MY PREDICATE " << (this->info).dumpLabel() << std::endl;
+        std::cout << "UPDATE BINDING for " << p.dumpLabel() << std::endl;
+
         if(info.left.logicalEq(p.left)){
             // update bindings of info.left with p.left and info.right with p.right
             if(info.left.binding != p.left.binding) {

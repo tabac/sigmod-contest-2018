@@ -55,6 +55,7 @@ int main(void)
         queries.clear();
 
         delete plan;
+        return 0;
     }
 
 

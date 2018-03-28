@@ -65,10 +65,10 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-//                    q.push(o);
-                    if (o->hasBinding(selection.binding)) {
-                        q.push(o);
-                    }
+                    q.push(o);
+//                    if (o->hasSelection(selection)) {
+//                        q.push(o);
+//                    }
                 }
             }
         }
@@ -88,10 +88,10 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                     vector<AbstractNode *>::iterator jt;
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-//                        q.push(o);
-                        if (o->hasBinding(selection.binding)) {
-                            q.push(o);
-                        }
+                        q.push(o);
+//                        if (o->hasSelection(selection)) {
+//                            q.push(o);
+//                        }
                     }
                 } else {
                     break;
@@ -160,8 +160,8 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
 
             if (o->hasBinding(it->first.binding)) {
-                propagateSelection(query, o, it->first, it->second);
-                //recursivePropagateSelection(query,o, it->first, it->second);
+                //propagateSelection(query, o, it->first, it->second);
+                recursivePropagateSelection(query,o, it->first, it->second);
             }
         }
     }
@@ -332,9 +332,17 @@ void Planner::addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &las
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
 
+        cout << "AVAILABLE SHARES" << endl;
+        for(JoinCatalog::iterator st = plan.sharedJoins.begin();st != plan.sharedJoins.end(); st++){
+            cout << (st->first).dumpLabel() << endl;
+        }
+
         if(plan.sharedJoins.find(*pt)!=plan.sharedJoins.end()){
+            cout << "SKIP SHAREEEd " << (*pt).dumpLabel() << endl;
             continue;
         }
+        //cout << "NOT SH " << (*pt).dumpLabel() << endl;
+
         // Check if the symmetric predicate is already added.
         // If so skip current predicate
         bool skip_predicate = false;
@@ -409,31 +417,49 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
 
     try {
         joinNode = plan.sharedJoins.at(predicate);
-        joinNode->updateBindings(predicate);
+        auto nhandler = plan.sharedJoins.extract(predicate);
+        auto predicateKey = nhandler.key();
+        plan.sharedJoins.insert(move(nhandler));
+        joinNode->updateBindings(predicateKey);
         dataNode = (DataNode*) joinNode->outAdjList[0];
+        cout << "Join Result issss " << dataNode->label << endl;
+
+        Planner::updateAttached(lastAttached, leftPair, dataNode);
+        Planner::updateAttached(lastAttached, rightPair, dataNode);
     }
     catch (const out_of_range &) {
         joinNode = new JoinOperatorNode(predicate);
         dataNode = new DataNode();
+        dataNode->label = "d" + to_string(intermDataCounter++);
 
-        plan.sharedJoins[predicate] = joinNode;
-
-        AbstractNode::connectNodes(joinNode, dataNode);
-        plan.nodes.push_back((AbstractNode *) joinNode);
-        plan.nodes.push_back((AbstractNode *) dataNode);
+        cout << "Persist join node with predicate " << predicate.dumpLabel() << endl;
+        cout << "Join Result issss " << dataNode->label << endl;
+        cout << "CONNECT " << (joinNode->info).dumpLabel() << " to " << lastAttached[leftPair]->label << " and " << lastAttached[rightPair]->label << endl;
 
         AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
         AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
+        AbstractNode::connectNodes(joinNode, dataNode);
 
+        Planner::updateAttached(lastAttached, leftPair, dataNode);
+        Planner::updateAttached(lastAttached, rightPair, dataNode);
+
+        plan.nodes.push_back((AbstractNode *) joinNode);
+        plan.nodes.push_back((AbstractNode *) dataNode);
+
+        plan.sharedJoins[predicate] = joinNode;
     }
 
-    Planner::updateAttached(lastAttached, leftPair, dataNode);
-    Planner::updateAttached(lastAttached, rightPair, dataNode);
+//    Planner::updateAttached(lastAttached, leftPair, dataNode);
+//    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
-#ifndef NDEBUG
-    joinNode->label = predicate.dumpLabel();
-    dataNode->label = "d" + to_string(intermDataCounter++);
-#endif
+    cout << "MALAKIEEEEES" << endl;
+    printPlan(&plan);
+    cout << endl;
+
+//#ifndef NDEBUG
+//    joinNode->label = predicate.dumpLabel();
+//    dataNode->label = "d" + to_string(intermDataCounter++);
+//#endif
 
 }
 //---------------------------------------------------------------------------
@@ -524,6 +550,30 @@ OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query)
     return lastAttached;
 }
 //---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query, OriginTracker& lastAttached)
+{
+    // Push original relations.
+    unsigned bd;
+    vector<RelationId>::const_iterator rt;
+    for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
+
+        vector<AbstractNode *>::iterator lt;
+        lt = find(plan.nodes.begin(), plan.nodes.end(), &DataEngine::relations[(*rt)]);
+
+        if (lt == plan.nodes.end()) {
+            plan.nodes.push_back((AbstractNode *) &DataEngine::relations[(*rt)]);
+
+            AbstractNode::connectNodes(plan.root, plan.nodes.back());
+            lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
+        } else {
+            lastAttached[make_pair((*rt), bd)] = (*lt);
+        }
+    }
+    return lastAttached;
+}
+//---------------------------------------------------------------------------
+
 void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
 {
 
@@ -571,25 +621,26 @@ void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
     setQuerySelections(plan, query);
 }
 //---------------------------------------------------------------------------
-void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
+void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker& lastAttached)
 {
 
-    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
-
-    if(!plan.cJoin.empty())
-    {
-        // check if this query contains one of the shared joins and push it first
-        for (vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++) {
-//        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
-//            cout << "SHARED JOIN FOUND" << endl;
-//           Planner::addSharedJoin(plan, *pt, query, lastAttached);
+//    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
+//
+//    if(!plan.cJoin.empty())
+//    {
+//        // check if this query contains one of the shared joins and push it first
+//        for (vector<PredicateInfo>::iterator pt = query.predicates.begin(); pt != query.predicates.end(); pt++) {
+////        if(plan.commonJoins.find(*pt)!=plan.commonJoins.end() && plan.commonJoins.at(*pt) > 1){
+////            cout << "SHARED JOIN FOUND" << endl;
+////           Planner::addSharedJoin(plan, *pt, query, lastAttached);
+////        }
+//
+//            if (*pt == plan.cJoin.back()) {
+//                cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
+//                Planner::addSharedJoin(plan, *pt, query, lastAttached);
+//            }
 //        }
-
-            if (*pt == plan.cJoin.back()) {
-                Planner::addSharedJoin(plan, *pt, query, lastAttached);
-            }
-        }
-    }
+//    }
 
     //cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
@@ -597,7 +648,7 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
 
     //cout << "FINITO WITH FILTERS" << endl;
     // push remaining joins in order
-    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
+    //sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
@@ -610,6 +661,9 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query)
     // Setup selections for OperatorNodes.
     //cout << "ADDING SELECTIONS" << endl;
     //setQuerySelections(plan, query);
+    cout << endl;
+    printPlan(&plan);
+    cout << endl;
 }
 //---------------------------------------------------------------------------
 CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
@@ -622,80 +676,8 @@ CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
             if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
                 try {
                     commonJoins.at(*pt) += 1;
-//                    //TODO: when adding predicates, update auxiliary bindings
-//                    auto nh = commonJoins.extract(*pt);
-//                    auto keyToUpdate = nh.key();
-//                    auto freq = commonJoins.at(*pt);
-//                    cout << "FREQ " << freq << endl;
-//                    if (keyToUpdate.left.logicalEq((*pt).left)) {
-//                        // update bindings of key.left with bindings of predicate.left
-//                        if (keyToUpdate.left.binding != (*pt).left.binding) {
-//                            if (std::find(keyToUpdate.left.auxiliaryBindings.begin(),
-//                                          keyToUpdate.left.auxiliaryBindings.end(),
-//                                          (*pt).left.binding) == keyToUpdate.left.auxiliaryBindings.end()) {
-//                                keyToUpdate.left.auxiliaryBindings.push_back((*pt).left.binding);
-//                            }
-//                        }
-//                        if (keyToUpdate.right.binding != (*pt).right.binding) {
-//                            if (std::find(keyToUpdate.right.auxiliaryBindings.begin(),
-//                                          keyToUpdate.right.auxiliaryBindings.end(),
-//                                          (*pt).right.binding) == keyToUpdate.right.auxiliaryBindings.end()) {
-//                                keyToUpdate.right.auxiliaryBindings.push_back((*pt).right.binding);
-//                            }
-//                        }
-//                    } else if (keyToUpdate.left.logicalEq((*pt).right)) {
-//                        // update bindings of key.left with bindings of predicate.right
-//                        if (keyToUpdate.left.binding != (*pt).right.binding) {
-//                            if (std::find(keyToUpdate.left.auxiliaryBindings.begin(),
-//                                          keyToUpdate.left.auxiliaryBindings.end(),
-//                                          (*pt).right.binding) == keyToUpdate.left.auxiliaryBindings.end()) {
-//                                keyToUpdate.left.auxiliaryBindings.push_back((*pt).right.binding);
-//                            }
-//                        }
-//
-//                        if (keyToUpdate.right.binding != (*pt).left.binding) {
-//                            if (std::find(keyToUpdate.right.auxiliaryBindings.begin(),
-//                                          keyToUpdate.right.auxiliaryBindings.end(),
-//                                          (*pt).left.binding) == keyToUpdate.right.auxiliaryBindings.end()) {
-//                                keyToUpdate.right.auxiliaryBindings.push_back((*pt).left.binding);
-//                            }
-//                        }
-//                    }
-//
-//                    //commonJoins.insert(move(nh));
-//
-//                    //commonJoins.erase(*pt);
-//                    commonJoins[keyToUpdate] = freq;
-//
-//
-//                    PredicateInfo& info = commonJoins.extract(*pt).key();
-//                    cout << "PRINT COMMON JOIN" << endl;
-//                    //============ gmytil ========================
-//                    cout << "LEFT Binding: " << info.left.binding << endl;
-//                    cout << "LEFT Auxiliary: "<< endl;
-//                    for(vector<unsigned>::iterator it = info.left.auxiliaryBindings.begin(); it != info.left.auxiliaryBindings.end(); it++){
-//                        cout << *it << ",";
-//                    }
-//                    cout << endl;
-//                    //============================================
-//                    //============ gmytil ========================
-//                    cout << "RIGHT Binding: " << info.right.binding << endl;
-//                    cout << "RIGHT Auxiliary: "<< endl;
-//                    for(vector<unsigned>::iterator it = info.right.auxiliaryBindings.begin(); it != info.right.auxiliaryBindings.end(); it++){
-//                        cout << *it << ",";
-//                    }
-//                    cout << endl;
-//                    //============================================
-//
-//
-//                    //TODO: ooooooooooook
                 }
                 catch (const out_of_range &) {
-                    unsigned  relNum = DataEngine::relations.size();
-                    for(unsigned i = 0; i < relNum; i++) {
-                        (*pt).left.auxiliaryBindings.push_back(i);
-                        (*pt).right.auxiliaryBindings.push_back(i);
-                    }
                     commonJoins[*pt] = 1;
                 }
             }
@@ -715,20 +697,38 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     plan->commonJoins = Planner::findCommonJoins(queries);
 
 
-//    //=========================================
-//    for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
-//        if(cj->second > 1){
-//            cout << "SHARED JOIN FOUND" << endl;
-//            (plan->cJoin).push_back(cj->first);
-//            break;
-//        }
-//    }
-//    //==========================================
+    //=========================================
+    for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
+        if(cj->second > 1){
+            cout << "SHARED JOIN FOUND" << endl;
+            (plan->cJoin).push_back(cj->first);
+            break;
+        }
+    }
+    //==========================================
 
+    OriginTracker lastAttached;
+    // first add shared joins
     vector<QueryInfo>::iterator it;
+    for(it = queries.begin(); it != queries.end(); ++it) {
+        connectQueryBaseRelations(*plan, *it, lastAttached);
+        if(!(plan->cJoin).empty())
+        {
+            // check if this query contains one of the shared joins and push it first
+            for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
+                if (*pt == (plan->cJoin).back()) {
+                    cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
+                    Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
+                }
+            }
+        }
+
+    }
+
+
     //unordered_map<SelectInfo, unsigned> selectionsMap;
     for(it = queries.begin(); it != queries.end(); ++it) {
-        Planner::attachQueryPlanShared(*plan, (*it));
+        Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
         //(*it).getSelectionsMap(selectionsMap);
     }
 

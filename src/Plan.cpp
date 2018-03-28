@@ -120,6 +120,7 @@ optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const Filter
 optional<IteratorPair> DataNode::getValuesIterator(const SelectInfo& selectInfo,
                                                    const FilterInfo* filterInfo) const
 {
+    //cout << "HELLO THERE SEARCH FOR " << selectInfo.dumpLabel() << endl;
     {
         // Should not be called with some filter condition.
         assert(filterInfo == NULL);
@@ -127,11 +128,15 @@ optional<IteratorPair> DataNode::getValuesIterator(const SelectInfo& selectInfo,
         assert(!this->columnsInfo.empty());
     }
 
+    //cout << "SEARCH FOR " << selectInfo.dumpLabel() << endl;
+
     // Find filter column index in `data`
     unsigned c = 0;
     vector<SelectInfo>::const_iterator it;
     for (it = this->columnsInfo.begin(); it != this->columnsInfo.end(); ++it, ++c) {
+        //cout << "Compare with " << (*it).dumpLabel() << endl;
         if ((*it) == selectInfo) {
+            //cout<<"DISCOVER SELECTION"<< endl;
             break;
         }
     }
@@ -217,6 +222,16 @@ void JoinOperatorNode::executeAsync(void)
 //        cout << *it << ",";
 //    }
 //    cout << endl;
+//    cout << "GIAGKOS tests for rights" << endl;
+//    vector<SelectInfo>::const_iterator it;
+//    for (it = inRightNode->columnsInfo.begin(); it != inRightNode->columnsInfo.end(); ++it) {
+//        cout << "Compare with " << (*it).dumpLabel() << endl;
+//        if ((*it) == info.right) {
+//            cout<<"DISCOVER SELECTION"<< endl;
+//            break;
+//        }
+//    }
+//    cout << "POULELE OLE OLE" << endl;
 //    //============================================
 
     // Get sorted vector<{rowIndex, rowValue}> for right column.
@@ -582,6 +597,11 @@ void AggregateOperatorNode::executeAsync(void)
 //---------------------------------------------------------------------------
 Plan::~Plan()
 {
+//    unordered_map<PredicateInfo, JoinOperatorNode *>::iterator jtr;
+//    for(jtr = sharedJoins.begin(); jtr != sharedJoins.end(); jtr++){
+//        delete jtr->second;
+//    }
+
     vector<AbstractNode *>::iterator it;
     for (it = this->nodes.begin(); it != this->nodes.end(); ++it) {
         // Delete intermediate nodes and reset intial relations.
@@ -591,12 +611,6 @@ Plan::~Plan()
             (*it)->resetStatus();
         }
     }
-
-    unordered_map<PredicateInfo, JoinOperatorNode *>::iterator jtr;
-    for(jtr = sharedJoins.begin(); jtr != sharedJoins.end(); jtr++){
-        delete jtr->second;
-    }
-
 
     delete this->root;
 }

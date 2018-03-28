@@ -350,36 +350,34 @@ bool SelectInfo::operator==(const SelectInfo& o) const {
         if(o.binding == binding){
             return true;
         }else if(auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()) {
-
                 for(vector<unsigned>::const_iterator it = o.auxiliaryBindings.begin();
                     it != o.auxiliaryBindings.end(); it++){
                     if(binding == *it){
                         return true;
                     }
                 }
-
                 return false;
-            } else if(!auxiliaryBindings.empty() && o.auxiliaryBindings.empty()){
-                for(vector<unsigned>::const_iterator it = auxiliaryBindings.begin();
-                    it != auxiliaryBindings.end(); it++){
-                    if(o.binding == *it){
+        } else if(!auxiliaryBindings.empty() && o.auxiliaryBindings.empty()){
+            for(vector<unsigned>::const_iterator it = auxiliaryBindings.begin();
+                it != auxiliaryBindings.end(); it++){
+                if(o.binding == *it){
+                    return true;
+                }
+            }
+        }else if(!auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()){
+            for(vector<unsigned>::const_iterator ot = auxiliaryBindings.begin();
+                ot != auxiliaryBindings.end(); ot++){
+                for(vector<unsigned>::const_iterator it = o.auxiliaryBindings.begin();
+                    it != o.auxiliaryBindings.end(); it++){
+                    if(*ot == *it){
                         return true;
                     }
                 }
-            }else if(!auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()){
-                for(vector<unsigned>::const_iterator ot = auxiliaryBindings.begin();
-                    ot != auxiliaryBindings.end(); ot++){
-                    for(vector<unsigned>::const_iterator it = o.auxiliaryBindings.begin();
-                        it != o.auxiliaryBindings.end(); it++){
-                        if(*ot == *it){
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }else{
-                return false;
             }
+            return false;
+        }else{
+            return false;
+        }
     }else{
         return false;
     }
@@ -392,8 +390,7 @@ bool SelectInfo::logicalEq(const SelectInfo& o) const{
 bool PredicateInfo::operator==(const PredicateInfo& o) const {
 
     if((this->left).relId == o.left.relId){
-        if((this->left).colId == o.left.colId &&
-                (this->right).relId == o.right.relId &&
+        if((this->left).colId == o.left.colId && (this->right).relId == o.right.relId &&
                 (this->right).colId == o.right.colId)
         {
             return true;
@@ -401,8 +398,7 @@ bool PredicateInfo::operator==(const PredicateInfo& o) const {
             return false;
         }
     }else if((this->left).relId == o.right.relId){
-        if((this->left).colId == o.right.colId &&
-           (this->right).relId == o.left.relId &&
+        if((this->left).colId == o.right.colId && (this->right).relId == o.left.relId &&
            (this->right).colId == o.left.colId)
         {
             return true;
