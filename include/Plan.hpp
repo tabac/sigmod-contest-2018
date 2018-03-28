@@ -106,13 +106,18 @@ class DataNode : public AbstractDataNode {
 
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() const { return this->size; }
+
+    /// Empty constructor.
+    DataNode() { }
+    /// Disable copy constructor.
+    DataNode(const DataNode&)=delete;
     /// Destructor.
     ~DataNode() { }
 };
 //---------------------------------------------------------------------------
 class AbstractOperatorNode : public AbstractNode {
     public:
-    unsigned queryId;
+    const unsigned queryId;
 
     std::vector<SelectInfo> selections;
 
@@ -146,7 +151,7 @@ class AbstractOperatorNode : public AbstractNode {
 
     bool isBaseRelation() const { return false; }
 
-    // AbstractOperatorNode(unsigned queryId) : queryId(queryId) { }
+    AbstractOperatorNode(const unsigned queryId) : queryId(queryId) { }
 
     ~AbstractOperatorNode() { }
 };
@@ -180,10 +185,12 @@ class JoinOperatorNode : public AbstractOperatorNode {
         return this->info.left == selection || this->info.right == selection;
     }
 
-    JoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
-
+    /// Constructor.
+    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+        AbstractOperatorNode(queryId), info(info) { }
+    /// Disable copy constructor.
+    JoinOperatorNode(const JoinOperatorNode&)=delete;
+    /// Destructor.
     ~JoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -205,10 +212,12 @@ class FilterOperatorNode : public AbstractOperatorNode {
         return this->info.filterColumn == selection;
     }
 
-    FilterOperatorNode(unsigned queryId, FilterInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
-
+    /// Constructor.
+    FilterOperatorNode(const unsigned queryId, FilterInfo &info) :
+        AbstractOperatorNode(queryId), info(info) { }
+    /// Disable copy constructor.
+    FilterOperatorNode(const FilterOperatorNode&)=delete;
+    /// Destructor.
     ~FilterOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -230,10 +239,12 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
         return this->info.left == selection;
     }
 
-    FilterJoinOperatorNode(unsigned queryId, PredicateInfo &info) : info(info) {
-        this->queryId = queryId;
-    }
-
+    /// Constructor.
+    FilterJoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+        AbstractOperatorNode(queryId), info(info) { }
+    /// Disable copy constructor.
+    FilterJoinOperatorNode(const FilterJoinOperatorNode&)=delete;
+    /// Destructor.
     ~FilterJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -248,6 +259,12 @@ class AggregateOperatorNode : public AbstractOperatorNode {
 
     bool hasSelection(const SelectInfo &) const { return true; }
 
+    /// Constructor.
+    AggregateOperatorNode(const unsigned queryId) :
+        AbstractOperatorNode(queryId) { }
+    /// Disable copy constructor.
+    AggregateOperatorNode(const AggregateOperatorNode&)=delete;
+    /// Destructor
     ~AggregateOperatorNode() { }
 };
 //---------------------------------------------------------------------------

@@ -10,7 +10,7 @@
 #include "Index.hpp"
 //---------------------------------------------------------------------------
 const bool INDEXES_ON = true;
-const bool INDEXES_ADAPTIVE_ON = true;
+const bool INDEXES_ADAPTIVE_ON = false;
 //---------------------------------------------------------------------------
 class Relation: public AbstractDataNode {
     private:
@@ -29,7 +29,7 @@ class Relation: public AbstractDataNode {
     std::vector<uint64_t*> columns;
 
     /// Indexes mutex, for thread safety.
-    std::mutex *indexMut;
+    std::mutex indexMut;
     /// Number of indexes to create.
     static const unsigned MAX_INDEX_COUNT = 3;
     /// The table's indexes.
@@ -75,7 +75,7 @@ class Relation: public AbstractDataNode {
     /// Delete copy constructor
     Relation(const Relation& other)=delete;
     /// Move constructor
-    Relation(Relation&& other)=default;
+    Relation(Relation&& other) : relId(other.relId) { }
     /// The destructor
     ~Relation();
 };

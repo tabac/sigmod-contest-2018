@@ -5,9 +5,11 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter) : selection(selection)
+SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter) : AbstractIndex(selection)
 {
-    vector<IdValuePair> pairs;
+    this->setStatus(IndexStatus::building);
+
+    vector<uint64Pair> pairs;
     pairs.reserve(valIter.second - valIter.first);
 
     uint64_t i;
@@ -16,16 +18,19 @@ SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter
         pairs.emplace_back(i, (*it));
     }
 
-    sort(pairs.begin(), pairs.end());
+    sort(pairs.begin(), pairs.end(),
+         [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
     this->ids.reserve(pairs.size());
     this->values.reserve(pairs.size());
 
-    vector<IdValuePair>::iterator jt;
+    vector<uint64Pair>::iterator jt;
     for (jt = pairs.begin(); jt != pairs.end(); ++jt) {
-        this->ids.push_back(jt->id);
-        this->values.push_back(jt->value);
+        this->ids.emplace_back(jt->first);
+        this->values.emplace_back(jt->second);
     }
+
+    this->setStatus(IndexStatus::ready);
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,

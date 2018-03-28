@@ -2,22 +2,26 @@
 #include "Parser.hpp"
 #include "Mixins.hpp"
 // ---------------------------------------------------------------------------
-class IdValuePair{
-    public:
-    uint64_t id, value;
-    IdValuePair(){};
-    IdValuePair(uint64_t id, uint64_t value): id(id), value(value){};
-
-    bool operator <(const IdValuePair& o)
-    {
-        return this->value < o.value;
-    }
-};
+enum IndexStatus { building, ready };
 // ---------------------------------------------------------------------------
 class AbstractIndex {
     /// Index class is the base class for all Index implementations.
     public:
+    /// Status of the index, whether `ready` or `building`.
+    IndexStatus status;
+    /// The indexed column.
+    const SelectInfo &selection;
+    /// Vectors that hold sorted `ids`, `values` for the given `selection`.
     std::vector<uint64_t> ids, values;
+
+    /// Status setter.
+    void setStatus(IndexStatus status) { this->status = status; };
+
+    /// Status getters.
+    bool isStatusBuilding() { return status == IndexStatus::building; };
+    bool isStatusReady() { return status == IndexStatus::ready; };
+
+    AbstractIndex(const SelectInfo &selection) : selection(selection) { }
 };
 // ---------------------------------------------------------------------------
 class SortedIndex : public AbstractIndex, public DataReaderMixin {
@@ -33,8 +37,6 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
     uint64Pair estimateIndexes(const FilterInfo *);
 
     public:
-    /// The indexed column.
-    const SelectInfo &selection;
 
     // Returns the ids that match the filterInfo.
     std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
@@ -49,7 +51,6 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
 // ---------------------------------------------------------------------------
 class AdaptiveIndex : public DataReaderMixin {
     public:
-
     const SelectInfo &selection;
 
     std::vector<uint64_t> ids[2], values[2];

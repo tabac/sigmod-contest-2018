@@ -68,6 +68,7 @@ optional<IteratorPair> Relation::getIdsIterator(const SelectInfo& selectInfo,
             // We don't have an index for this `selectInfo`.
             // In the adaptive version we should create one.
 
+            /*
             if (this->indexMut->try_lock()) {
                 // In case we don't lock the indexes, go without.
 
@@ -81,6 +82,7 @@ optional<IteratorPair> Relation::getIdsIterator(const SelectInfo& selectInfo,
 
                 return this->getIdsIterator(selectInfo, filterInfo);
             }
+            */
         }
     }
 
@@ -107,6 +109,7 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
                 // We don't have an index for this `selectInfo`.
                 // In the adaptive version we should create one.
 
+                /*
                 if (this->indexMut->try_lock()) {
                     // In case we don't lock the indexes, go without.
 
@@ -120,6 +123,7 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
 
                     return this->getValuesIterator(selectInfo, filterInfo);
                 }
+                */
             }
         }
     }
@@ -246,11 +250,6 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
         this->columnsInfo.emplace_back(relId, 0, c);
     }
 
-    // TODO: Should be done better, no pointer, but member.
-    //       Adding it as a member leads to move constructor
-    //       delirium.
-    this->indexMut = new mutex();
-
 #ifndef NDEBUG
     this->label = "r" + to_string(this->relId);
 #endif
@@ -260,13 +259,6 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
 Relation::~Relation()
   // Destructor
 {
-    /////////////////////////////////////////////////////////////////////
-    // TODO: Should be done better, no pointer, but member.
-    //       Adding it as a member leads to move constructor
-    //       delirium.
-    // delete this->indexMut;
-    /////////////////////////////////////////////////////////////////////
-
     if (ownsMemory) {
         for (auto c : columns)
             delete[] c;
