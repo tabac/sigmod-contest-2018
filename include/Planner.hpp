@@ -2,10 +2,12 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <tuple>
 #include "Plan.hpp"
 #include "Parser.hpp"
 
-using OriginTracker = std::unordered_map<unsignedPair, AbstractNode *>;
+using OTKey = std::tuple<unsigned , unsigned , unsigned >;
+using OriginTracker = std::unordered_map<OTKey , AbstractNode *>;
 using JoinCatalog = std::unordered_map<PredicateInfo, JoinOperatorNode *>;
 using CommonJoinCounter = std::unordered_map<PredicateInfo, int>;
 
@@ -41,7 +43,7 @@ class Planner {
 
     static void addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &lastAttached);
 
-    static void updateAttached(OriginTracker &lastAttached, const unsignedPair relationPair, AbstractNode *newNode);
+    static void updateAttached(OriginTracker &lastAttached, const OTKey relationPair, AbstractNode *newNode);
 
     static Plan* generatePlan(std::vector<QueryInfo> &queries);
 

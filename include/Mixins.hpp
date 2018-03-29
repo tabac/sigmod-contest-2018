@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstdint>
 #include <optional>
+#include <tuple>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
@@ -60,6 +61,20 @@ namespace std
             size_t seed = 0;
             ::hash_combine(seed, v.first);
             ::hash_combine(seed, v.second);
+
+            return seed;
+        }
+    };
+
+    template<>
+    struct hash<std::tuple<unsigned , unsigned , unsigned >>
+    {
+        inline size_t operator()(const std::tuple<unsigned , unsigned , unsigned >& v) const
+        {
+            size_t seed = 0;
+            ::hash_combine(seed, std::get<0>(v));
+            ::hash_combine(seed, std::get<1>(v));
+            ::hash_combine(seed, std::get<2>(v));
 
             return seed;
         }

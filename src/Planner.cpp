@@ -28,13 +28,13 @@ bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& 
     return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
 //---------------------------------------------------------------------------
-void Planner::updateAttached(OriginTracker &lastAttached, const unsignedPair relationPair, AbstractNode *newNode)
+void Planner::updateAttached(OriginTracker &lastAttached, const OTKey relationPair, AbstractNode *newNode)
 {
     // Fail, total fail.
     AbstractNode *oldNode = lastAttached[relationPair];
 
     if (!oldNode->isBaseRelation()) {
-        unordered_map<unsignedPair, AbstractNode *>::iterator jt;
+        OriginTracker ::iterator jt;
         for (jt = lastAttached.begin(); jt != lastAttached.end(); ++jt) {
             if (jt->second == oldNode) {
                 jt->second = newNode;
@@ -66,7 +66,7 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                     q.push(o);
-//                    if (o->hasSelection(selection)) {
+//                    if (o->hasBinding(selection.binding)) {
 //                        q.push(o);
 //                    }
                 }
@@ -89,10 +89,10 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                         q.push(o);
-//                        if (o->hasSelection(selection)) {
+//                        if (o->hasBinding(selection.binding)) {
 //                            q.push(o);
 //                        }
-                    }
+                     }
                 } else {
                     break;
                 }
@@ -186,46 +186,46 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 //}
 //---------------------------------------------------------------------------
 
-unsigned Planner::addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
-{
-
-    unsigned counter = 0;
-    vector<FilterInfo>::iterator ft;
-    for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
-        float selectivity;
-        if ((selectivity = DataEngine::getFilterSelectivity(*ft)) <= FILTER_SELECT_THRES){
-#ifndef NDEBUG
-            cout << "FILTER SELECTIVITY " << selectivity << endl;
-#endif
-            DataNode *dataNode = new DataNode();
-            FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
-
-            unsignedPair filterPair = {ft->filterColumn.relId,
-                                       ft->filterColumn.binding};
-
-            AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
-            AbstractNode::connectNodes(filterNode, dataNode);
-
-            Planner::updateAttached(lastAttached, filterPair, dataNode);
-
-            plan.nodes.push_back((AbstractNode *) filterNode);
-            plan.nodes.push_back((AbstractNode *) dataNode);
-            counter++;
-
-#ifndef NDEBUG
-            filterNode->label = filterNode->info.dumpLabel();
-            dataNode->label = "d" + to_string(intermDataCounter++);
-#endif
-        }else{
-            break;
-        }
-    }
-#ifndef NDEBUG
-    cout << "Start from counter " << counter << endl;
-#endif
-
-    return counter;
-}
+//unsigned Planner::addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
+//{
+//
+//    unsigned counter = 0;
+//    vector<FilterInfo>::iterator ft;
+//    for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
+//        float selectivity;
+//        if ((selectivity = DataEngine::getFilterSelectivity(*ft)) <= FILTER_SELECT_THRES){
+//#ifndef NDEBUG
+//            cout << "FILTER SELECTIVITY " << selectivity << endl;
+//#endif
+//            DataNode *dataNode = new DataNode();
+//            FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
+//
+//            unsignedPair filterPair = {ft->filterColumn.relId,
+//                                       ft->filterColumn.binding};
+//
+//            AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+//            AbstractNode::connectNodes(filterNode, dataNode);
+//
+//            Planner::updateAttached(lastAttached, filterPair, dataNode);
+//
+//            plan.nodes.push_back((AbstractNode *) filterNode);
+//            plan.nodes.push_back((AbstractNode *) dataNode);
+//            counter++;
+//
+//#ifndef NDEBUG
+//            filterNode->label = filterNode->info.dumpLabel();
+//            dataNode->label = "d" + to_string(intermDataCounter++);
+//#endif
+//        }else{
+//            break;
+//        }
+//    }
+//#ifndef NDEBUG
+//    cout << "Start from counter " << counter << endl;
+//#endif
+//
+//    return counter;
+//}
 //---------------------------------------------------------------------------
 void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttached)
 {
@@ -236,8 +236,7 @@ void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttac
             DataNode *dataNode = new DataNode();
             FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
 
-            unsignedPair filterPair = {ft->filterColumn.relId,
-                                       ft->filterColumn.binding};
+            OTKey filterPair = {ft->filterColumn.relId, ft->filterColumn.binding, query.queryId};
 
             AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
             AbstractNode::connectNodes(filterNode, dataNode);
@@ -260,33 +259,33 @@ void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttac
 }
 
 //---------------------------------------------------------------------------
-void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft, OriginTracker &lastAttached)
-{
-
-    vector<FilterInfo>::iterator ft;
-    for(ft = query.filters.begin()+pft; ft != query.filters.end(); ++ft){
-
-        DataNode *dataNode = new DataNode();
-        FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
-
-        unsignedPair filterPair = {ft->filterColumn.relId,
-                                   ft->filterColumn.binding};
-
-        AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
-        AbstractNode::connectNodes(filterNode, dataNode);
-
-        Planner::updateAttached(lastAttached, filterPair, dataNode);
-
-        plan.nodes.push_back((AbstractNode *) filterNode);
-        plan.nodes.push_back((AbstractNode *) dataNode);
-
-#ifndef NDEBUG
-            filterNode->label = filterNode->info.dumpLabel();
-            dataNode->label = "d" + to_string(intermDataCounter++);
-#endif
-
-    }
-}
+//void Planner::addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft, OriginTracker &lastAttached)
+//{
+//
+//    vector<FilterInfo>::iterator ft;
+//    for(ft = query.filters.begin()+pft; ft != query.filters.end(); ++ft){
+//
+//        DataNode *dataNode = new DataNode();
+//        FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
+//
+//        unsignedPair filterPair = {ft->filterColumn.relId,
+//                                   ft->filterColumn.binding};
+//
+//        AbstractNode::connectNodes(lastAttached[filterPair], filterNode);
+//        AbstractNode::connectNodes(filterNode, dataNode);
+//
+//        Planner::updateAttached(lastAttached, filterPair, dataNode);
+//
+//        plan.nodes.push_back((AbstractNode *) filterNode);
+//        plan.nodes.push_back((AbstractNode *) dataNode);
+//
+//#ifndef NDEBUG
+//            filterNode->label = filterNode->info.dumpLabel();
+//            dataNode->label = "d" + to_string(intermDataCounter++);
+//#endif
+//
+//    }
+//}
 //---------------------------------------------------------------------------
 void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached)
 {
@@ -309,10 +308,10 @@ void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached
                 // add `FilterJoinOperatorNode`.
                 Planner::addFilterJoin(plan, (*pt), query, lastAttached);
             } else {
-                unsignedPair leftPair = {(*pt).left.relId,
-                                         (*pt).left.binding};
-                unsignedPair rightPair = {(*pt).right.relId,
-                                          (*pt).right.binding};
+                OTKey leftPair = {(*pt).left.relId,
+                                         (*pt).left.binding, query.queryId};
+                OTKey rightPair = {(*pt).right.relId,
+                                          (*pt).right.binding, query.queryId};
 
                 if (lastAttached[leftPair] == lastAttached[rightPair]) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
@@ -332,13 +331,13 @@ void Planner::addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &las
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
 
-        cout << "AVAILABLE SHARES" << endl;
-        for(JoinCatalog::iterator st = plan.sharedJoins.begin();st != plan.sharedJoins.end(); st++){
-            cout << (st->first).dumpLabel() << endl;
-        }
+        //cout << "AVAILABLE SHARES" << endl;
+//        for(JoinCatalog::iterator st = plan.sharedJoins.begin();st != plan.sharedJoins.end(); st++){
+//            cout << (st->first).dumpLabel() << endl;
+//        }
 
         if(plan.sharedJoins.find(*pt)!=plan.sharedJoins.end()){
-            cout << "SKIP SHAREEEd " << (*pt).dumpLabel() << endl;
+            //cout << "SKIP SHAREEEd " << (*pt).dumpLabel() << endl;
             continue;
         }
         //cout << "NOT SH " << (*pt).dumpLabel() << endl;
@@ -359,10 +358,10 @@ void Planner::addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &las
                 // add `FilterJoinOperatorNode`.
                 Planner::addFilterJoin(plan, (*pt), query, lastAttached);
             } else {
-                unsignedPair leftPair = {(*pt).left.relId,
-                                         (*pt).left.binding};
-                unsignedPair rightPair = {(*pt).right.relId,
-                                          (*pt).right.binding};
+                OTKey leftPair = {(*pt).left.relId,
+                                         (*pt).left.binding,query.queryId};
+                OTKey rightPair = {(*pt).right.relId,
+                                          (*pt).right.binding,query.queryId};
 
                 if (lastAttached[leftPair] == lastAttached[rightPair]) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
@@ -382,10 +381,10 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
     JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
 
 
-    unsignedPair leftPair = {predicate.left.relId,
-                             predicate.left.binding};
-    unsignedPair rightPair = {predicate.right.relId,
-                              predicate.right.binding};
+    OTKey leftPair = {predicate.left.relId,
+                             predicate.left.binding,query.queryId};
+    OTKey rightPair = {predicate.right.relId,
+                              predicate.right.binding,query.queryId};
 
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
@@ -410,10 +409,10 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     JoinOperatorNode* joinNode;
     DataNode *dataNode;
 
-    unsignedPair leftPair = {predicate.left.relId,
-                             predicate.left.binding};
-    unsignedPair rightPair = {predicate.right.relId,
-                              predicate.right.binding};
+    OTKey leftPair = {predicate.left.relId,
+                             predicate.left.binding,query.queryId};
+    OTKey rightPair = {predicate.right.relId,
+                              predicate.right.binding,query.queryId};
 
     try {
         joinNode = plan.sharedJoins.at(predicate);
@@ -422,7 +421,7 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         plan.sharedJoins.insert(move(nhandler));
         joinNode->updateBindings(predicateKey);
         dataNode = (DataNode*) joinNode->outAdjList[0];
-        cout << "Join Result issss " << dataNode->label << endl;
+        //cout << "Join Result issss " << dataNode->label << endl;
 
 //        Planner::updateAttached(lastAttached, leftPair, dataNode);
 //        Planner::updateAttached(lastAttached, rightPair, dataNode);
@@ -436,9 +435,9 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
             dataNode->label = "d" + to_string(intermDataCounter++);
         #endif
 
-        cout << "Persist join node with predicate " << predicate.dumpLabel() << endl;
-        cout << "Join Result issss " << dataNode->label << endl;
-        cout << "CONNECT " << (joinNode->info).dumpLabel() << " to " << lastAttached[leftPair]->label << " and " << lastAttached[rightPair]->label << endl;
+//        cout << "Persist join node with predicate " << predicate.dumpLabel() << endl;
+//        cout << "Join Result issss " << dataNode->label << endl;
+//        cout << "CONNECT " << (joinNode->info).dumpLabel() << " to " << lastAttached[leftPair]->label << " and " << lastAttached[rightPair]->label << endl;
 
         AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
         AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
@@ -456,7 +455,7 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     Planner::updateAttached(lastAttached, leftPair, dataNode);
     Planner::updateAttached(lastAttached, rightPair, dataNode);
 
-    cout << "MALAKIEEEEES" << endl;
+    //cout << "MALAKIEEEEES" << endl;
     printPlan(&plan);
     cout << endl;
 
@@ -468,10 +467,10 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     DataNode *dataNode = new DataNode();
     FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
 
-    unsignedPair leftPair = {predicate.left.relId,
-                             predicate.left.binding};
-    unsignedPair rightPair = {predicate.right.relId,
-                              predicate.right.binding};
+    OTKey leftPair = {predicate.left.relId,
+                             predicate.left.binding,query.queryId};
+    OTKey rightPair = {predicate.right.relId,
+                              predicate.right.binding,query.queryId};
 
     assert(leftPair == rightPair ||
            lastAttached[leftPair] == lastAttached[rightPair]);
@@ -503,11 +502,10 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
     AbstractNode::connectNodes((AbstractNode *) aggregateNode,
                                (AbstractNode *) dataNode);
 
-    unordered_map<unsignedPair, AbstractNode *>::iterator it;
+    OriginTracker ::iterator it;
     for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
-        if ((*it).second->outAdjList.empty()) {
-            AbstractNode::connectNodes((AbstractNode *) (*it).second,
-                                       (AbstractNode *) aggregateNode);
+        if ((*it).second->outAdjList.empty() && get<2>((*it).first)==query.queryId) {
+            AbstractNode::connectNodes((*it).second, (AbstractNode *) aggregateNode);
         }
     }
 
@@ -529,28 +527,28 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
 
 }
 //---------------------------------------------------------------------------
-OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query)
-{
-    OriginTracker lastAttached;
-    // Push original relations.
-    unsigned bd;
-    vector<RelationId>::const_iterator rt;
-    for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
-
-        vector<AbstractNode *>::iterator lt;
-        lt = find(plan.nodes.begin(), plan.nodes.end(), &DataEngine::relations[(*rt)]);
-
-        if (lt == plan.nodes.end()) {
-            plan.nodes.push_back((AbstractNode *) &DataEngine::relations[(*rt)]);
-
-            AbstractNode::connectNodes(plan.root, plan.nodes.back());
-            lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
-        } else {
-            lastAttached[make_pair((*rt), bd)] = (*lt);
-        }
-    }
-    return lastAttached;
-}
+//OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query)
+//{
+//    OriginTracker lastAttached;
+//    // Push original relations.
+//    unsigned bd;
+//    vector<RelationId>::const_iterator rt;
+//    for (bd = 0, rt = query.relationIds.begin(); rt != query.relationIds.end(); ++rt, ++bd) {
+//
+//        vector<AbstractNode *>::iterator lt;
+//        lt = find(plan.nodes.begin(), plan.nodes.end(), &DataEngine::relations[(*rt)]);
+//
+//        if (lt == plan.nodes.end()) {
+//            plan.nodes.push_back((AbstractNode *) &DataEngine::relations[(*rt)]);
+//
+//            AbstractNode::connectNodes(plan.root, plan.nodes.back());
+//            lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
+//        } else {
+//            lastAttached[make_pair((*rt), bd)] = (*lt);
+//        }
+//    }
+//    return lastAttached;
+//}
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query, OriginTracker& lastAttached)
@@ -567,61 +565,61 @@ OriginTracker Planner::connectQueryBaseRelations(Plan &plan, QueryInfo &query, O
             plan.nodes.push_back((AbstractNode *) &DataEngine::relations[(*rt)]);
 
             AbstractNode::connectNodes(plan.root, plan.nodes.back());
-            lastAttached[make_pair((*rt), bd)] = plan.nodes.back();
+            lastAttached[make_tuple((*rt), bd, query.queryId)] = plan.nodes.back();
         } else {
-            lastAttached[make_pair((*rt), bd)] = (*lt);
+            lastAttached[make_tuple((*rt), bd, query.queryId)] = (*lt);
         }
     }
     return lastAttached;
 }
 //---------------------------------------------------------------------------
 
-void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
-{
-
-    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
-
-
-    // sort filters by selectivity order.
-    //sort(query.filters.begin(), query.filters.end(), filterComparator);
-
-#ifndef NDEBUG
-    cout << "Add all high selectivity filters." << endl;
-#endif
-
-    // Push selective filters.
-    //unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
-    Planner::addFilters2(plan, query, lastAttached);
-
-    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
-
-#ifndef NDEBUG
-    cout << "Add all joins." << endl;
-#endif
-
-    // Push join predicates.
-    Planner::addJoins(plan, query, lastAttached);
-
-#ifndef NDEBUG
-    //cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
-    cout << "Add all low selectivity filters." << endl;
-#endif
-
-//    if(remainingFiltersIndex < query.filters.size()){
-//        // add remaining filters
-//        addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
-//    }
-
-#ifndef NDEBUG
-    cout << "Add aggregates" << endl;
-#endif
-
-    // Push aggregate.
-    Planner::addAggregate(plan, query, lastAttached);
-
-    // Setup selections for OperatorNodes.
-    setQuerySelections(plan, query);
-}
+//void Planner::attachQueryPlan(Plan &plan, QueryInfo &query)
+//{
+//
+//    OriginTracker lastAttached = Planner::connectQueryBaseRelations(plan, query);
+//
+//
+//    // sort filters by selectivity order.
+//    //sort(query.filters.begin(), query.filters.end(), filterComparator);
+//
+//#ifndef NDEBUG
+//    cout << "Add all high selectivity filters." << endl;
+//#endif
+//
+//    // Push selective filters.
+//    //unsigned remainingFiltersIndex = Planner::addFilters(plan, query, lastAttached);
+//    Planner::addFilters2(plan, query, lastAttached);
+//
+//    sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
+//
+//#ifndef NDEBUG
+//    cout << "Add all joins." << endl;
+//#endif
+//
+//    // Push join predicates.
+//    Planner::addJoins(plan, query, lastAttached);
+//
+//#ifndef NDEBUG
+//    //cout << "# of filters: " << query.filters.size() <<". Pushed: " << remainingFiltersIndex << endl;
+//    cout << "Add all low selectivity filters." << endl;
+//#endif
+//
+////    if(remainingFiltersIndex < query.filters.size()){
+////        // add remaining filters
+////        addRemainingFilters(plan, query, remainingFiltersIndex, lastAttached);
+////    }
+//
+//#ifndef NDEBUG
+//    cout << "Add aggregates" << endl;
+//#endif
+//
+//    // Push aggregate.
+//    Planner::addAggregate(plan, query, lastAttached);
+//
+//    // Setup selections for OperatorNodes.
+//    setQuerySelections(plan, query);
+//}
 //---------------------------------------------------------------------------
 void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker& lastAttached)
 {
@@ -644,30 +642,30 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 //        }
 //    }
 
-    cout << "NEW QUERY " << endl;
+    cout << "NEW QUERY:  " << query.dumpText() <<endl;
 
     //cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
     Planner::addFilters2(plan, query, lastAttached);
 
-    cout << "ADD filters " << endl;
-    printPlan(&plan);
-    cout << endl;
+//    cout << "ADD filters " << endl;
+//    printPlan(&plan);
+//    cout << endl;
 
     //cout << "FINITO WITH FILTERS" << endl;
     // push remaining joins in order
     //sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
-    cout << "ADD REST JOINS " << endl;
-    printPlan(&plan);
-    cout << endl;
+//    cout << "ADD REST JOINS " << endl;
+//    printPlan(&plan);
+//    cout << endl;
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
 
-    cout << "ADD AGGREGATES " << endl;
-    printPlan(&plan);
-    cout << endl;
+//    cout << "ADD AGGREGATES " << endl;
+//    printPlan(&plan);
+//    cout << endl;
 
     //cout << "FINITO WITH NON SHARED JOINS" << endl;
     // Push aggregate.
@@ -677,9 +675,10 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
     // Setup selections for OperatorNodes.
     //cout << "ADDING SELECTIONS" << endl;
     //setQuerySelections(plan, query);
-    cout << endl;
-    printPlan(&plan);
-    cout << endl;
+
+//    cout << endl;
+//    printPlan(&plan);
+//    cout << endl;
 }
 //---------------------------------------------------------------------------
 CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
