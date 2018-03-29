@@ -424,13 +424,17 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         dataNode = (DataNode*) joinNode->outAdjList[0];
         cout << "Join Result issss " << dataNode->label << endl;
 
-        Planner::updateAttached(lastAttached, leftPair, dataNode);
-        Planner::updateAttached(lastAttached, rightPair, dataNode);
+//        Planner::updateAttached(lastAttached, leftPair, dataNode);
+//        Planner::updateAttached(lastAttached, rightPair, dataNode);
     }
     catch (const out_of_range &) {
         joinNode = new JoinOperatorNode(predicate);
         dataNode = new DataNode();
-        dataNode->label = "d" + to_string(intermDataCounter++);
+
+        #ifndef NDEBUG
+            joinNode->label = predicate.dumpLabel();
+            dataNode->label = "d" + to_string(intermDataCounter++);
+        #endif
 
         cout << "Persist join node with predicate " << predicate.dumpLabel() << endl;
         cout << "Join Result issss " << dataNode->label << endl;
@@ -440,8 +444,8 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
         AbstractNode::connectNodes(joinNode, dataNode);
 
-        Planner::updateAttached(lastAttached, leftPair, dataNode);
-        Planner::updateAttached(lastAttached, rightPair, dataNode);
+//        Planner::updateAttached(lastAttached, leftPair, dataNode);
+//        Planner::updateAttached(lastAttached, rightPair, dataNode);
 
         plan.nodes.push_back((AbstractNode *) joinNode);
         plan.nodes.push_back((AbstractNode *) dataNode);
@@ -449,17 +453,13 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         plan.sharedJoins[predicate] = joinNode;
     }
 
-//    Planner::updateAttached(lastAttached, leftPair, dataNode);
-//    Planner::updateAttached(lastAttached, rightPair, dataNode);
+    Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     cout << "MALAKIEEEEES" << endl;
     printPlan(&plan);
     cout << endl;
 
-//#ifndef NDEBUG
-//    joinNode->label = predicate.dumpLabel();
-//    dataNode->label = "d" + to_string(intermDataCounter++);
-//#endif
 
 }
 //---------------------------------------------------------------------------
@@ -517,6 +517,8 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
     plan.exitNodes.push_back(dataNode);
 
 #ifndef NDEBUG
+    // auto to assertion esteke oso to lastAttach htan per query
+
     AbstractNode *anode = (*lastAttached.begin()).second;
     for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
         assert(anode == (*it).second);
@@ -642,16 +644,30 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 //        }
 //    }
 
+    cout << "NEW QUERY " << endl;
+
     //cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
     Planner::addFilters2(plan, query, lastAttached);
+
+    cout << "ADD filters " << endl;
+    printPlan(&plan);
+    cout << endl;
 
     //cout << "FINITO WITH FILTERS" << endl;
     // push remaining joins in order
     //sort(query.predicates.begin(), query.predicates.end(), predicateComparator);
 
+    cout << "ADD REST JOINS " << endl;
+    printPlan(&plan);
+    cout << endl;
+
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
+
+    cout << "ADD AGGREGATES " << endl;
+    printPlan(&plan);
+    cout << endl;
 
     //cout << "FINITO WITH NON SHARED JOINS" << endl;
     // Push aggregate.
