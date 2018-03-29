@@ -58,7 +58,7 @@ optional<IteratorPair> Relation::getIdsIterator(const SelectInfo& selectInfo,
         assert(filterInfo == NULL || filterInfo->filterColumn.relId == this->relId);
     }
 
-    if (filterInfo != NULL && INDEXES_ON) {
+    if (INDEXES_ON) {
         SortedIndex *index = this->getIndex(selectInfo);
 
         if (index != NULL) {
@@ -99,7 +99,7 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
     if (selectInfo.relId != this->relId) {
         return nullopt;
     } else {
-        if (filterInfo != NULL && INDEXES_ON) {
+        if (INDEXES_ON) {
             SortedIndex *index = this->getIndex(selectInfo);
 
             if (index != NULL) {
@@ -126,12 +126,14 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
                 */
             }
         }
+
+        assert(selectInfo.colId < this->columns.size());
+
+        vector<uint64_t>::iterator begin (this->columns[selectInfo.colId]);
+        vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
+
+        return optional<IteratorPair>{{begin, end}};
     }
-
-    vector<uint64_t>::iterator begin (this->columns[selectInfo.colId]);
-    vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
-
-    return optional<IteratorPair>{{begin, end}};
 }
 //---------------------------------------------------------------------------
 SortedIndex* Relation::getIndex(const SelectInfo &selection)
@@ -254,6 +256,26 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
     this->label = "r" + to_string(this->relId);
 #endif
 
+}
+//---------------------------------------------------------------------------
+Relation::Relation(Relation&& other) : relId(other.relId)
+{
+    // `AbstractNode` fields.
+    this->status = other.status;
+    this->visited = other.visited;
+
+    this->inAdjList = move(other.inAdjList);
+    this->outAdjList = move(other.outAdjList);
+
+    // `AbstractDataNode` fields.
+    this->columnsInfo = other.columnsInfo;
+
+    // `Relation` fields.
+    this->size = other.size;
+    this->ownsMemory = other.ownsMemory;
+
+    this->columns = move(other.columns);
+    this->indexes = move(other.indexes);
 }
 //---------------------------------------------------------------------------
 Relation::~Relation()

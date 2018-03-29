@@ -45,27 +45,9 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                   const FilterInfo* filterInfo);
 
+    void getValuesIndexedSorted(std::vector<uint64Pair> &pairs);
+
     /// Constructor.
     SortedIndex(const SelectInfo &selection, const IteratorPair valIter);
-};
-// ---------------------------------------------------------------------------
-class AdaptiveIndex : public DataReaderMixin {
-    public:
-    const SelectInfo &selection;
-
-    std::vector<uint64_t> ids[2], values[2];
-
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
-                                               const FilterInfo* filterInfo);
-
-    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo);
-
-    AdaptiveIndex(const SelectInfo &selection, const IteratorPair valIter);
-
-    AdaptiveIndex(const SelectInfo &selection, const FilterInfo &filterInfo,
-                  const IteratorPair valIter);
-
-   ~AdaptiveIndex();
 };
 // ---------------------------------------------------------------------------

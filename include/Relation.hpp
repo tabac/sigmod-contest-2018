@@ -9,9 +9,6 @@
 #include "Plan.hpp"
 #include "Index.hpp"
 //---------------------------------------------------------------------------
-const bool INDEXES_ON = true;
-const bool INDEXES_ADAPTIVE_ON = false;
-//---------------------------------------------------------------------------
 class Relation: public AbstractDataNode {
     private:
     /// Owns memory (false if it was mmaped)
@@ -75,7 +72,7 @@ class Relation: public AbstractDataNode {
     /// Delete copy constructor
     Relation(const Relation& other)=delete;
     /// Move constructor
-    Relation(Relation&& other) : relId(other.relId) { }
+    Relation(Relation&& other);
     /// The destructor
     ~Relation();
 };

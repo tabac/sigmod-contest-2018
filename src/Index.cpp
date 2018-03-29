@@ -40,17 +40,21 @@ optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
     {
         assert(selectInfo == this->selection);
 
-        assert(filterInfo != NULL && filterInfo->filterColumn == this->selection);
+        assert(filterInfo == NULL || filterInfo->filterColumn == this->selection);
     }
 
-    uint64Pair range = this->estimateIndexes(filterInfo);
+    if (filterInfo != NULL) {
+        uint64Pair range = this->estimateIndexes(filterInfo);
 
-    assert(range.first <= this->ids.size() && range.second <= this->ids.size());
+        assert(range.first <= this->ids.size() && range.second <= this->ids.size());
 
-    return optional<IteratorPair>{{
-        this->ids.begin() + range.first,
-        this->ids.begin() + range.second
-    }};
+        return optional<IteratorPair>{{
+            this->ids.begin() + range.first,
+            this->ids.begin() + range.second
+        }};
+    } else {
+        return optional<IteratorPair>{{this->ids.begin(), this->ids.end()}};
+    }
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectInfo,
@@ -60,17 +64,33 @@ optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectIn
     {
         assert(selectInfo == this->selection);
 
-        assert(filterInfo != NULL && filterInfo->filterColumn == this->selection);
+        assert(filterInfo == NULL || filterInfo->filterColumn == this->selection);
     }
 
-    uint64Pair range = this->estimateIndexes(filterInfo);
+    if (filterInfo != NULL) {
+        uint64Pair range = this->estimateIndexes(filterInfo);
 
-    assert(range.first <= this->values.size() && range.second <= this->values.size());
+        assert(range.first <= this->values.size() && range.second <= this->values.size());
 
-    return optional<IteratorPair>{{
-        this->values.begin() + range.first,
-        this->values.begin() + range.second
-    }};
+        return optional<IteratorPair>{{
+            this->values.begin() + range.first,
+            this->values.begin() + range.second
+        }};
+    } else {
+        return optional<IteratorPair>{{this->values.begin(), this->values.end()}};
+    }
+}
+//---------------------------------------------------------------------------
+void SortedIndex::getValuesIndexedSorted(vector<uint64Pair> &pairs)
+{
+    {
+        assert(pairs.empty());
+    }
+
+    vector<uint64_t>::iterator it, jt;
+    for (it = this->ids.begin(), jt = this->values.begin(); it != this->ids.end(); ++it, ++jt) {
+        pairs.emplace_back((*it), (*jt));
+    }
 }
 //---------------------------------------------------------------------------
 uint64_t SortedIndex::findElement(uint64_t value)
@@ -109,27 +129,5 @@ uint64Pair SortedIndex::estimateIndexes(const FilterInfo *filterInfo)
     }
 
     return range;
-}
-// ---------------------------------------------------------------------------
-optional<IteratorPair> AdaptiveIndex::getIdsIterator(const SelectInfo& selectInfo,
-                                                     const FilterInfo* filterInfo)
-{
-    return nullopt;
-}
-// ---------------------------------------------------------------------------
-optional<IteratorPair> AdaptiveIndex::getValuesIterator(const SelectInfo& selectInfo,
-                                                        const FilterInfo* filterInfo)
-{
-    return nullopt;
-}
-// ---------------------------------------------------------------------------
-AdaptiveIndex::AdaptiveIndex(const SelectInfo &selection, const IteratorPair values) : selection(selection)
-{
-    // this->selection = selection;
-}
-AdaptiveIndex::AdaptiveIndex(const SelectInfo &selection, const FilterInfo &filter,
-                             const IteratorPair values) : selection(selection)
-{
-    // this->selection = selection;
 }
 // ---------------------------------------------------------------------------

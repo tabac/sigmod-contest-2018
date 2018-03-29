@@ -7,6 +7,7 @@
 #include <string>
 #include "Mixins.hpp"
 #include "Parser.hpp"
+#include "Index.hpp"
 //---------------------------------------------------------------------------
 enum NodeStatus { fresh, processing, processed };
 //---------------------------------------------------------------------------
@@ -79,6 +80,8 @@ class AbstractDataNode : public AbstractNode, public DataReaderMixin {
     virtual uint64_t getSize() const = 0;
 
     bool isBaseRelation() const { return false; }
+
+    SortedIndex *getIndex(const SelectInfo &) { return NULL; }
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
