@@ -48,44 +48,9 @@ void Relation::execute(vector<thread> &)
     }
 }
 //---------------------------------------------------------------------------
-optional<IteratorPair> Relation::getIdsIterator(const SelectInfo& selectInfo,
-                                                const FilterInfo* filterInfo)
+optional<IteratorPair> Relation::getIdsIterator(const SelectInfo&, const FilterInfo*)
 // Returns an `IteratorPair` over all the `DataNode`'s ids.
 {
-    {
-        assert(selectInfo.relId == this->relId);
-
-        assert(filterInfo == NULL || filterInfo->filterColumn.relId == this->relId);
-    }
-
-    if (INDEXES_ON) {
-        SortedIndex *index = this->getIndex(selectInfo);
-
-        if (index != NULL) {
-            // We have an index for this `selectInfo`, use it.
-            return index->getIdsIterator(selectInfo, filterInfo);
-        } else if (INDEXES_ADAPTIVE_ON && this->MAX_INDEX_COUNT < indexes.size()) {
-            // We don't have an index for this `selectInfo`.
-            // In the adaptive version we should create one.
-
-            /*
-            if (this->indexMut->try_lock()) {
-                // In case we don't lock the indexes, go without.
-
-                index = this->getIndex(selectInfo);
-                if (index == NULL) {
-                    // Verify that we still don't have an index
-                    // before creating one.
-                    this->createIndex(selectInfo);
-                }
-                this->indexMut->unlock();
-
-                return this->getIdsIterator(selectInfo, filterInfo);
-            }
-            */
-        }
-    }
-
     return nullopt;
 }
 //---------------------------------------------------------------------------
@@ -94,41 +59,13 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
 // Returns an `IteratorPair` over all the `DataNode`'s values
 // of the column specified by `selectInfo`.
 {
+    assert(filterInfo == NULL);
+
     // Returns an empty optional if `selectInfo` does not
     // refair to this relation.
     if (selectInfo.relId != this->relId) {
         return nullopt;
     } else {
-        if (INDEXES_ON) {
-            SortedIndex *index = this->getIndex(selectInfo);
-
-            if (index != NULL) {
-                // We have an index for this `selectInfo`, use it.
-                return index->getValuesIterator(selectInfo, filterInfo);
-            } else if (INDEXES_ADAPTIVE_ON && this->MAX_INDEX_COUNT < indexes.size()) {
-                // We don't have an index for this `selectInfo`.
-                // In the adaptive version we should create one.
-
-                /*
-                if (this->indexMut->try_lock()) {
-                    // In case we don't lock the indexes, go without.
-
-                    index = this->getIndex(selectInfo);
-                    if (index == NULL) {
-                        // Verify that we still don't have an index
-                        // before creating one.
-                        this->createIndex(selectInfo);
-                    }
-                    this->indexMut->unlock();
-
-                    return this->getValuesIterator(selectInfo, filterInfo);
-                }
-                */
-            }
-        }
-
-        assert(selectInfo.colId < this->columns.size());
-
         vector<uint64_t>::iterator begin (this->columns[selectInfo.colId]);
         vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
 

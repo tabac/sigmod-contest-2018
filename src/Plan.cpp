@@ -7,6 +7,7 @@
 #include <algorithm>
 #include "Plan.hpp"
 #include "Mixins.hpp"
+#include "Index.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -319,17 +320,22 @@ void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
     // Reserve memory for pairs.
     pairs.reserve(inNode->getSize());
 
-    optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
+    SortedIndex *index = inNode->getIndex(selection);
+    if (INDEXES_ON && index != NULL) {
+        index->getValuesIndexedSorted(pairs);
+    } else {
+        optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
-    assert(option.has_value());
-    const IteratorPair valIter = option.value();
+        assert(option.has_value());
+        const IteratorPair valIter = option.value();
 
-    // Get pairs of the form `{rowIndex, rowValue}`.
-    JoinOperatorNode::getValuesIndexed(valIter, pairs);
+        // Get pairs of the form `{rowIndex, rowValue}`.
+        JoinOperatorNode::getValuesIndexed(valIter, pairs);
 
-    // Sort by `rowValue`.
-    sort(pairs.begin(), pairs.end(),
-         [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+        // Sort by `rowValue`.
+        sort(pairs.begin(), pairs.end(),
+             [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+    }
 }
 //---------------------------------------------------------------------------
 void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
@@ -379,15 +385,28 @@ void FilterOperatorNode::executeAsync(void)
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
-    // Get values iterator for the filter column.
-    optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
-                                                              &this->info);
-    assert(option.has_value());
-    const IteratorPair valIter = option.value();
+    IteratorPair valIter;
+    optional<IteratorPair> idsOption;
+    SortedIndex *index = inNode->getIndex(this->info.filterColumn);
+    if (INDEXES_ON && index != NULL) {
+        // Get values iterator for the filter column.
+        optional<IteratorPair> option = index->getValuesIterator(this->info.filterColumn,
+                                                                 &this->info);
+        assert(option.has_value());
+        valIter = option.value();
 
-    // Get ids iterator for the filter column.
-    optional<IteratorPair> idsOption = inNode->getIdsIterator(this->info.filterColumn,
-                                                              &this->info);
+        // Get ids iterator for the filter column.
+        idsOption = index->getIdsIterator(this->info.filterColumn, &this->info);
+    } else {
+        // Get values iterator for the filter column.
+        optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
+                                                                  NULL);
+        assert(option.has_value());
+        valIter = option.value();
+
+        // Get ids iterator for the filter column.
+        idsOption = inNode->getIdsIterator(this->info.filterColumn, NULL);
+    }
 
     // Get indices that satisfy the given filter condition.
     vector<uint64Pair> indices;

@@ -17,8 +17,7 @@ using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator, std::vector<uint64_t>::const_iterator>;
 //---------------------------------------------------------------------------
-const bool INDEXES_ON = false;
-const bool INDEXES_ADAPTIVE_ON = false;
+const bool INDEXES_ON = true;
 //---------------------------------------------------------------------------
 class DataReaderMixin {
     // TODO: Would be nice not to pass `filterInfo` and then ignore it...
