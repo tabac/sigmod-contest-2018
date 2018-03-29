@@ -14,7 +14,7 @@ class Planner {
     public:
 
     static void attachQueryPlan(Plan &plan, QueryInfo &query);
-    static void attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker& lastAttached);
+    static void attachQueryPlanShared(Plan &plan, QueryInfo &query,OriginTracker& lastAttached);
 
     static OriginTracker connectQueryBaseRelations(Plan &plan, QueryInfo &query);
 

@@ -519,10 +519,10 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
 #ifndef NDEBUG
     // auto to assertion esteke oso to lastAttach htan per query
 
-    AbstractNode *anode = (*lastAttached.begin()).second;
-    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
-        assert(anode == (*it).second);
-    }
+//    AbstractNode *anode = (*lastAttached.begin()).second;
+//    for (it = lastAttached.begin(); it != lastAttached.end(); ++it) {
+//        assert(anode == (*it).second);
+//    }
     aggregateNode->label = "aggr";
     dataNode->label = "t" + to_string(targetCounter++);
 #endif
@@ -723,11 +723,12 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     }
     //==========================================
 
-    OriginTracker lastAttached;
     // first add shared joins
+    OriginTracker lastAttached;
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {
         connectQueryBaseRelations(*plan, *it, lastAttached);
+
         if(!(plan->cJoin).empty())
         {
             // check if this query contains one of the shared joins and push it first
@@ -738,11 +739,10 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
                 }
             }
         }
-
     }
 
 
-    //unordered_map<SelectInfo, unsigned> selectionsMap;
+//    //unordered_map<SelectInfo, unsigned> selectionsMap;
     for(it = queries.begin(); it != queries.end(); ++it) {
         Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
         //(*it).getSelectionsMap(selectionsMap);
