@@ -2,7 +2,7 @@
 #include "Parser.hpp"
 #include "Mixins.hpp"
 // ---------------------------------------------------------------------------
-enum IndexStatus { building, ready };
+enum IndexStatus { uninitialized, building, ready };
 // ---------------------------------------------------------------------------
 class AbstractIndex {
     /// Index class is the base class for all Index implementations.
@@ -20,8 +20,10 @@ class AbstractIndex {
     /// Status getters.
     bool isStatusBuilding() { return status == IndexStatus::building; };
     bool isStatusReady() { return status == IndexStatus::ready; };
+    bool isStatusUninitialized() { return status == IndexStatus::uninitialized; };
 
-    AbstractIndex(const SelectInfo &selection) : selection(selection) { }
+    AbstractIndex(const SelectInfo &selection) :
+        status(IndexStatus::uninitialized), selection(selection) { }
 };
 // ---------------------------------------------------------------------------
 class SortedIndex : public AbstractIndex, public DataReaderMixin {
@@ -38,6 +40,8 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
 
     public:
 
+    const IteratorPair valIter;
+
     // Returns the ids that match the filterInfo.
     std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
                                                const FilterInfo* filterInfo);
@@ -47,7 +51,10 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
 
     void getValuesIndexedSorted(std::vector<uint64Pair> &pairs);
 
+    void buildIndex(void);
+
     /// Constructor.
-    SortedIndex(const SelectInfo &selection, const IteratorPair valIter);
+    SortedIndex(const SelectInfo &selection, const IteratorPair valIter) :
+        AbstractIndex(selection), valIter(valIter) { }
 };
 // ---------------------------------------------------------------------------

@@ -2,13 +2,18 @@
 #include <iostream>
 #include "DataEngine.hpp"
 #include "Plan.hpp"
+#include "Mixins.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
 void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
-    this->relations.emplace_back(relId, fileName);
+    SyncPair *syncPair = new pair<mutex, condition_variable>();
+
+    this->syncPairs.emplace_back(syncPair);
+
+    this->relations.emplace_back(relId, fileName, *syncPair);
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
@@ -54,4 +59,12 @@ float DataEngine::getFilterSelectivity(FilterOperatorNode*, DataNode &){
 float DataEngine::getJoinSelectivity(JoinOperatorNode*, DataNode &){
    return 0;
 }
-
+//--------------------------------------------------------------------------
+DataEngine::~DataEngine()
+{
+    vector<SyncPair*>::iterator it;
+    for (it = this->syncPairs.begin(); it != this->syncPairs.end(); ++it) {
+        delete (*it);
+    }
+}
+//--------------------------------------------------------------------------

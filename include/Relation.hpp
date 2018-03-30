@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 #include <optional>
+#include <condition_variable>
 #include "Mixins.hpp"
 #include "Plan.hpp"
 #include "Index.hpp"
@@ -26,11 +27,16 @@ class Relation: public AbstractDataNode {
     std::vector<uint64_t*> columns;
 
     /// Indexes mutex, for thread safety.
-    std::mutex indexMut;
+    // std::mutex *indexMut;
+    /// Indexes condition variable, for signaling on `indexMut`.
+    // std::condition_variable *indexConditionVar;
+    SyncPair &syncPair;
+
+
     /// Number of indexes to create.
     static const unsigned MAX_INDEX_COUNT = 3;
     /// The table's indexes.
-    std::vector<SortedIndex> indexes;
+    std::vector<SortedIndex*> indexes;
 
     /// Stores a relation into a file (binary)
     void storeRelation(const std::string& fileName);
@@ -66,9 +72,10 @@ class Relation: public AbstractDataNode {
     bool isBaseRelation() const { return true; }
 
     /// Constructor without mmap
-    Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) : ownsMemory(true), relId(relId), size(size), columns(columns) {}
+    Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns, SyncPair &syncPair) :
+       ownsMemory(true), relId(relId), size(size), columns(columns), syncPair(syncPair) {}
     /// Constructor using mmap
-    Relation(RelationId relId, const char* fileName);
+    Relation(RelationId relId, const char* fileName, SyncPair &syncPair);
     /// Delete copy constructor
     Relation(const Relation& other)=delete;
     /// Move constructor

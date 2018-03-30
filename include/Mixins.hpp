@@ -1,7 +1,9 @@
 #pragma once
+#include <mutex>
 #include <vector>
 #include <cstdint>
 #include <optional>
+#include <condition_variable>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
@@ -15,9 +17,12 @@ using uint64Pair = std::pair<uint64_t, uint64_t>;
 //---------------------------------------------------------------------------
 using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
+using SyncPair = std::pair<std::mutex, std::condition_variable>;
+//---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator, std::vector<uint64_t>::const_iterator>;
 //---------------------------------------------------------------------------
 const bool INDEXES_ON = true;
+const bool INDEXES_CREATE_ON_MERGE = true;
 //---------------------------------------------------------------------------
 class DataReaderMixin {
     // TODO: Would be nice not to pass `filterInfo` and then ignore it...

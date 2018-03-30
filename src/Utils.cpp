@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include "Mixins.hpp"
 #include "Utils.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -22,7 +23,10 @@ Relation Utils::createRelation(RelationId relId, uint64_t size,uint64_t numColum
   for (unsigned i=0;i<numColumns;++i) {
     createColumn(columns,size);
   }
-  return Relation(relId, size,move(columns));
+
+  SyncPair *syncPair = new pair<std::mutex, std::condition_variable>();
+
+  return Relation(relId, size,move(columns), *syncPair);
 }
 //---------------------------------------------------------------------------
 void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)

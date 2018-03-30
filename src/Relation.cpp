@@ -75,10 +75,12 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
 //---------------------------------------------------------------------------
 SortedIndex* Relation::getIndex(const SelectInfo &selection)
 {
-    vector<SortedIndex>::iterator it;
+    vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
-        if (it->selection == selection) {
-            return &(*it);
+        if ((*it)->selection.relId == selection.relId &&
+            (*it)->selection.colId == selection.colId &&
+            (*it)->isStatusReady()) {
+            return (*it);
         }
     }
 
@@ -87,16 +89,69 @@ SortedIndex* Relation::getIndex(const SelectInfo &selection)
 //---------------------------------------------------------------------------
 void Relation::createIndex(const SelectInfo &selection)
 {
-    vector<SelectInfo>::iterator it = find(this->columnsInfo.begin(),
-                                           this->columnsInfo.end(),
-                                           selection);
+    {
+        assert(selection.relId == this->relId);
+    }
 
-    assert(it != this->columnsInfo.end());
+    unique_lock<mutex> lck(this->syncPair.first);
 
-    vector<uint64_t>::iterator begin (this->columns[selection.colId]);
-    vector<uint64_t>::iterator end (this->columns[selection.colId] + this->size);
+    vector<SortedIndex *>::iterator it;
+    for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+        if ((*it)->selection.relId == selection.relId &&
+            (*it)->selection.colId == selection.colId) {
+            break;
+        }
 
-    this->indexes.emplace_back((*it), make_pair(begin, end));
+    }
+
+    if (it == this->indexes.end()) {
+        vector<SelectInfo>::iterator jt;
+        for (jt = this->columnsInfo.begin(); jt != this->columnsInfo.end(); ++jt) {
+            if (jt->relId == selection.relId && jt->colId == selection.colId) {
+                break;
+            }
+        }
+
+        assert(jt != this->columnsInfo.end());
+
+        vector<uint64_t>::iterator begin (this->columns[selection.colId]);
+        vector<uint64_t>::iterator end (this->columns[selection.colId] + this->size);
+
+        SortedIndex *index = new SortedIndex((*jt), {begin, end});
+
+        assert(lck.owns_lock());
+
+        this->indexes.emplace_back(index);
+
+        lck.unlock();
+
+        index->buildIndex();
+
+        this->syncPair.second.notify_all();
+    } else if (!(*it)->isStatusReady()) {
+        // Index status is either `building` or `uninitialized`.
+        // Should wait for other thread to finish building.
+
+        while (!(*it)->isStatusReady()) {
+            // this->indexConditionVar->wait(lck);
+            this->syncPair.second.wait(lck);
+
+            // In the mean time the vector could have relocated.
+            // We should check the position again...
+            for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+                if ((*it)->selection == selection) {
+                    break;
+                }
+            }
+        }
+
+        assert(lck.owns_lock());
+
+        lck.unlock();
+    } else {
+        assert(lck.owns_lock());
+        lck.unlock();
+    }
 }
 //---------------------------------------------------------------------------
 void Relation::storeRelation(const string& fileName)
@@ -177,7 +232,8 @@ void Relation::loadRelation(const char* fileName)
     }
 }
 //---------------------------------------------------------------------------
-Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), relId(relId)
+Relation::Relation(RelationId relId, const char* fileName, SyncPair &syncPair) :
+    ownsMemory(false), relId(relId), syncPair(syncPair)
 // Constructor that loads relation from disk
 {
     loadRelation(fileName);
@@ -195,7 +251,7 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
 
 }
 //---------------------------------------------------------------------------
-Relation::Relation(Relation&& other) : relId(other.relId)
+Relation::Relation(Relation&& other) : relId(other.relId), syncPair(other.syncPair)
 {
     // `AbstractNode` fields.
     this->status = other.status;

@@ -24,7 +24,7 @@ int main(void)
     // Build histograms, indices,...
 
     // Do index crazy.
-    engine.createSortedIndexes();
+    // engine.createSortedIndexes();
 
     // The test harness will send the first query after 1 second.
 

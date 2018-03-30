@@ -2,12 +2,15 @@
 #include <mutex>
 #include <vector>
 #include <cstdint>
+#include "Mixins.hpp"
 #include "Relation.hpp"
 //---------------------------------------------------------------------------
 class DataEngine {
     public:
     /// All available relations.
     std::vector<Relation> relations;
+
+    std::vector<SyncPair*> syncPairs;
 
     /// Loads a relations from disk.
     void addRelation(RelationId relId, const char* fileName);
@@ -17,6 +20,8 @@ class DataEngine {
     float getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d);
 
     void createSortedIndexes(void);
+
+    ~DataEngine();
 
     private:
     /// Estimates the selectivity of filter operator `FilterOperatorNode` on dataset `DataNode `

@@ -1,3 +1,5 @@
+#include <chrono>
+#include <thread>
 #include <cassert>
 #include <iostream>
 #include <algorithm>
@@ -5,7 +7,7 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter) : AbstractIndex(selection)
+void SortedIndex::buildIndex(void)
 {
     this->setStatus(IndexStatus::building);
 
@@ -31,6 +33,8 @@ SortedIndex::SortedIndex(const SelectInfo &selection, const IteratorPair valIter
     }
 
     this->setStatus(IndexStatus::ready);
+
+    assert(this->isStatusReady());
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
@@ -38,9 +42,12 @@ optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
 // Returns an iterator with the ids of the Tuples that satisfy FilterInfo
 {
     {
-        assert(selectInfo == this->selection);
+        assert(selectInfo.relId == this->selection.relId &&
+               selectInfo.colId == this->selection.colId);
 
-        assert(filterInfo == NULL || filterInfo->filterColumn == this->selection);
+        assert(filterInfo == NULL ||
+               (filterInfo->filterColumn.relId == this->selection.relId &&
+                filterInfo->filterColumn.colId == this->selection.colId));
     }
 
     if (filterInfo != NULL) {
@@ -62,9 +69,12 @@ optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectIn
 // Returns an iterator with the values of the Tuples that satisfy the FilterInfo
 {
     {
-        assert(selectInfo == this->selection);
+        assert(selectInfo.relId == this->selection.relId &&
+               selectInfo.colId == this->selection.colId);
 
-        assert(filterInfo == NULL || filterInfo->filterColumn == this->selection);
+        assert(filterInfo == NULL ||
+               (filterInfo->filterColumn.relId == this->selection.relId &&
+                filterInfo->filterColumn.colId == this->selection.colId));
     }
 
     if (filterInfo != NULL) {

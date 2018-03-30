@@ -41,9 +41,9 @@ class AbstractNode {
     void setStatus(NodeStatus status) { this->status = status; };
 
     /// Status getters.
-    bool isStatusFresh() { return status == fresh; };
-    bool isStatusProcessing() { return status == processing; };
-    bool isStatusProcessed() { return status == processed; };
+    bool isStatusFresh() { return status == NodeStatus::fresh; };
+    bool isStatusProcessing() { return status == NodeStatus::processing; };
+    bool isStatusProcessed() { return status == NodeStatus::processed; };
 
     /// Resets the nodes status, adjacency lists.
     /// Used for the relations that are reused between
@@ -60,7 +60,7 @@ class AbstractNode {
     virtual void freeResources() = 0;
 
     /// Constructor.
-    AbstractNode() : status(fresh), visited(0) { }
+    AbstractNode() : status(NodeStatus::fresh), visited(0) { }
     /// Virtual destructor.
     virtual ~AbstractNode() { }
 
@@ -81,7 +81,7 @@ class AbstractDataNode : public AbstractNode, public DataReaderMixin {
 
     bool isBaseRelation() const { return false; }
 
-    SortedIndex *getIndex(const SelectInfo &) { return NULL; }
+    virtual SortedIndex *getIndex(const SelectInfo &) = 0;
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
@@ -109,6 +109,8 @@ class DataNode : public AbstractDataNode {
 
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() const { return this->size; }
+
+    SortedIndex *getIndex(const SelectInfo &) { return NULL; }
 
     /// Empty constructor.
     DataNode() { }

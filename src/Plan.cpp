@@ -8,6 +8,7 @@
 #include "Plan.hpp"
 #include "Mixins.hpp"
 #include "Index.hpp"
+#include "Relation.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -59,7 +60,7 @@ void ResultInfo::printResults(const vector<ResultInfo> resultsInfo)
 void AbstractNode::resetStatus()
 {
     this->visited = 0;
-    this->status = fresh;
+    this->status = NodeStatus::fresh;
 
     this->inAdjList.clear();
     this->outAdjList.clear();
@@ -324,17 +325,26 @@ void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
     if (INDEXES_ON && index != NULL) {
         index->getValuesIndexedSorted(pairs);
     } else {
-        optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
+        if (INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
+            // Ugly mother coming up...
+            Relation *relation = (Relation *) inNode;
 
-        assert(option.has_value());
-        const IteratorPair valIter = option.value();
+            relation->createIndex(selection);
 
-        // Get pairs of the form `{rowIndex, rowValue}`.
-        JoinOperatorNode::getValuesIndexed(valIter, pairs);
+            JoinOperatorNode::getValuesIndexedSorted(pairs, selection, inNode);
+        } else {
+            optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
-        // Sort by `rowValue`.
-        sort(pairs.begin(), pairs.end(),
-             [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+            assert(option.has_value());
+            const IteratorPair valIter = option.value();
+
+            // Get pairs of the form `{rowIndex, rowValue}`.
+            JoinOperatorNode::getValuesIndexed(valIter, pairs);
+
+            // Sort by `rowValue`.
+            sort(pairs.begin(), pairs.end(),
+                 [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+        }
     }
 }
 //---------------------------------------------------------------------------
