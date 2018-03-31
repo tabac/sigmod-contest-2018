@@ -48,6 +48,8 @@ class DataReaderMixin {
     /// return range of values.
     virtual std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                           const FilterInfo* filterInfo) = 0;
+
+    virtual ~DataReaderMixin() { }
 };
 //---------------------------------------------------------------------------
 template <class T>

@@ -14,6 +14,8 @@ int main(void)
     // Read join relations
     string line;
     unsigned relId = 0;
+    // TODO: Reserve space for `engine.relations`...
+    engine.relations.reserve(20);
     while (getline(cin, line) && line != "Done") {
         engine.addRelation(relId, line.c_str());
 

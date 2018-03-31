@@ -79,7 +79,7 @@ class Relation: public AbstractDataNode {
     /// Delete copy constructor
     Relation(const Relation& other)=delete;
     /// Move constructor
-    Relation(Relation&& other);
+    Relation(Relation&& other)=default;
     /// The destructor
     ~Relation();
 };

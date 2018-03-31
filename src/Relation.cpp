@@ -75,14 +75,21 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
 //---------------------------------------------------------------------------
 SortedIndex* Relation::getIndex(const SelectInfo &selection)
 {
+    unique_lock<mutex> lck(this->syncPair.first);
+
     vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
         if ((*it)->selection.relId == selection.relId &&
             (*it)->selection.colId == selection.colId &&
             (*it)->isStatusReady()) {
+
+            lck.unlock();
+
             return (*it);
         }
     }
+
+    lck.unlock();
 
     return NULL;
 }
@@ -101,10 +108,10 @@ void Relation::createIndex(const SelectInfo &selection)
             (*it)->selection.colId == selection.colId) {
             break;
         }
-
     }
 
     if (it == this->indexes.end()) {
+        // TODO: This should go, stick with `selection`.
         vector<SelectInfo>::iterator jt;
         for (jt = this->columnsInfo.begin(); jt != this->columnsInfo.end(); ++jt) {
             if (jt->relId == selection.relId && jt->colId == selection.colId) {
@@ -139,10 +146,13 @@ void Relation::createIndex(const SelectInfo &selection)
             // In the mean time the vector could have relocated.
             // We should check the position again...
             for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
-                if ((*it)->selection == selection) {
+                if ((*it)->selection.relId == selection.relId &&
+                    (*it)->selection.colId == selection.colId) {
                     break;
                 }
             }
+
+            assert(it != this->indexes.end());
         }
 
         assert(lck.owns_lock());
@@ -251,32 +261,16 @@ Relation::Relation(RelationId relId, const char* fileName, SyncPair &syncPair) :
 
 }
 //---------------------------------------------------------------------------
-Relation::Relation(Relation&& other) : relId(other.relId), syncPair(other.syncPair)
-{
-    // `AbstractNode` fields.
-    this->status = other.status;
-    this->visited = other.visited;
-
-    this->inAdjList = move(other.inAdjList);
-    this->outAdjList = move(other.outAdjList);
-
-    // `AbstractDataNode` fields.
-    this->columnsInfo = other.columnsInfo;
-
-    // `Relation` fields.
-    this->size = other.size;
-    this->ownsMemory = other.ownsMemory;
-
-    this->columns = move(other.columns);
-    this->indexes = move(other.indexes);
-}
-//---------------------------------------------------------------------------
 Relation::~Relation()
-  // Destructor
 {
     if (ownsMemory) {
         for (auto c : columns)
             delete[] c;
+    }
+
+    vector<SortedIndex*>::iterator it;
+    for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+        delete (*it);
     }
 }
 //---------------------------------------------------------------------------
