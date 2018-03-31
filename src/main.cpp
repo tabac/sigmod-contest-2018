@@ -17,7 +17,7 @@ int main(void)
     while (getline(cin, line) && line != "Done") {
         DataEngine::addRelation(relId, line.c_str());
         // relation, 1/samplingRatio, buckets
-        DataEngine::buildCompleteHist(relId, 100, 200);
+        DataEngine::buildCompleteHist(relId, 100, 20);
         ++relId;
     }
 

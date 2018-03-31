@@ -188,8 +188,8 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     void updateBindings(PredicateInfo& p){
 
-        std::cout << "MY PREDICATE " << (this->info).dumpLabel() << std::endl;
-        std::cout << "UPDATE BINDING for " << p.dumpLabel() << std::endl;
+//        std::cout << "MY PREDICATE " << (this->info).dumpLabel() << std::endl;
+//        std::cout << "UPDATE BINDING for " << p.dumpLabel() << std::endl;
 
         if(info.left.logicalEq(p.left)){
             // update bindings of info.left with p.left and info.right with p.right
@@ -356,10 +356,11 @@ class Plan {
     /// All the exit nodes of the plan(s).
     std::vector<DataNode *> exitNodes;
 
-    std::unordered_map<PredicateInfo, int> commonJoins;
+    //std::unordered_map<PredicateInfo, unsigned > commonJoins;
+    std::vector<PredicateInfo> commonJoins;
     std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
 
-    std::vector<PredicateInfo> cJoin;
+    //std::vector<PredicateInfo> cJoin;
 
     ~Plan();
 };

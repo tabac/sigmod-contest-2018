@@ -30,13 +30,13 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
     Relation& r = relations[rid];
     for(unsigned colID = 0; colID < r.columns.size(); colID++){
         // approx constructor
-//         Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
-//         h->createEquiWidth(numOfBuckets);
-//         h->createEquiHeight(numOfBuckets);
+         Histogram* h = new Histogram(r, colID, r.size / sampleRatio);
+         h->createEquiWidth(numOfBuckets);
+         //h->createEquiHeight(numOfBuckets);
 
         //exact constructor
-        Histogram* h = new Histogram(r, colID);
-        h->createExactEquiWidth(numOfBuckets);
+//        Histogram* h = new Histogram(r, colID);
+//        h->createExactEquiWidth(numOfBuckets);
 
         histograms[pair<RelationId, unsigned>(rid, colID)] = h;
     }

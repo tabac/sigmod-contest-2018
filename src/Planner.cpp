@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <queue>
+#include <map>
 #include "Planner.hpp"
 #include "DataEngine.hpp"
 #include "Plan.hpp"
@@ -55,25 +56,25 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
 
     q.push(o);
 
-    while(!q.empty()) {
-        AbstractOperatorNode *cur = q.front();
-        q.pop();
-
-        if (!cur->outAdjList[0]->outAdjList.empty()) {
-
-            if(!Utils::contains(cur->selections, selection)) {
-                cur->selections.emplace_back(selection);
-            }
-
-            vector<AbstractNode *>::iterator jt;
-            for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
-                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                //cout << "ADD SELECTION " << selection.dumpLabel()<<" to "<< (*o).label << endl;
-                q.push(o);
-            }
-        }
-    }
-    return;
+//    while(!q.empty()) {
+//        AbstractOperatorNode *cur = q.front();
+//        q.pop();
+//
+//        if (!cur->outAdjList[0]->outAdjList.empty()) {
+//
+//            //if(!Utils::contains(cur->selections, selection)) {
+//                cur->selections.emplace_back(selection);
+//            //}
+//
+//            vector<AbstractNode *>::iterator jt;
+//            for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
+//                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+//                //cout << "ADD SELECTION " << selection.dumpLabel()<<" to "<< (*o).label << endl;
+//                q.push(o);
+//            }
+//        }
+//    }
+//    return;
 
     if (Utils::contains(query.selections, selection)) {
         while(!q.empty()) {
@@ -86,11 +87,12 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                     cur->selections.emplace_back(selection);
                 }
 
-
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                    q.push(o);
+                    if (Utils::contains(o->sharedQueries, query.queryId) && o->hasBinding(selection.binding)){
+                        q.push(o);
+                    }
                 }
             }
         }
@@ -105,12 +107,16 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                 }
 
                 if (count != 0) {
-                    cur->selections.emplace_back(selection);
+                    if(!Utils::contains(cur->selections, selection)) {
+                        cur->selections.emplace_back(selection);
+                    }
 
                     vector<AbstractNode *>::iterator jt;
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                        q.push(o);
+                        if (Utils::contains(o->sharedQueries, query.queryId) && o->hasBinding(selection.binding)){
+                            q.push(o);
+                        }
                      }
                 } else {
                     break;
@@ -742,9 +748,10 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 //    cout << endl;
 }
 //---------------------------------------------------------------------------
-CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
+vector<PredicateInfo> Planner::findCommonJoins(vector<QueryInfo> &batch)
 {
     CommonJoinCounter commonJoins;
+    map<unsigned , vector<PredicateInfo>> scj;
     vector<QueryInfo>::iterator it;
     for(it = batch.begin(); it != batch.end(); ++it) {
         for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
@@ -759,7 +766,36 @@ CommonJoinCounter Planner::findCommonJoins(vector<QueryInfo> &batch)
             }
         }
     }
-    return commonJoins;
+
+    for(CommonJoinCounter::iterator ci = commonJoins.begin(); ci != commonJoins.end(); ci++){
+        try{
+            scj.at(ci->second).push_back(ci->first);
+        }catch (const out_of_range &) {
+            vector<PredicateInfo> v;
+            v.push_back(ci->first);
+            scj[ci->second] = v;
+        }
+    }
+
+    vector<RelationId > alreadyShared;
+    vector<PredicateInfo> sharedJoins;
+
+    map<unsigned , vector<PredicateInfo>>::reverse_iterator scj_it;
+
+    for(scj_it = scj.rbegin();scj_it != scj.rend();scj_it++){
+
+        for(vector<PredicateInfo>::iterator pt = (scj_it->second).begin();pt != (scj_it->second).end();pt++){
+            if(Utils::contains(alreadyShared, (*pt).left.relId) || Utils::contains(alreadyShared, (*pt).right.relId)){
+                continue;
+            }
+            alreadyShared.push_back((*pt).left.relId);
+            alreadyShared.push_back((*pt).right.relId);
+            sharedJoins.push_back(*pt);
+        }
+    }
+
+
+    return sharedJoins;
 };
 //---------------------------------------------------------------------------
 Plan* Planner::generatePlan(vector<QueryInfo> &queries)
@@ -774,13 +810,13 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
 
     //=========================================
-    for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
-        if(cj->second > 1){
-            //cout << "SHARED JOIN FOUND" << endl;
-            (plan->cJoin).push_back(cj->first);
-            break;
-        }
-    }
+//    for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
+//        if(cj->second > 1){
+//            //cout << "SHARED JOIN FOUND" << endl;
+//            (plan->cJoin).push_back(cj->first);
+//            break;
+//        }
+//    }
     //==========================================
 
     // first add shared joins
@@ -789,11 +825,11 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     for(it = queries.begin(); it != queries.end(); ++it) {
         connectQueryBaseRelations(*plan, *it, lastAttached);
 
-        if(!(plan->cJoin).empty())
+        if(!(plan->commonJoins).empty())
         {
             // check if this query contains one of the shared joins and push it first
             for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
-                if (*pt == (plan->cJoin).back()) {
+                if (*pt == (plan->commonJoins).back()) {
                     //cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
                     Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
                 }

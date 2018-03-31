@@ -9,7 +9,7 @@
 using OTKey = std::tuple<unsigned , unsigned , unsigned >;
 using OriginTracker = std::unordered_map<OTKey , AbstractNode *>;
 using JoinCatalog = std::unordered_map<PredicateInfo, JoinOperatorNode *>;
-using CommonJoinCounter = std::unordered_map<PredicateInfo, int>;
+using CommonJoinCounter = std::unordered_map<PredicateInfo, unsigned >;
 
 
 class Planner {
@@ -22,7 +22,7 @@ class Planner {
 
     static OriginTracker connectQueryBaseRelations(Plan &plan, QueryInfo &query, OriginTracker &lastAttached);
 
-    static CommonJoinCounter findCommonJoins(std::vector<QueryInfo> &batch);
+    static std::vector<PredicateInfo> findCommonJoins(std::vector<QueryInfo> &batch);
 
     static unsigned addFilters(Plan &plan, QueryInfo& query, OriginTracker &lastAttached);
 
