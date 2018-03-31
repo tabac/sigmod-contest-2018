@@ -26,12 +26,8 @@ class Relation: public AbstractDataNode {
     /// The join column containing the keys
     std::vector<uint64_t*> columns;
 
-    /// Indexes mutex, for thread safety.
-    // std::mutex *indexMut;
-    /// Indexes condition variable, for signaling on `indexMut`.
-    // std::condition_variable *indexConditionVar;
+    // Synchronization pair of `std::mutex, std::condition_variable`.
     SyncPair &syncPair;
-
 
     /// Number of indexes to create.
     static const unsigned MAX_INDEX_COUNT = 3;

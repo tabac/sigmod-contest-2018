@@ -24,6 +24,8 @@ struct SelectInfo {
     std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
+    /// Equality operator, ignoring binding information.
+    bool equalsRelationColumn(const SelectInfo &o) const;
 
     /// The delimiter used in our text format
     static const char delimiter=' ';

@@ -79,12 +79,9 @@ SortedIndex* Relation::getIndex(const SelectInfo &selection)
 
     vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
-        if ((*it)->selection.relId == selection.relId &&
-            (*it)->selection.colId == selection.colId &&
+        if ((selection.equalsRelationColumn((*it)->selection)) &&
             (*it)->isStatusReady()) {
-
             lck.unlock();
-
             return (*it);
         }
     }
@@ -104,27 +101,16 @@ void Relation::createIndex(const SelectInfo &selection)
 
     vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
-        if ((*it)->selection.relId == selection.relId &&
-            (*it)->selection.colId == selection.colId) {
+        if (selection.equalsRelationColumn((*it)->selection)) {
             break;
         }
     }
 
     if (it == this->indexes.end()) {
-        // TODO: This should go, stick with `selection`.
-        vector<SelectInfo>::iterator jt;
-        for (jt = this->columnsInfo.begin(); jt != this->columnsInfo.end(); ++jt) {
-            if (jt->relId == selection.relId && jt->colId == selection.colId) {
-                break;
-            }
-        }
-
-        assert(jt != this->columnsInfo.end());
-
         vector<uint64_t>::iterator begin (this->columns[selection.colId]);
         vector<uint64_t>::iterator end (this->columns[selection.colId] + this->size);
 
-        SortedIndex *index = new SortedIndex((*jt), {begin, end});
+        SortedIndex *index = new SortedIndex(selection, {begin, end});
 
         assert(lck.owns_lock());
 
@@ -146,8 +132,7 @@ void Relation::createIndex(const SelectInfo &selection)
             // In the mean time the vector could have relocated.
             // We should check the position again...
             for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
-                if ((*it)->selection.relId == selection.relId &&
-                    (*it)->selection.colId == selection.colId) {
+                if (selection.equalsRelationColumn((*it)->selection)) {
                     break;
                 }
             }
@@ -254,6 +239,8 @@ Relation::Relation(RelationId relId, const char* fileName, SyncPair &syncPair) :
     for (unsigned c = 0; c < this->columns.size(); ++c) {
         this->columnsInfo.emplace_back(relId, 0, c);
     }
+    // Reserve memory for indexes.
+    this->indexes.reserve(this->columns.size());
 
 #ifndef NDEBUG
     this->label = "r" + to_string(this->relId);

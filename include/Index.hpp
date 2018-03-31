@@ -10,7 +10,7 @@ class AbstractIndex {
     /// Status of the index, whether `ready` or `building`.
     IndexStatus status;
     /// The indexed column.
-    const SelectInfo &selection;
+    const SelectInfo selection;
     /// Vectors that hold sorted `ids`, `values` for the given `selection`.
     std::vector<uint64_t> ids, values;
 

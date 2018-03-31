@@ -384,3 +384,7 @@ bool SelectInfo::operator==(const SelectInfo& o) const {
     return o.relId == relId && o.binding == binding && o.colId == colId;
 }
 //---------------------------------------------------------------------------
+bool SelectInfo::equalsRelationColumn(const SelectInfo &o) const {
+    return o.relId == this->relId && o.colId == this->colId;
+}
+//---------------------------------------------------------------------------
