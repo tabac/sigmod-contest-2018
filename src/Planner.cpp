@@ -36,7 +36,7 @@ void Planner::updateAttached(OriginTracker &lastAttached, const OTKey relationPa
     if (!oldNode->isBaseRelation()) {
         OriginTracker ::iterator jt;
         for (jt = lastAttached.begin(); jt != lastAttached.end(); ++jt) {
-            if (jt->second == oldNode) {
+            if (jt->second == oldNode && get<2>(jt->first)==get<2>(relationPair)) {
                 jt->second = newNode;
             }
         }
@@ -53,6 +53,23 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
 
     q.push(o);
 
+    while(!q.empty()) {
+        AbstractOperatorNode *cur = q.front();
+        q.pop();
+
+        if (!cur->outAdjList[0]->outAdjList.empty()) {
+
+            cur->selections.emplace_back(selection);
+
+            vector<AbstractNode *>::iterator jt;
+            for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
+                AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+                q.push(o);
+            }
+        }
+    }
+    return;
+
     if (Utils::contains(query.selections, selection)) {
         while(!q.empty()) {
             AbstractOperatorNode *cur = q.front();
@@ -66,7 +83,7 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                     q.push(o);
-//                    if (o->hasBinding(selection.binding)) {
+//                    if (o->hasSelection(selection)) {
 //                        q.push(o);
 //                    }
                 }
@@ -89,7 +106,7 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                         q.push(o);
-//                        if (o->hasBinding(selection.binding)) {
+//                        if (o->hasSelection(selection)) {
 //                            q.push(o);
 //                        }
                      }
@@ -308,10 +325,8 @@ void Planner::addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached
                 // add `FilterJoinOperatorNode`.
                 Planner::addFilterJoin(plan, (*pt), query, lastAttached);
             } else {
-                OTKey leftPair = {(*pt).left.relId,
-                                         (*pt).left.binding, query.queryId};
-                OTKey rightPair = {(*pt).right.relId,
-                                          (*pt).right.binding, query.queryId};
+                OTKey leftPair = {(*pt).left.relId, (*pt).left.binding, query.queryId};
+                OTKey rightPair = {(*pt).right.relId, (*pt).right.binding, query.queryId};
 
                 if (lastAttached[leftPair] == lastAttached[rightPair]) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
@@ -358,10 +373,8 @@ void Planner::addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &las
                 // add `FilterJoinOperatorNode`.
                 Planner::addFilterJoin(plan, (*pt), query, lastAttached);
             } else {
-                OTKey leftPair = {(*pt).left.relId,
-                                         (*pt).left.binding,query.queryId};
-                OTKey rightPair = {(*pt).right.relId,
-                                          (*pt).right.binding,query.queryId};
+                OTKey leftPair = {(*pt).left.relId, (*pt).left.binding,query.queryId};
+                OTKey rightPair = {(*pt).right.relId, (*pt).right.binding,query.queryId};
 
                 if (lastAttached[leftPair] == lastAttached[rightPair]) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
@@ -381,10 +394,8 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
     JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
 
 
-    OTKey leftPair = {predicate.left.relId,
-                             predicate.left.binding,query.queryId};
-    OTKey rightPair = {predicate.right.relId,
-                              predicate.right.binding,query.queryId};
+    OTKey leftPair = {predicate.left.relId, predicate.left.binding,query.queryId};
+    OTKey rightPair = {predicate.right.relId, predicate.right.binding,query.queryId};
 
     AbstractNode::connectNodes(lastAttached[leftPair], joinNode);
     AbstractNode::connectNodes(lastAttached[rightPair], joinNode);
@@ -409,10 +420,8 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     JoinOperatorNode* joinNode;
     DataNode *dataNode;
 
-    OTKey leftPair = {predicate.left.relId,
-                             predicate.left.binding,query.queryId};
-    OTKey rightPair = {predicate.right.relId,
-                              predicate.right.binding,query.queryId};
+    OTKey leftPair = {predicate.left.relId, predicate.left.binding,query.queryId};
+    OTKey rightPair = {predicate.right.relId, predicate.right.binding,query.queryId};
 
     try {
         joinNode = plan.sharedJoins.at(predicate);
