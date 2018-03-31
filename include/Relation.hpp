@@ -27,7 +27,7 @@ class Relation: public AbstractDataNode {
     std::vector<uint64_t*> columns;
 
     // Synchronization pair of `std::mutex, std::condition_variable`.
-    SyncPair &syncPair;
+    std::unique_ptr<SyncPair> syncPair;
 
     /// Number of indexes to create.
     static const unsigned MAX_INDEX_COUNT = 3;
@@ -68,10 +68,10 @@ class Relation: public AbstractDataNode {
     bool isBaseRelation() const { return true; }
 
     /// Constructor without mmap
-    Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns, SyncPair &syncPair) :
-       ownsMemory(true), relId(relId), size(size), columns(columns), syncPair(syncPair) {}
+    Relation(RelationId relId, uint64_t size, std::vector<uint64_t*>&& columns) :
+       ownsMemory(true), relId(relId), size(size), columns(columns) { }
     /// Constructor using mmap
-    Relation(RelationId relId, const char* fileName, SyncPair &syncPair);
+    Relation(RelationId relId, const char* fileName);
     /// Delete copy constructor
     Relation(const Relation& other)=delete;
     /// Move constructor

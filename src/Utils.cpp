@@ -24,9 +24,7 @@ Relation Utils::createRelation(RelationId relId, uint64_t size,uint64_t numColum
     createColumn(columns,size);
   }
 
-  SyncPair *syncPair = new pair<std::mutex, std::condition_variable>();
-
-  return Relation(relId, size,move(columns), *syncPair);
+  return Relation(relId, size,move(columns));
 }
 //---------------------------------------------------------------------------
 void Utils::storeRelation(ofstream& out,Relation& r,unsigned i)

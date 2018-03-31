@@ -15,8 +15,8 @@ int main(void)
     string line;
     unsigned relId = 0;
     // TODO: Reserve space for `engine.relations` and `engine.syncPairs`.
-    engine.relations.reserve(20);
-    engine.syncPairs.reserve(20);
+    // engine.relations.reserve(20);
+    // engine.syncPairs.reserve(20);
 
     while (getline(cin, line) && line != "Done") {
         engine.addRelation(relId, line.c_str());

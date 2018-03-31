@@ -75,7 +75,7 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
 //---------------------------------------------------------------------------
 SortedIndex* Relation::getIndex(const SelectInfo &selection)
 {
-    unique_lock<mutex> lck(this->syncPair.first);
+    unique_lock<mutex> lck(this->syncPair->first);
 
     vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
@@ -97,7 +97,7 @@ void Relation::createIndex(const SelectInfo &selection)
         assert(selection.relId == this->relId);
     }
 
-    unique_lock<mutex> lck(this->syncPair.first);
+    unique_lock<mutex> lck(this->syncPair->first);
 
     vector<SortedIndex *>::iterator it;
     for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
@@ -120,14 +120,14 @@ void Relation::createIndex(const SelectInfo &selection)
 
         index->buildIndex();
 
-        this->syncPair.second.notify_all();
+        this->syncPair->second.notify_all();
     } else if (!(*it)->isStatusReady()) {
         // Index status is either `building` or `uninitialized`.
         // Should wait for other thread to finish building.
 
         while (!(*it)->isStatusReady()) {
             // this->indexConditionVar->wait(lck);
-            this->syncPair.second.wait(lck);
+            this->syncPair->second.wait(lck);
 
             // In the mean time the vector could have relocated.
             // We should check the position again...
@@ -227,8 +227,8 @@ void Relation::loadRelation(const char* fileName)
     }
 }
 //---------------------------------------------------------------------------
-Relation::Relation(RelationId relId, const char* fileName, SyncPair &syncPair) :
-    ownsMemory(false), relId(relId), syncPair(syncPair)
+Relation::Relation(RelationId relId, const char* fileName) :
+    ownsMemory(false), relId(relId)
 // Constructor that loads relation from disk
 {
     loadRelation(fileName);
@@ -241,6 +241,8 @@ Relation::Relation(RelationId relId, const char* fileName, SyncPair &syncPair) :
     }
     // Reserve memory for indexes.
     this->indexes.reserve(this->columns.size());
+
+    this->syncPair = make_unique<SyncPair>();
 
 #ifndef NDEBUG
     this->label = "r" + to_string(this->relId);

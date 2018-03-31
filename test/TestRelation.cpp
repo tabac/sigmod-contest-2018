@@ -2,7 +2,6 @@
 #include "gtest/gtest.h"
 #include "Relation.hpp"
 #include "Utils.hpp"
-#include "Mixins.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -21,13 +20,9 @@ TEST(Relation,LoadAndStore) {
   r1.storeRelation("r1");
   // Load it back from disk
 
-  SyncPair *p = new pair<mutex, condition_variable>();
-
-  Relation r2(1, "r1", *p);
+  Relation r2(1, "r1");
 
   ASSERT_RELATION_EQ(r1,r2);
-
-  delete p;
 }
 //---------------------------------------------------------------------------
 TEST(Relation,EmptyRelation) {
@@ -35,14 +30,10 @@ TEST(Relation,EmptyRelation) {
 
   r1.storeRelation("r1");
 
-  SyncPair *p = new pair<mutex, condition_variable>();
-
   // Load it back from disk
-  Relation r2(1, "r1", *p);
+  Relation r2(1, "r1");
 
   ASSERT_RELATION_EQ(r1,r2);
-
-  delete p;
 }
 //---------------------------------------------------------------------------
 TEST(Relation,StoreCsv) {

@@ -10,8 +10,6 @@ class DataEngine {
     /// All available relations.
     std::vector<Relation> relations;
 
-    std::vector<SyncPair*> syncPairs;
-
     /// Loads a relations from disk.
     void addRelation(RelationId relId, const char* fileName);
     /// Returns a reference to a `Relation` instance by id.
@@ -20,8 +18,6 @@ class DataEngine {
     float getEstimatedSelectivity(AbstractOperatorNode &op, DataNode &d);
 
     void createSortedIndexes(void);
-
-    ~DataEngine();
 
     private:
     /// Estimates the selectivity of filter operator `FilterOperatorNode` on dataset `DataNode `

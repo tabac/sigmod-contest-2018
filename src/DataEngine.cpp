@@ -9,11 +9,7 @@ using namespace std;
 void DataEngine::addRelation(RelationId relId, const char* fileName)
 // Loads a relation from disk
 {
-    SyncPair *syncPair = new pair<mutex, condition_variable>();
-
-    this->syncPairs.emplace_back(syncPair);
-
-    this->relations.emplace_back(relId, fileName, *syncPair);
+    this->relations.emplace_back(relId, fileName);
 }
 //---------------------------------------------------------------------------
 Relation& DataEngine::getRelation(unsigned relationId)
@@ -58,13 +54,5 @@ float DataEngine::getFilterSelectivity(FilterOperatorNode*, DataNode &){
 //--------------------------------------------------------------------------
 float DataEngine::getJoinSelectivity(JoinOperatorNode*, DataNode &){
    return 0;
-}
-//--------------------------------------------------------------------------
-DataEngine::~DataEngine()
-{
-    vector<SyncPair*>::iterator it;
-    for (it = this->syncPairs.begin(); it != this->syncPairs.end(); ++it) {
-        delete (*it);
-    }
 }
 //--------------------------------------------------------------------------
