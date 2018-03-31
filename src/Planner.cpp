@@ -51,6 +51,8 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
     assert(o->hasBinding(selection.binding));
     queue<AbstractOperatorNode *> q;
 
+    //cout << "ADD SELECTION " << selection.dumpLabel()<<" to "<< (*o).label << endl;
+
     q.push(o);
 
     while(!q.empty()) {
@@ -59,11 +61,14 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
 
         if (!cur->outAdjList[0]->outAdjList.empty()) {
 
-            cur->selections.emplace_back(selection);
+            if(!Utils::contains(cur->selections, selection)) {
+                cur->selections.emplace_back(selection);
+            }
 
             vector<AbstractNode *>::iterator jt;
             for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                 AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
+                //cout << "ADD SELECTION " << selection.dumpLabel()<<" to "<< (*o).label << endl;
                 q.push(o);
             }
         }
@@ -77,15 +82,15 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
 
             if (!cur->outAdjList[0]->outAdjList.empty()) {
 
-                cur->selections.emplace_back(selection);
+                if(!Utils::contains(cur->selections, selection)) {
+                    cur->selections.emplace_back(selection);
+                }
+
 
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                     q.push(o);
-//                    if (o->hasSelection(selection)) {
-//                        q.push(o);
-//                    }
                 }
             }
         }
@@ -106,9 +111,6 @@ static void recursivePropagateSelection(QueryInfo &query,AbstractOperatorNode *o
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
                         q.push(o);
-//                        if (o->hasSelection(selection)) {
-//                            q.push(o);
-//                        }
                      }
                 } else {
                     break;
@@ -176,7 +178,29 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
         for (jt = r->outAdjList.begin(); jt != r->outAdjList.end(); ++jt) {
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
 
-            if (o->hasBinding(it->first.binding)) {
+            //cout << "TRYING TO ADD SELECTION "<< (it->first).dumpLabel() << " to Q"<<query.queryId << " in operator "<<(*o).label<<endl;
+
+//            JoinOperatorNode *joinOp;
+//            if ((joinOp = dynamic_cast<JoinOperatorNode*>(o)) != NULL) {
+//                //    //============ gmytil ========================
+//                std::cout << "LEFT Binding: " << (*joinOp).info.left.binding << std::endl;
+//                std::cout << "LEFT Auxiliary: " << std::endl;
+//                for (std::vector<unsigned>::iterator it = (*joinOp).info.left.auxiliaryBindings.begin();
+//                     it != (*joinOp).info.left.auxiliaryBindings.end(); it++) {
+//                    std::cout << *it << ",";
+//                }
+//                std::cout << std::endl;
+//                //============================================
+//                std::cout << "RIGHT Binding: " << (*joinOp).info.right.binding << std::endl;
+//                std::cout << "RIGHT Auxiliary: " << std::endl;
+//                for (std::vector<unsigned>::iterator it = (*joinOp).info.right.auxiliaryBindings.begin();
+//                     it != (*joinOp).info.right.auxiliaryBindings.end(); it++) {
+//                    std::cout << *it << ",";
+//                }
+//                std::cout << std::endl;
+//            }
+
+            if (Utils::contains(o->sharedQueries, query.queryId) && o->hasBinding(it->first.binding)) {
                 //propagateSelection(query, o, it->first, it->second);
                 recursivePropagateSelection(query,o, it->first, it->second);
             }
@@ -252,6 +276,8 @@ void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttac
     for(ft = query.filters.begin(); ft != query.filters.end(); ++ft){
             DataNode *dataNode = new DataNode();
             FilterOperatorNode *filterNode = new FilterOperatorNode((*ft));
+            //filterNode->queryId = query.queryId;
+            (filterNode->sharedQueries).push_back(query.queryId);
 
             OTKey filterPair = {ft->filterColumn.relId, ft->filterColumn.binding, query.queryId};
 
@@ -392,7 +418,8 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
 {
     DataNode *dataNode = new DataNode();
     JoinOperatorNode *joinNode = new JoinOperatorNode(predicate);
-
+    //joinNode->queryId = query.queryId;
+    (joinNode->sharedQueries).push_back(query.queryId);
 
     OTKey leftPair = {predicate.left.relId, predicate.left.binding,query.queryId};
     OTKey rightPair = {predicate.right.relId, predicate.right.binding,query.queryId};
@@ -426,10 +453,31 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     try {
         joinNode = plan.sharedJoins.at(predicate);
         auto nhandler = plan.sharedJoins.extract(predicate);
-        auto predicateKey = nhandler.key();
+        //auto predicateKey = nhandler.key();
+        joinNode->updateBindings(predicate);
+        (joinNode->sharedQueries).push_back(query.queryId);
         plan.sharedJoins.insert(move(nhandler));
-        joinNode->updateBindings(predicateKey);
         dataNode = (DataNode*) joinNode->outAdjList[0];
+//        //====================================================
+//        cout << "UPDATED JOIN NODE = " << endl;
+//        //    //============ gmytil ========================
+//        std::cout << "LEFT Binding: " << (*plan.sharedJoins.at(predicate)).info.left.binding << std::endl;
+//        std::cout << "LEFT Auxiliary: " << std::endl;
+//        for (std::vector<unsigned>::iterator it = (*plan.sharedJoins.at(predicate)).info.left.auxiliaryBindings.begin();
+//             it != (*plan.sharedJoins.at(predicate)).info.left.auxiliaryBindings.end(); it++) {
+//            std::cout << *it << ",";
+//        }
+//        std::cout << std::endl;
+//        //============================================
+//        std::cout << "RIGHT Binding: " << (*plan.sharedJoins.at(predicate)).info.right.binding << std::endl;
+//        std::cout << "RIGHT Auxiliary: " << std::endl;
+//        for (std::vector<unsigned>::iterator it = (*plan.sharedJoins.at(predicate)).info.right.auxiliaryBindings.begin();
+//             it != (*plan.sharedJoins.at(predicate)).info.right.auxiliaryBindings.end(); it++) {
+//            std::cout << *it << ",";
+//        }
+//        std::cout << std::endl;
+//        //====================================================
+
         //cout << "Join Result issss " << dataNode->label << endl;
 
 //        Planner::updateAttached(lastAttached, leftPair, dataNode);
@@ -437,6 +485,7 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     }
     catch (const out_of_range &) {
         joinNode = new JoinOperatorNode(predicate);
+        (joinNode->sharedQueries).push_back(query.queryId);
         dataNode = new DataNode();
 
         #ifndef NDEBUG
@@ -465,8 +514,8 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     //cout << "MALAKIEEEEES" << endl;
-    printPlan(&plan);
-    cout << endl;
+//    printPlan(&plan);
+//    cout << endl;
 
 
 }
@@ -475,6 +524,8 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
 {
     DataNode *dataNode = new DataNode();
     FilterJoinOperatorNode *joinNode = new FilterJoinOperatorNode(predicate);
+    //joinNode->queryId = query.queryId;
+    (joinNode->sharedQueries).push_back(query.queryId);
 
     OTKey leftPair = {predicate.left.relId,
                              predicate.left.binding,query.queryId};
@@ -504,7 +555,8 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
     DataNode *dataNode =  new DataNode();
     AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
 
-    aggregateNode->queryId = query.queryId;
+    //aggregateNode->queryId = query.queryId;
+    (aggregateNode->sharedQueries).push_back(query.queryId);
 
     aggregateNode->selections = query.selections;
 
@@ -651,7 +703,7 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 //        }
 //    }
 
-    cout << "NEW QUERY:  " << query.dumpText() <<endl;
+    //cout << "NEW QUERY:  " << query.dumpText() <<endl;
 
     //cout << "FINITO WITH SHARED JOINS" << endl;
     // push filters
@@ -724,7 +776,7 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     //=========================================
     for(CommonJoinCounter::iterator cj = plan->commonJoins.begin(); cj != plan->commonJoins.end(); cj++){
         if(cj->second > 1){
-            cout << "SHARED JOIN FOUND" << endl;
+            //cout << "SHARED JOIN FOUND" << endl;
             (plan->cJoin).push_back(cj->first);
             break;
         }
@@ -742,7 +794,7 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
             // check if this query contains one of the shared joins and push it first
             for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
                 if (*pt == (plan->cJoin).back()) {
-                    cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
+                    //cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
                     Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
                 }
             }
@@ -756,10 +808,6 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
         //(*it).getSelectionsMap(selectionsMap);
     }
 
-    for(it = queries.begin(); it != queries.end(); ++it) {
-        setQuerySelections(*plan, *it);
-    }
-
 
 #ifndef NDEBUG
     root->label = "global_root";
@@ -771,6 +819,10 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 
     printPlan(plan);
 #endif
+
+    for(it = queries.begin(); it != queries.end(); ++it) {
+        setQuerySelections(*plan, *it);
+    }
 
     return plan;
 }

@@ -114,7 +114,9 @@ class DataNode : public AbstractDataNode {
 //---------------------------------------------------------------------------
 class AbstractOperatorNode : public AbstractNode {
     public:
-    unsigned queryId;
+    //short queryId = -1;
+
+    std::vector<unsigned> sharedQueries;
 
     std::vector<SelectInfo> selections;
 
