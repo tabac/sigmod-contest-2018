@@ -28,9 +28,6 @@ class Planner {
 
     static void addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttached);
 
-
-    static void addRemainingFilters(Plan &plan, QueryInfo& query, unsigned pft, OriginTracker &lastAttached);
-
     static void addJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached);
 
     static void addNonSharedJoins(Plan& plan, QueryInfo& query, OriginTracker &lastAttached);
@@ -48,8 +45,6 @@ class Planner {
     static Plan* generatePlan(std::vector<QueryInfo> &queries);
 
     static void setQuerySelections(Plan &plan, QueryInfo &query);
-
-    //static void setQuerySelections(Plan &plan, std::unordered_map<SelectInfo, unsigned> &selectionsMap);
 
     static bool filterComparator(const FilterInfo& f1, const FilterInfo& f2);
 

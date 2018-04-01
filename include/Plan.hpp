@@ -114,7 +114,8 @@ class DataNode : public AbstractDataNode {
 //---------------------------------------------------------------------------
 class AbstractOperatorNode : public AbstractNode {
     public:
-    //short queryId = -1;
+
+    short queryId = -1;
 
     std::vector<unsigned> sharedQueries;
 
@@ -188,9 +189,6 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     void updateBindings(PredicateInfo& p){
 
-//        std::cout << "MY PREDICATE " << (this->info).dumpLabel() << std::endl;
-//        std::cout << "UPDATE BINDING for " << p.dumpLabel() << std::endl;
-
         if(info.left.logicalEq(p.left)){
             // update bindings of info.left with p.left and info.right with p.right
             if(info.left.binding != p.left.binding) {
@@ -221,22 +219,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
                     info.right.auxiliaryBindings.push_back(p.left.binding);
                 }
             }
-        }else{
-//#ifndef NDEBUG
-//            cout << "UNREACHABLE PIECE OF CODE" << endl;
-//#endif
-//            assert(false);
         }
-
-
-//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.left)
-//           == (this->boundSelections).end()){
-//            this->boundSelections.push_back(p.left);
-//        }
-//        if(std::find((this->boundSelections).begin(), (this->boundSelections).end(), p.right)
-//           == (this->boundSelections).end()){
-//            this->boundSelections.push_back(p.right);
-//        }
     }
 
     bool hasBinding(const unsigned binding) const {
@@ -262,22 +245,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
             return false;
         }
 
-//        for(std::vector<SelectInfo>::const_iterator st = (this->boundSelections).begin();
-//            st != (this->boundSelections).end(); st++){
-//
-//            if((*st).binding == binding){
-//                return true;
-//            }
-//        }
-//        return false;
-//        return this->info.left.binding == binding || this->info.right.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
 
         return info.left.logicalEq(selection) || info.right.logicalEq(selection);
-//        return std::find((this->boundSelections).begin(), (this->boundSelections).end(), selection)
-//        != (this->boundSelections).end();
     }
 
     JoinOperatorNode(PredicateInfo &info) : info(info) {}
@@ -356,11 +328,8 @@ class Plan {
     /// All the exit nodes of the plan(s).
     std::vector<DataNode *> exitNodes;
 
-    //std::unordered_map<PredicateInfo, unsigned > commonJoins;
     std::vector<PredicateInfo> commonJoins;
     std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
-
-    //std::vector<PredicateInfo> cJoin;
 
     ~Plan();
 };

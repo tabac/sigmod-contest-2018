@@ -344,7 +344,6 @@ void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selections
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }
 //---------------------------------------------------------------------------
 bool SelectInfo::operator==(const SelectInfo& o) const {
-    //return o.relId == relId && o.binding == binding && o.colId == colId;
 
     if(o.relId == relId && o.colId == colId){
         if(o.binding == binding){

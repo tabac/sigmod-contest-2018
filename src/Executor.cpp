@@ -53,9 +53,10 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
                 // that his children are processed.
                 // TODO: This gets called too many times. Maybe we
                 //       should move the root forward or something.
-                if (processed != 0 && cur->outAdjList.size() == processed) {
-                    cur->freeResources();
-                }
+
+//                if (processed != 0 && cur->outAdjList.size() == processed) {
+//                    cur->freeResources();
+//                }
 
                 ++counter;
             }
