@@ -10,6 +10,7 @@
 #include "Index.hpp"
 #include "Relation.hpp"
 #include "Executor.hpp"
+#include "Parallel.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -584,12 +585,7 @@ void AggregateOperatorNode::executeAsync(void)
             IteratorPair valIter = option.value();
 
             // Calculate sum for column.
-            uint64_t sum = 0;
-            vector<uint64_t>::const_iterator jt;
-            for (jt = valIter.first; jt != valIter.second; ++jt) {
-                sum += (*jt);
-            }
-
+            uint64_t sum = calcParallelSum(valIter);
             outNode->dataValues.push_back(sum);
         }
     }
