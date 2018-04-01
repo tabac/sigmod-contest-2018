@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <algorithm>
+#include <tbb/parallel_sort.h>
 #include "Index.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -19,7 +20,7 @@ void SortedIndex::buildIndex(void)
         this->idValuePairs.emplace_back(i, (*it));
     }
 
-    sort(this->idValuePairs.begin(), this->idValuePairs.end(),
+    tbb::parallel_sort(this->idValuePairs.begin(), this->idValuePairs.end(),
          [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
     this->values.reserve(this->idValuePairs.size());

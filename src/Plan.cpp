@@ -5,6 +5,7 @@
 #include <iostream>
 #include <optional>
 #include <algorithm>
+#include <tbb/parallel_sort.h>
 #include "Plan.hpp"
 #include "Mixins.hpp"
 #include "Index.hpp"
@@ -353,7 +354,7 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
             JoinOperatorNode::getValuesIndexed(valIter, *pairs);
 
             // Sort by `rowValue`.
-            sort(pairs->begin(), pairs->end(),
+            tbb::parallel_sort(pairs->begin(), pairs->end(),
                  [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
             return {true, pairs};
