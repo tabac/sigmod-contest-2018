@@ -11,23 +11,22 @@ void SortedIndex::buildIndex(void)
 {
     this->setStatus(IndexStatus::building);
 
-    vector<uint64Pair> pairs;
-    pairs.reserve(valIter.second - valIter.first);
+    this->idValuePairs.reserve(valIter.second - valIter.first);
 
     uint64_t i;
     vector<uint64_t>::const_iterator it;
     for (i = 0, it = valIter.first; it != valIter.second; ++i, ++it) {
-        pairs.emplace_back(i, (*it));
+        this->idValuePairs.emplace_back(i, (*it));
     }
 
-    sort(pairs.begin(), pairs.end(),
+    sort(this->idValuePairs.begin(), this->idValuePairs.end(),
          [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
-    this->ids.reserve(pairs.size());
-    this->values.reserve(pairs.size());
+    this->ids.reserve(this->idValuePairs.size());
+    this->values.reserve(this->idValuePairs.size());
 
     vector<uint64Pair>::iterator jt;
-    for (jt = pairs.begin(); jt != pairs.end(); ++jt) {
+    for (jt = this->idValuePairs.begin(); jt != this->idValuePairs.end(); ++jt) {
         this->ids.emplace_back(jt->first);
         this->values.emplace_back(jt->second);
     }
@@ -91,16 +90,9 @@ optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectIn
     }
 }
 //---------------------------------------------------------------------------
-void SortedIndex::getValuesIndexedSorted(vector<uint64Pair> &pairs)
+vector<uint64Pair> *SortedIndex::getValuesIndexedSorted(void)
 {
-    {
-        assert(pairs.empty());
-    }
-
-    vector<uint64_t>::iterator it, jt;
-    for (it = this->ids.begin(), jt = this->values.begin(); it != this->ids.end(); ++it, ++jt) {
-        pairs.emplace_back((*it), (*jt));
-    }
+    return &this->idValuePairs;
 }
 //---------------------------------------------------------------------------
 uint64_t SortedIndex::findElement(uint64_t value)

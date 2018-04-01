@@ -176,11 +176,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
                           const std::vector<uint64Pair> &rightPairs,
                           std::vector<uint64Pair> &indexPairs);
 
-    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
-    /// sorted by value.
-    static void getValuesIndexedSorted(std::vector<uint64Pair> &pairs,
-                                       SelectInfo &selection,
-                                       AbstractDataNode* inNode);
+    /// Returns a tuple with a boolean and pairs of the form
+    /// `{rowIndex, rowValue}` sorted by value. The boolean
+    /// indicates whether the memory has to be freed or not.
+    static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
+        SelectInfo &selection, AbstractDataNode* inNode);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding || this->info.right.binding == binding;

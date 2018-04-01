@@ -13,6 +13,8 @@ class AbstractIndex {
     const SelectInfo selection;
     /// Vectors that hold sorted `ids`, `values` for the given `selection`.
     std::vector<uint64_t> ids, values;
+    /// Vector that holds `{id, value}` pairs, sorted by value.
+    std::vector<uint64Pair> idValuePairs;
 
     /// Status setter.
     void setStatus(IndexStatus status) { this->status = status; };
@@ -49,7 +51,7 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                   const FilterInfo* filterInfo);
 
-    void getValuesIndexedSorted(std::vector<uint64Pair> &pairs);
+    std::vector<uint64Pair> *getValuesIndexedSorted(void);
 
     void buildIndex(void);
 

@@ -188,17 +188,17 @@ void JoinOperatorNode::executeAsync(void)
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get sorted vector<{rowIndex, rowValue}> for left column.
-    vector<uint64Pair> leftPairs;
-    JoinOperatorNode::getValuesIndexedSorted(leftPairs, this->info.left, inLeftNode);
+    pair<bool, vector<uint64Pair>*> leftPairs;
+    leftPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.left, inLeftNode);
 
     // Get sorted vector<{rowIndex, rowValue}> for right column.
-    vector<uint64Pair> rightPairs;
-    JoinOperatorNode::getValuesIndexedSorted(rightPairs, this->info.right, inRightNode);
+    pair<bool, vector<uint64Pair>*> rightPairs;
+    rightPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.right, inRightNode);
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
     vector<uint64Pair> indexPairs;
-    JoinOperatorNode::mergeJoin(leftPairs, rightPairs, indexPairs);
+    JoinOperatorNode::mergeJoin(*leftPairs.second, *rightPairs.second, indexPairs);
 
     // sort(indexPairs.begin(), indexPairs.end(),
          // [&](const uint64Pair &a, const uint64Pair &b) { return a.first < b.first; });
@@ -231,6 +231,14 @@ void JoinOperatorNode::executeAsync(void)
     }
 
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);
+
+    // Free pairs memory if it's owned by them (not an index).
+    if (leftPairs.first) {
+        delete leftPairs.second;
+    }
+    if (rightPairs.first) {
+        delete rightPairs.second;
+    }
 
     // Set status to processed.
     this->setStatus(processed);
@@ -314,16 +322,12 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
     }
 }
 //---------------------------------------------------------------------------
-void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
-                                              SelectInfo &selection,
-                                              AbstractDataNode* inNode)
+pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
+    SelectInfo &selection, AbstractDataNode* inNode)
 {
-    // Reserve memory for pairs.
-    pairs.reserve(inNode->getSize());
-
     SortedIndex *index = inNode->getIndex(selection);
     if (INDEXES_ON && index != NULL) {
-        index->getValuesIndexedSorted(pairs);
+        return {false, index->getValuesIndexedSorted()};
     } else {
         if (INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
             // Ugly mother coming up...
@@ -331,19 +335,25 @@ void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
 
             relation->createIndex(selection);
 
-            JoinOperatorNode::getValuesIndexedSorted(pairs, selection, inNode);
+            return JoinOperatorNode::getValuesIndexedSorted(selection, inNode);
         } else {
+            // Reserve memory for pairs.
+            vector<uint64Pair> *pairs = new vector<uint64Pair>();
+            pairs->reserve(inNode->getSize());
+
             optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
             assert(option.has_value());
             const IteratorPair valIter = option.value();
 
             // Get pairs of the form `{rowIndex, rowValue}`.
-            JoinOperatorNode::getValuesIndexed(valIter, pairs);
+            JoinOperatorNode::getValuesIndexed(valIter, *pairs);
 
             // Sort by `rowValue`.
-            sort(pairs.begin(), pairs.end(),
+            sort(pairs->begin(), pairs->end(),
                  [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+
+            return {true, pairs};
         }
     }
 }
