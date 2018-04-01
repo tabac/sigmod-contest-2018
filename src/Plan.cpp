@@ -291,8 +291,8 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
     vector<SelectInfo>::const_iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
         // Skip columns already inserted.
-        vector<SelectInfo>::const_iterator jt = find(outNode->columnsInfo.begin(),
-                                               outNode->columnsInfo.end(), (*it));
+        vector<SelectInfo>::const_iterator jt = find(
+            outNode->columnsInfo.begin(), outNode->columnsInfo.end(), (*it));
         if (jt != outNode->columnsInfo.end()) {
             continue;
         }
