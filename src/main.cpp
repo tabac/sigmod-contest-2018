@@ -14,10 +14,8 @@ int main(void)
     // Read join relations
     string line;
     unsigned relId = 0;
-    // TODO: Reserve space for `engine.relations` and `engine.syncPairs`.
-    // engine.relations.reserve(20);
-    // engine.syncPairs.reserve(20);
-
+    // TODO: Do proper reservations below.
+    engine.relations.reserve(20);
     while (getline(cin, line) && line != "Done") {
         engine.addRelation(relId, line.c_str());
 
@@ -34,6 +32,10 @@ int main(void)
 
     vector<QueryInfo> queries;
     vector<ResultInfo> resultsInfo;
+
+    // TODO: Do proper reservations below.
+    queries.reserve(20);
+    resultsInfo.reserve(20);
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         unsigned q = 0;

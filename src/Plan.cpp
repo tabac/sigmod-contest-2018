@@ -9,6 +9,7 @@
 #include "Mixins.hpp"
 #include "Index.hpp"
 #include "Relation.hpp"
+#include "Executor.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -103,6 +104,8 @@ void DataNode::execute(vector<thread> &)
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
+
+        Executor::notify();
     }
 }
 //---------------------------------------------------------------------------
@@ -200,9 +203,6 @@ void JoinOperatorNode::executeAsync(void)
     vector<uint64Pair> indexPairs;
     JoinOperatorNode::mergeJoin(*leftPairs.second, *rightPairs.second, indexPairs);
 
-    // sort(indexPairs.begin(), indexPairs.end(),
-         // [&](const uint64Pair &a, const uint64Pair &b) { return a.first < b.first; });
-
     // Set out DataNode size.
     outNode->size = indexPairs.size();
 
@@ -242,6 +242,8 @@ void JoinOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
@@ -443,6 +445,8 @@ void FilterOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void FilterJoinOperatorNode::execute(vector<thread> &threads)
@@ -514,6 +518,8 @@ void FilterJoinOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void AggregateOperatorNode::execute(vector<thread> &threads)
@@ -587,6 +593,8 @@ void AggregateOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 Plan::~Plan()

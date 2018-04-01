@@ -11,6 +11,7 @@
 #include "Relation.hpp"
 #include "Parser.hpp"
 #include "Index.hpp"
+#include "Executor.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -45,6 +46,8 @@ void Relation::execute(vector<thread> &)
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
+
+        Executor::notify();
     }
 }
 //---------------------------------------------------------------------------
