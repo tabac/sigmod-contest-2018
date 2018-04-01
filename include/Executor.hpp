@@ -16,7 +16,6 @@ class Executor {
     static std::vector<std::thread> threads;
 
     public:
-
     /// Executes the given `Plan`, stores results in `resultsInfo`.
     static void executePlan(Plan &plan, std::vector<ResultInfo> &resultsInfo);
     /// Executes the operator of an `OperatorNode`.

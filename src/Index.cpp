@@ -22,12 +22,10 @@ void SortedIndex::buildIndex(void)
     sort(this->idValuePairs.begin(), this->idValuePairs.end(),
          [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
-    this->ids.reserve(this->idValuePairs.size());
     this->values.reserve(this->idValuePairs.size());
 
     vector<uint64Pair>::iterator jt;
     for (jt = this->idValuePairs.begin(); jt != this->idValuePairs.end(); ++jt) {
-        this->ids.emplace_back(jt->first);
         this->values.emplace_back(jt->second);
     }
 
@@ -38,9 +36,10 @@ void SortedIndex::buildIndex(void)
 //---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
                                                    const FilterInfo* filterInfo)
-// Returns an iterator with the ids of the Tuples that satisfy FilterInfo
 {
     {
+        assert(false);
+
         assert(selectInfo.relId == this->selection.relId &&
                selectInfo.colId == this->selection.colId);
 
@@ -49,18 +48,7 @@ optional<IteratorPair> SortedIndex::getIdsIterator(const SelectInfo& selectInfo,
                 filterInfo->filterColumn.colId == this->selection.colId));
     }
 
-    if (filterInfo != NULL) {
-        uint64Pair range = this->estimateIndexes(filterInfo);
-
-        assert(range.first <= this->ids.size() && range.second <= this->ids.size());
-
-        return optional<IteratorPair>{{
-            this->ids.begin() + range.first,
-            this->ids.begin() + range.second
-        }};
-    } else {
-        return optional<IteratorPair>{{this->ids.begin(), this->ids.end()}};
-    }
+    return nullopt;
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectInfo,
@@ -87,6 +75,36 @@ optional<IteratorPair> SortedIndex::getValuesIterator(const SelectInfo& selectIn
         }};
     } else {
         return optional<IteratorPair>{{this->values.begin(), this->values.end()}};
+    }
+}
+//---------------------------------------------------------------------------
+optional<IteratorDoublePair> SortedIndex::getIdsValuesIterator(const SelectInfo& selectInfo,
+                                                               const FilterInfo* filterInfo)
+{
+    {
+        assert(selectInfo.relId == this->selection.relId &&
+               selectInfo.colId == this->selection.colId);
+
+        assert(filterInfo == NULL ||
+               (filterInfo->filterColumn.relId == this->selection.relId &&
+                filterInfo->filterColumn.colId == this->selection.colId));
+    }
+
+    if (filterInfo != NULL) {
+        uint64Pair range = this->estimateIndexes(filterInfo);
+
+        assert(range.first <= this->idValuePairs.size() &&
+               range.second <= this->idValuePairs.size());
+
+        return optional<IteratorDoublePair>{{
+            this->idValuePairs.begin() + range.first,
+            this->idValuePairs.begin() + range.second
+        }};
+    } else {
+        return optional<IteratorDoublePair>{{
+            this->idValuePairs.begin(),
+            this->idValuePairs.end()
+        }};
     }
 }
 //---------------------------------------------------------------------------

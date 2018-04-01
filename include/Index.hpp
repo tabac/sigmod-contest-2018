@@ -12,7 +12,7 @@ class AbstractIndex {
     /// The indexed column.
     const SelectInfo selection;
     /// Vectors that hold sorted `ids`, `values` for the given `selection`.
-    std::vector<uint64_t> ids, values;
+    std::vector<uint64_t> values;
     /// Vector that holds `{id, value}` pairs, sorted by value.
     std::vector<uint64Pair> idValuePairs;
 
@@ -50,6 +50,9 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
     //Returns the values that match filterInfo.
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                   const FilterInfo* filterInfo);
+
+    std::optional<IteratorDoublePair> getIdsValuesIterator(const SelectInfo& selectInfo,
+                                                           const FilterInfo* filterInfo);
 
     std::vector<uint64Pair> *getValuesIndexedSorted(void);
 

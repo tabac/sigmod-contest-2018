@@ -76,6 +76,36 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
     }
 }
 //---------------------------------------------------------------------------
+void FilterInfo::getFilteredIndices(const IteratorDoublePair &idValIter,
+                                    vector<uint64Pair> &indices) const
+{
+    vector<uint64Pair>::const_iterator it;
+
+    switch (this->comparison) {
+        case FilterInfo::Comparison::Less:
+            for (it = idValIter.first; it != idValIter.second; ++it) {
+                if ((*it).second < this->constant) {
+                    indices.emplace_back((*it).first, 0);
+                }
+            }
+            break;
+        case FilterInfo::Comparison::Equal:
+            for (it = idValIter.first; it != idValIter.second; ++it) {
+                if ((*it).second == this->constant) {
+                    indices.emplace_back((*it).first, 0);
+                }
+            }
+            break;
+        case FilterInfo::Comparison::Greater:
+            for (it = idValIter.first; it != idValIter.second; ++it) {
+                if ((*it).second > this->constant) {
+                    indices.emplace_back((*it).first, 0);
+                }
+            }
+            break;
+    }
+}
+//---------------------------------------------------------------------------
 static void splitString(string& line,vector<unsigned>& result,const char delimiter)
 // Split a line into numbers
 {

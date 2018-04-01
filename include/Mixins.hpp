@@ -19,7 +19,11 @@ using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
 using SyncPair = std::pair<std::mutex, std::condition_variable>;
 //---------------------------------------------------------------------------
-using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator, std::vector<uint64_t>::const_iterator>;
+using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator,
+                               std::vector<uint64_t>::const_iterator>;
+//---------------------------------------------------------------------------
+using IteratorDoublePair = std::pair<std::vector<uint64Pair>::const_iterator,
+                                     std::vector<uint64Pair>::const_iterator>;
 //---------------------------------------------------------------------------
 const bool INDEXES_ON = true;
 const bool INDEXES_CREATE_ON_MERGE = true;

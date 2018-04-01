@@ -407,32 +407,38 @@ void FilterOperatorNode::executeAsync(void)
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
-    IteratorPair valIter;
+    vector<uint64Pair> indices;
     optional<IteratorPair> idsOption;
     SortedIndex *index = inNode->getIndex(this->info.filterColumn);
     if (INDEXES_ON && index != NULL) {
-        // Get values iterator for the filter column.
-        optional<IteratorPair> option = index->getValuesIterator(this->info.filterColumn,
-                                                                 &this->info);
-        assert(option.has_value());
-        valIter = option.value();
+        // Get {ids, values} iterator for the filter column.
+        optional<IteratorDoublePair> option = index->getIdsValuesIterator(
+            this->info.filterColumn, &this->info);
 
-        // Get ids iterator for the filter column.
-        idsOption = index->getIdsIterator(this->info.filterColumn, &this->info);
+        assert(option.has_value());
+        IteratorDoublePair idValIter = option.value();
+
+        // Reserve memory for indices.
+        indices.reserve(idValIter.second -  idValIter.first);
+
+        // Get indices that satisfy the given filter condition.
+        this->info.getFilteredIndices(idValIter, indices);
     } else {
         // Get values iterator for the filter column.
         optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
                                                                   NULL);
         assert(option.has_value());
-        valIter = option.value();
+        IteratorPair valIter = option.value();
 
         // Get ids iterator for the filter column.
         idsOption = inNode->getIdsIterator(this->info.filterColumn, NULL);
-    }
 
-    // Get indices that satisfy the given filter condition.
-    vector<uint64Pair> indices;
-    this->info.getFilteredIndices(valIter, idsOption, indices);
+        // TODO: Think of something better.
+        indices.reserve((valIter.second - valIter.first) / 2);
+
+        // Get indices that satisfy the given filter condition.
+        this->info.getFilteredIndices(valIter, idsOption, indices);
+    }
 
     // Reserve memory for ids, column names, column values.
     outNode->columnsInfo.reserve(this->selections.size());

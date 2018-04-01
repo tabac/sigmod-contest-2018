@@ -55,7 +55,9 @@ struct FilterInfo {
     void getFilteredIndices(const IteratorPair &valIter,
                             const std::optional<IteratorPair> &idsOption,
                             std::vector<uint64Pair> &indices) const;
-
+    /// Returns the indices of `valIter` that satisfy `this` condition.
+    void getFilteredIndices(const IteratorDoublePair &idValIter,
+                            std::vector<uint64Pair> &indices) const;
     /// The delimiter used in our text format
     static const char delimiter='&';
     /// The delimiter used in SQL
