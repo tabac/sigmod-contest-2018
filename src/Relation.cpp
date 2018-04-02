@@ -127,9 +127,7 @@ void Relation::createIndex(const SelectInfo &selection)
     } else if (!(*it)->isStatusReady()) {
         // Index status is either `building` or `uninitialized`.
         // Should wait for other thread to finish building.
-
         while (!(*it)->isStatusReady()) {
-            // this->indexConditionVar->wait(lck);
             this->syncPair->second.wait(lck);
 
             // In the mean time the vector could have relocated.

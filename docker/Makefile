@@ -23,6 +23,8 @@ run:
 		--memory 2g \
 		--memory-swap 0 \
 		--mount type=bind,source="$(LOCALCODE)",target="/code" \
+		--cap-add=SYS_PTRACE \
+		--security-opt seccomp=unconfined \
 		--name $(CONTAINERNAME) \
 		$(IMAGENAME)
 

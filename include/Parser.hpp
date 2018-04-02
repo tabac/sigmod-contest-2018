@@ -119,9 +119,9 @@ class QueryInfo {
     /// Dump SQL
     std::string dumpSQL();
 
-
     void getSelectionsMap(std::unordered_map<SelectInfo, unsigned> &selectionsMap) const;
 
+    void sortPredicatesByCount(void);
 
     /// The empty constructor
     QueryInfo() {}

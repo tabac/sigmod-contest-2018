@@ -11,7 +11,7 @@ set(SOURCE_FILES Relation.cpp Parser.cpp Utils.cpp Plan.cpp Executor.cpp Planner
 
 include_directories(${PROJECT_SRC_DIR}/include)
 add_library(database ${SOURCE_FILES})
-target_link_libraries(database tbb)
+target_link_libraries(database tbb tbbmalloc_proxy)
 target_include_directories(database PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -22,9 +22,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/")
 
 add_executable(rocket main.cpp ${SOURCE_FILES})
-target_link_libraries(rocket database pthread tbb jemalloc)
+target_link_libraries(rocket database pthread tbb tbbmalloc_proxy)
 
 # Interactive command line tool to translate our query format to SQL queries
 add_executable(Query2SQL Query2SQL.cpp ${SOURCE_FILES})
-target_link_libraries(Query2SQL pthread tbb jemalloc)
+target_link_libraries(Query2SQL pthread tbb tbbmalloc_proxy)
 

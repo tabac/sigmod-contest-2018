@@ -400,8 +400,7 @@ void FilterOperatorNode::executeAsync(void)
 #ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
 #endif
-
-    // Ugly castings...
+// Ugly castings...
     AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
