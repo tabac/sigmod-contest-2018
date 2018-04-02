@@ -209,6 +209,7 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     AbstractNode::connectNodes(joinNode, dataNode);
 
     Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);

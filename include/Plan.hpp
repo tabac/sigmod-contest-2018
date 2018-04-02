@@ -140,8 +140,8 @@ class AbstractOperatorNode : public AbstractNode {
     template <size_t I>
     static void pushSelections(const std::vector<SelectInfo> &selections,
                                const std::vector<uint64Pair> &indices,
-                               AbstractDataNode *inNode,
-                               DataNode *outNode);
+                               AbstractDataNode *inNode, DataNode *outNode,
+                               unsigned binding);
 
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
@@ -237,11 +237,11 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
     void executeAsync(void);
 
     bool hasBinding(const unsigned binding) const {
-        return this->info.left.binding == binding;
+        return this->info.left.binding == binding || this->info.right.binding == binding;
     }
 
     bool hasSelection(const SelectInfo &selection) const {
-        return this->info.left == selection;
+        return this->info.left == selection || this->info.right == selection;
     }
 
     /// Constructor.
