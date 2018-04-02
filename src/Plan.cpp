@@ -298,7 +298,8 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
     }
 
     outNode->columnsInfo.reserve(selections.size());
-    outNode->dataValues.reserve(selections.size() * indices.size());
+    // outNode->dataValues.reserve(selections.size() * indices.size());
+    outNode->dataValues.resize(selections.size() * indices.size());
 
     vector<SelectInfo>::const_iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
@@ -330,12 +331,24 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
                                              const vector<uint64Pair> &indices,
                                              vector<uint64_t> &outValues)
 {
+    /*
     vector<uint64Pair>::const_iterator it;
     for (it = indices.begin(); it != indices.end(); ++it) {
         assert(valIter.first + get<I>((*it)) < valIter.second);
 
         outValues.emplace_back(*(valIter.first + get<I>((*it))));
     }
+    */
+
+    const uint64_t *inValuesPtr = &(*valIter.first);
+    const uint64Pair *indicesPtr = &indices[0];
+    uint64_t *outValuesPtr = &outValues[0];
+
+    size_t size = valIter.second - valIter.first;
+
+    ParallelPush<I> p(inValuesPtr, indicesPtr, outValuesPtr);
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, size), p);
 }
 //---------------------------------------------------------------------------
 pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(

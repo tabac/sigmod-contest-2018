@@ -3,7 +3,7 @@
 #include <tbb/tbb.h>
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
-class ParrallelSum {
+class ParallelSum {
     private:
     const uint64_t* my_a;
     uint64_t my_sum;
@@ -23,13 +23,38 @@ class ParrallelSum {
     }
 
 
-    void join(const ParrallelSum &y) { my_sum += y.my_sum; }
+    void join(const ParallelSum &y) { my_sum += y.my_sum; }
 
     uint64_t getSum(void) const { return this->my_sum; }
 
-    ParrallelSum(ParrallelSum& x, tbb::split) : my_a(x.my_a), my_sum(0) { }
+    ParallelSum(ParallelSum& x, tbb::split) : my_a(x.my_a), my_sum(0) { }
 
-    ParrallelSum(const uint64_t a[] ) : my_a(a), my_sum(0) { }
+    ParallelSum(const uint64_t a[] ) : my_a(a), my_sum(0) { }
+};
+//---------------------------------------------------------------------------
+template <size_t I>
+class ParallelPush {
+    private:
+    const uint64_t *inValues;
+    const uint64Pair *indices;
+    uint64_t *outValues;
+
+    public:
+
+    void operator()(const tbb::blocked_range<size_t> &r) const {
+        const uint64_t *inValues = this->inValues;
+        const uint64Pair *indices = this->indices;
+        uint64_t *outValues = this->outValues;
+
+        size_t end = r.end();
+
+        for(size_t i = r.begin(); i != end; ++i) {
+            outValues[i] = inValues[std::get<I>(indices[i])];
+        }
+    }
+
+    ParallelPush(const uint64_t *inValues, const uint64Pair *indices, uint64_t *outValues) :
+        inValues(inValues), indices(indices), outValues(outValues) { }
 };
 //---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);
