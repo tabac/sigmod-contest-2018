@@ -2,6 +2,7 @@
 #include <cassert>
 #include "Planner.hpp"
 #include "Executor.hpp"
+#include "Relation.hpp"
 #include "DataEngine.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
@@ -13,6 +14,8 @@ int main(void)
     // Read join relations
     string line;
     unsigned relId = 0;
+    // TODO: Do proper reservations below.
+    engine.relations.reserve(20);
     while (getline(cin, line) && line != "Done") {
         engine.addRelation(relId, line.c_str());
 
@@ -23,11 +26,16 @@ int main(void)
     // Build histograms, indices,...
 
     // Do index crazy.
+    // engine.createSortedIndexes();
 
     // The test harness will send the first query after 1 second.
 
     vector<QueryInfo> queries;
     vector<ResultInfo> resultsInfo;
+
+    // TODO: Do proper reservations below.
+    queries.reserve(20);
+    resultsInfo.reserve(20);
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         unsigned q = 0;

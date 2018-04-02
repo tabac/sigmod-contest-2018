@@ -6,25 +6,27 @@
 #include <cassert>
 #include <iostream>
 #include "Executor.hpp"
+#include "Mixins.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-vector<thread> threads;
+SyncPair Executor::syncPair;
+bool Executor::syncFlag = false;
+vector<thread> Executor::threads;
 //---------------------------------------------------------------------------
 void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 // Executes a `Plan`.
-// TODO: This should clear vectors of intermediate nodes if
-//       they are not used anymore.
-// TODO: This should wait on a condition variable and not
-//       spin on this `counter`.
 {
-    unsigned counter = 0, mark = 0;
+    unsigned counter = 0, mark = 666;
     queue<AbstractNode *> q;
+
+    // TODO: Proper reservations here.
+    Executor::threads.reserve(plan.nodes.size());
 
     // The `root` is a dummy not, set its status to processed.
     plan.root->setStatus(processed);
 
-    do {
+    for ( ;; ) {
         counter = 0;
 
         plan.root->visited = mark;
@@ -62,17 +64,23 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
         }
 
         ++mark;
-    } while (counter != plan.nodes.size());
+
+        if (counter == plan.nodes.size()) {
+            break;
+        } else {
+            Executor::wait();
+        }
+    }
 
     assert(resultsInfo.size() == 0);
 
     vector<thread>::iterator tt;
-    for (tt = threads.begin(); tt != threads.end(); ++tt) {
+    for (tt = Executor::threads.begin(); tt != Executor::threads.end(); ++tt) {
         if (tt->joinable()) {
             tt->join();
         }
     }
-    threads.clear();
+    Executor::threads.clear();
 
     vector<DataNode *>::iterator it;
     for (it = plan.exitNodes.begin(); it != plan.exitNodes.end(); ++it) {
@@ -83,17 +91,30 @@ void Executor::executePlan(Plan &plan, vector<ResultInfo> &resultsInfo)
 void Executor::executeOperator(AbstractNode *node)
 // Executes the operator of an `AbstractOperatorNode`.
 {
-    // Sequential version:
-    node->execute(threads);
+    node->execute(Executor::threads);
+}
+//---------------------------------------------------------------------------
+void Executor::notify(void)
+{
+    unique_lock<mutex> lck(Executor::syncPair.first);
 
-    // Async version, using async:
-    // async(launch::async, &AbstractNode::execute, node);
+    Executor::setFlag();
 
-    // Async version, using threads:
+    lck.unlock();
 
-    // Set status to processing.
+    Executor::syncPair.second.notify_one();
+}
+//---------------------------------------------------------------------------
+void Executor::wait(void)
+{
+    unique_lock<mutex> lck(Executor::syncPair.first);
 
-    // Create thread and run `execute`.
-    // threads.emplace_back(&AbstractNode::execute, node);
+    while (!Executor::syncFlag) {
+        Executor::syncPair.second.wait(lck);
+    }
+
+    Executor::unsetFlag();
+
+    lck.unlock();
 }
 //---------------------------------------------------------------------------

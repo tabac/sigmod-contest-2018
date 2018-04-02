@@ -1,53 +1,65 @@
 #pragma once
-#include "Mixins.hpp"
 #include "Parser.hpp"
-
-class IdValuePair{
-	public:
-	uint64_t id, value;
-	IdValuePair(){};
-	IdValuePair(uint64_t id, uint64_t value): id(id), value(value){};
-
-	bool operator <(const IdValuePair& o)
-	{
-		return this->value < o.value;
-	}
-};
-
-
-
+#include "Mixins.hpp"
 // ---------------------------------------------------------------------------
-// Index class is the base class for all Index implementations.
-class AbstractIndex: public DataReaderMixin {
-	public:
-	// Defines whether the index is built online (i.e., for each query) or
-	// offline
-	//	bool online;
+enum IndexStatus { uninitialized, building, ready };
+// ---------------------------------------------------------------------------
+class AbstractIndex {
+    /// Index class is the base class for all Index implementations.
+    public:
+    /// Status of the index, whether `ready` or `building`.
+    IndexStatus status;
+    /// The indexed column.
+    const SelectInfo selection;
+    /// Vectors that hold sorted `ids`, `values` for the given `selection`.
+    std::vector<uint64_t> values;
+    /// Vector that holds `{id, value}` pairs, sorted by value.
+    std::vector<uint64Pair> idValuePairs;
 
-//	std::vector <IdValuePair *> values;
-	uint64_t *ids, *values, size;
+    /// Status setter.
+    void setStatus(IndexStatus status) { this->status = status; };
 
+    /// Status getters.
+    bool isStatusBuilding() { return status == IndexStatus::building; };
+    bool isStatusReady() { return status == IndexStatus::ready; };
+    bool isStatusUninitialized() { return status == IndexStatus::uninitialized; };
+
+    AbstractIndex(const SelectInfo &selection) :
+        status(IndexStatus::uninitialized), selection(selection) { }
 };
 // ---------------------------------------------------------------------------
-// SortedIndex represents a simple index that sorts a column of a Relation
-// and responds to queries based on DataReaderMixin
-class SortedIndex : public AbstractIndex {
-//class SortedIndex : class AbstractIndex {
-	public:
-	// Constructor
-	SortedIndex(uint64_t *values, uint64_t size);
-	~SortedIndex();
+class SortedIndex : public AbstractIndex, public DataReaderMixin {
+    /// SortedIndex represents a simple index that sorts a column of a Relation
+    /// and responds to queries based on DataReaderMixin
 
-	// Returns the ids that match the filterInfo
-	IteratorPair getIdsIterator(FilterInfo* filterInfo);
-	//Returns the values that match filterInfo
-    std::optional<IteratorPair> getValuesIterator(SelectInfo& selectInfo,
-                                                  FilterInfo* filterInfo);
+    private:
+    /// findElement traverses the index and returns the position of the
+    /// specified value. If the specified value does not exist, it returns the
+    /// index of the directly smallest value.
+    uint64_t findElement(uint64_t value);
 
-	private:
-	// findElement traverses the index and returns the position of the
-	// specified value. If the specified value does not exist, it returns the
-	// index of the directly smallest value.
-	uint64_t findElement(uint64_t value);
-	void estimateIndexes(uint64_t *, uint64_t *, FilterInfo *);
+    uint64Pair estimateIndexes(const FilterInfo *);
+
+    public:
+
+    const IteratorPair valIter;
+
+    // Returns the ids that match the filterInfo.
+    std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
+                                               const FilterInfo* filterInfo);
+    //Returns the values that match filterInfo.
+    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+                                                  const FilterInfo* filterInfo);
+
+    std::optional<IteratorDoublePair> getIdsValuesIterator(const SelectInfo& selectInfo,
+                                                           const FilterInfo* filterInfo);
+
+    std::vector<uint64Pair> *getValuesIndexedSorted(void);
+
+    void buildIndex(void);
+
+    /// Constructor.
+    SortedIndex(const SelectInfo &selection, const IteratorPair valIter) :
+        AbstractIndex(selection), valIter(valIter) { }
 };
+// ---------------------------------------------------------------------------

@@ -224,9 +224,7 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query,
                            unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
     DataNode *dataNode =  new DataNode();
-    AggregateOperatorNode *aggregateNode = new AggregateOperatorNode();
-
-    aggregateNode->queryId = query.queryId;
+    AggregateOperatorNode *aggregateNode = new AggregateOperatorNode(query.queryId);
 
     aggregateNode->selections = query.selections;
 
