@@ -156,8 +156,11 @@ void Planner::addJoins(Plan& plan, QueryInfo& query,
                 unsignedPair rightPair = {(*pt).right.relId,
                                           (*pt).right.binding};
 
+                /*
                 if ((lastAttached[leftPair] == lastAttached[rightPair]) &&
                     (!lastAttached[leftPair]->isBaseRelation())) {
+                */
+                if (lastAttached[leftPair] == lastAttached[rightPair]) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
                 } else {
                     // If predicate refers to different tables
@@ -215,7 +218,7 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     AbstractNode::connectNodes(joinNode, dataNode);
 
     Planner::updateAttached(lastAttached, leftPair, dataNode);
-    Planner::updateAttached(lastAttached, rightPair, dataNode);
+    // Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);
