@@ -10,6 +10,7 @@
 #include <string>
 #include "Mixins.hpp"
 #include "Parser.hpp"
+#include "Index.hpp"
 //---------------------------------------------------------------------------
 enum NodeStatus { fresh, processing, processed };
 //---------------------------------------------------------------------------
@@ -43,9 +44,9 @@ class AbstractNode {
     void setStatus(NodeStatus status) { this->status = status; };
 
     /// Status getters.
-    bool isStatusFresh() { return status == fresh; };
-    bool isStatusProcessing() { return status == processing; };
-    bool isStatusProcessed() { return status == processed; };
+    bool isStatusFresh() { return status == NodeStatus::fresh; };
+    bool isStatusProcessing() { return status == NodeStatus::processing; };
+    bool isStatusProcessed() { return status == NodeStatus::processed; };
 
     /// Resets the nodes status, adjacency lists.
     /// Used for the relations that are reused between
@@ -62,7 +63,7 @@ class AbstractNode {
     virtual void freeResources() = 0;
 
     /// Constructor.
-    AbstractNode() : status(fresh), visited(0) { }
+    AbstractNode() : status(NodeStatus::fresh), visited(0) { }
     /// Virtual destructor.
     virtual ~AbstractNode() { }
 
@@ -82,6 +83,8 @@ class AbstractDataNode : public AbstractNode, public DataReaderMixin {
     virtual uint64_t getSize() const = 0;
 
     bool isBaseRelation() const { return false; }
+
+    virtual SortedIndex *getIndex(const SelectInfo &) = 0;
 };
 //---------------------------------------------------------------------------
 class DataNode : public AbstractDataNode {
@@ -99,15 +102,23 @@ class DataNode : public AbstractDataNode {
 
     /// Returns `nullopt` for a `DataNode`. The ids are the indices
     /// in the case of a column.
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo&, const FilterInfo*);
+    std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
+                                               const FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
     std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo) const;
+                                                  const FilterInfo* filterInfo);
 
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() const { return this->size; }
+
+    SortedIndex *getIndex(const SelectInfo &) { return NULL; }
+
+    /// Empty constructor.
+    DataNode() { }
+    /// Disable copy constructor.
+    DataNode(const DataNode&)=delete;
     /// Destructor.
     ~DataNode() { }
 };
@@ -135,7 +146,7 @@ class AbstractOperatorNode : public AbstractNode {
     template <size_t I>
     static void pushSelections(const std::vector<SelectInfo> &selections,
                                const std::vector<uint64Pair> &indices,
-                               const AbstractDataNode *inNode,
+                               AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
@@ -151,6 +162,12 @@ class AbstractOperatorNode : public AbstractNode {
 
     bool isBaseRelation() const { return false; }
 
+//<<<<<<< HEAD
+    AbstractOperatorNode() { };
+//=======
+    //AbstractOperatorNode(const unsigned queryId) : queryId(queryId) { }
+//
+//>>>>>>> devel
     ~AbstractOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -180,11 +197,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
                           const std::vector<uint64Pair> &rightPairs,
                           std::vector<uint64Pair> &indexPairs);
 
-    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
-    /// sorted by value.
-    static void getValuesIndexedSorted(std::vector<uint64Pair> &pairs,
-                                       SelectInfo &selection,
-                                       const AbstractDataNode* inNode);
+    /// Returns a tuple with a boolean and pairs of the form
+    /// `{rowIndex, rowValue}` sorted by value. The boolean
+    /// indicates whether the memory has to be freed or not.
+    static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
+        SelectInfo &selection, AbstractDataNode* inNode);
 
 
     void updateBindings(PredicateInfo& p){
@@ -252,9 +269,18 @@ class JoinOperatorNode : public AbstractOperatorNode {
         return info.left.logicalEq(selection) || info.right.logicalEq(selection);
     }
 
+
     JoinOperatorNode(PredicateInfo &info) : info(info) {}
 
 
+//=======
+//    /// Constructor.
+//    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+//        AbstractOperatorNode(queryId), info(info) { }
+//    /// Disable copy constructor.
+//    JoinOperatorNode(const JoinOperatorNode&)=delete;
+//    /// Destructor.
+//>>>>>>> devel
     ~JoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -276,8 +302,17 @@ class FilterOperatorNode : public AbstractOperatorNode {
         return this->info.filterColumn == selection;
     }
 
+
     FilterOperatorNode(FilterInfo &info) : info(info) {}
 
+//=======
+//    /// Constructor.
+//    FilterOperatorNode(const unsigned queryId, FilterInfo &info) :
+//        AbstractOperatorNode(queryId), info(info) { }
+//    /// Disable copy constructor.
+//    FilterOperatorNode(const FilterOperatorNode&)=delete;
+//    /// Destructor.
+//>>>>>>> devel
     ~FilterOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -301,6 +336,14 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 
     FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
 
+//=======
+//    /// Constructor.
+//    FilterJoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+//        AbstractOperatorNode(queryId), info(info) { }
+//    /// Disable copy constructor.
+//    FilterJoinOperatorNode(const FilterJoinOperatorNode&)=delete;
+//    /// Destructor.
+//>>>>>>> devel
     ~FilterJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -315,6 +358,14 @@ class AggregateOperatorNode : public AbstractOperatorNode {
 
     bool hasSelection(const SelectInfo &) const { return true; }
 
+
+
+//    /// Constructor.
+//    AggregateOperatorNode(const unsigned queryId) :
+//        AbstractOperatorNode(queryId) { }
+//    /// Disable copy constructor.
+//    AggregateOperatorNode(const AggregateOperatorNode&)=delete;
+    /// Destructor
     ~AggregateOperatorNode() { }
 };
 //---------------------------------------------------------------------------

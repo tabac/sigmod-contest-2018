@@ -1,7 +1,9 @@
 #pragma once
+#include <mutex>
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
+#include "Mixins.hpp"
 #include "Relation.hpp"
 #include "Histogram.hpp"
 #include "Parser.hpp"
@@ -44,7 +46,8 @@ class DataEngine {
     static float getFilterSelectivity(const FilterInfo& filter);
     /// Estimates the selectivity of PredicateInfo `predicate`
   static uint64_t getJoinEstimatedTuples(const PredicateInfo& predicate);
-    static float getJoinSelectivity(const PredicateInfo& predicate);
+  static float getJoinSelectivity(const PredicateInfo& predicate);
+  static void createSortedIndexes(void);
 
 };
 //---------------------------------------------------------------------------

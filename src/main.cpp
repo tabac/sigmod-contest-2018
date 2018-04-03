@@ -2,6 +2,7 @@
 #include "DataEngine.hpp"
 #include "Planner.hpp"
 #include "Executor.hpp"
+#include "Relation.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 vector<Relation> DataEngine::relations;
@@ -14,6 +15,8 @@ int main(void)
     // Read join relations
     string line;
     unsigned relId = 0;
+    // TODO: Do proper reservations below.
+    DataEngine::relations.reserve(20);
     while (getline(cin, line) && line != "Done") {
         DataEngine::addRelation(relId, line.c_str());
         // relation, 1/samplingRatio, buckets
@@ -25,11 +28,16 @@ int main(void)
     // Build histograms, indices,...
 
     // Do index crazy.
+    // engine.createSortedIndexes();
 
     // The test harness will send the first query after 1 second.
 
     vector<QueryInfo> queries;
     vector<ResultInfo> resultsInfo;
+
+    // TODO: Do proper reservations below.
+    queries.reserve(20);
+    resultsInfo.reserve(20);
     while (getline(cin, line) && line != "F") {
         // Load next query batch.
         unsigned q = 0;

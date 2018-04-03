@@ -5,7 +5,8 @@
 #include "Histogram.hpp"
 
 #include "DataEngine.hpp"
-
+#include "Plan.hpp"
+#include "Mixins.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -56,14 +57,25 @@ Relation& DataEngine::getRelation(unsigned relationId)
    return relations[relationId];
 }
 //---------------------------------------------------------------------------
-uint64_t DataEngine::getFilterEstimatedTuples(const FilterInfo& filter){
-    Histogram& h = *histograms.at(HistKey (filter.filterColumn.relId, filter.filterColumn.colId));
-    if (filter.comparison == FilterInfo::Comparison::Less){
+uint64_t DataEngine::getFilterEstimatedTuples(const FilterInfo& filter) {
+    Histogram &h = *histograms.at(HistKey(filter.filterColumn.relId, filter.filterColumn.colId));
+    if (filter.comparison == FilterInfo::Comparison::Less) {
         return h.getEstimatedKeys(0, filter.constant);
-    }else if(filter.comparison == FilterInfo::Comparison::Greater){
+    } else if (filter.comparison == FilterInfo::Comparison::Greater) {
         return h.getEstimatedKeys(filter.constant, UINT64_MAX);
     }else{
         return h.getEstimatedKeys(filter.constant, filter.constant);
+    }
+}
+
+void DataEngine::createSortedIndexes(void)
+{
+    vector<Relation>::iterator it;
+    for (it = relations.begin(); it != relations.end(); ++it) {
+        it->createIndex(it->columnsInfo[0]);
+        if (it->columnsInfo.size() > 1) {
+            it->createIndex(it->columnsInfo[1]);
+        }
     }
 }
 //--------------------------------------------------------------------------
@@ -89,4 +101,3 @@ float DataEngine::getJoinSelectivity(const PredicateInfo& predicate) {
     return getJoinEstimatedTuples(predicate)/(float)(relations[predicate.left.relId].size * relations[predicate.right.relId].size);
 }
 //--------------------------------------------------------------------------
-

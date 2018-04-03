@@ -46,7 +46,7 @@ void Planner::updateAttached(OriginTracker &lastAttached, const OTKey relationPa
     }
 }
 //---------------------------------------------------------------------------
-static void propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *o,
+static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *o,
                                const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
@@ -107,8 +107,8 @@ static void propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *o,
     }
 }
 //---------------------------------------------------------------------------
-static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
-                               const SelectInfo &selection, unsigned count)
+static unsigned propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
+                                   const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
     if (Utils::contains(query.selections, selection)) {
@@ -124,7 +124,7 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
                 --count;
             }
 
-            if (count != 0) {
+            if (count > 0) {
                 o->selections.emplace_back(selection);
 
                 o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
@@ -133,6 +133,8 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
             }
         }
     }
+
+    return count;
 }
 //---------------------------------------------------------------------------
 static Relation *findRelationBySelection(Plan &plan, const SelectInfo &selection)
@@ -157,25 +159,26 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 
     query.getSelectionsMap(selectionsMap);
 
-    unordered_map<SelectInfo, unsigned>::const_iterator it;
+    unordered_map<SelectInfo, unsigned>::iterator it;
     for (it = selectionsMap.begin(); it != selectionsMap.end(); ++it) {
         Relation *r = (Relation *) findRelationBySelection(plan, it->first);
 
         vector<AbstractNode *>::iterator jt;
         for (jt = r->outAdjList.begin(); jt != r->outAdjList.end(); ++jt) {
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-
             //cout << "TRYING TO ADD SELECTION "<< (it->first).dumpLabel() << " to Q"<<query.queryId << " in operator "<<(*o).label<<endl;
 
             if ((o->queryId == (short) query.queryId || Utils::contains(o->sharedQueries, query.queryId))
                 && o->hasBinding(it->first.binding)) {
 
+                unsigned count;
                if(o->sharedQueries.empty()){
-                    propagateSelection(query, o, it->first, it->second);
+                    count = propagateSelection(query, o, it->first, it->second);
                 }else{
-                    propagateSharedSelection(query, o, it->first, it->second);
+                    count = propagateSharedSelection(query, o, it->first, it->second);
                 }
 
+                it->second -= count;
             }
         }
     }
@@ -437,7 +440,6 @@ void Planner::addAggregate(Plan &plan, const QueryInfo& query, OriginTracker &la
 
     aggregateNode->queryId = query.queryId;
     //(aggregateNode->sharedQueries).push_back(query.queryId);
-
     aggregateNode->selections = query.selections;
 
     AbstractNode::connectNodes((AbstractNode *) aggregateNode,

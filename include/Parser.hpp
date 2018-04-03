@@ -28,6 +28,8 @@ struct SelectInfo {
     std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
+    /// Equality operator, ignoring binding information.
+    bool equalsRelationColumn(const SelectInfo &o) const;
 
     /// The delimiter used in our text format
     static const char delimiter=' ';
@@ -55,8 +57,11 @@ struct FilterInfo {
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter,
-                            std::vector<uint64Pair> &indices);
-
+                            const std::optional<IteratorPair> &idsOption,
+                            std::vector<uint64Pair> &indices) const;
+    /// Returns the indices of `valIter` that satisfy `this` condition.
+    void getFilteredIndices(const IteratorDoublePair &idValIter,
+                            std::vector<uint64Pair> &indices) const;
     /// The delimiter used in our text format
     static const char delimiter='&';
     /// The delimiter used in SQL

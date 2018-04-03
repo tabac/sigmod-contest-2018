@@ -1,3 +1,4 @@
+#include <mutex>
 #include <thread>
 #include <fcntl.h>
 #include <iostream>
@@ -9,6 +10,8 @@
 #include "Mixins.hpp"
 #include "Relation.hpp"
 #include "Parser.hpp"
+#include "Index.hpp"
+#include "Executor.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -43,6 +46,8 @@ void Relation::execute(vector<thread> &)
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
+
+        Executor::notify();
     }
 }
 //---------------------------------------------------------------------------
@@ -53,7 +58,7 @@ optional<IteratorPair> Relation::getIdsIterator(const SelectInfo&, const FilterI
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
-                                                   const FilterInfo* filterInfo) const
+                                                   const FilterInfo* filterInfo)
 // Returns an `IteratorPair` over all the `DataNode`'s values
 // of the column specified by `selectInfo`.
 {
@@ -68,6 +73,82 @@ optional<IteratorPair> Relation::getValuesIterator(const SelectInfo& selectInfo,
         vector<uint64_t>::iterator end (this->columns[selectInfo.colId] + this->size);
 
         return optional<IteratorPair>{{begin, end}};
+    }
+}
+//---------------------------------------------------------------------------
+SortedIndex* Relation::getIndex(const SelectInfo &selection)
+{
+    unique_lock<mutex> lck(this->syncPair->first);
+
+    vector<SortedIndex *>::iterator it;
+    for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+        if ((selection.logicalEq((*it)->selection)) &&
+            (*it)->isStatusReady()) {
+            lck.unlock();
+            return (*it);
+        }
+    }
+
+    lck.unlock();
+
+    return NULL;
+}
+//---------------------------------------------------------------------------
+void Relation::createIndex(const SelectInfo &selection)
+{
+    {
+        assert(selection.relId == this->relId);
+    }
+
+    unique_lock<mutex> lck(this->syncPair->first);
+
+    vector<SortedIndex *>::iterator it;
+    for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+        if (selection.logicalEq((*it)->selection)) {
+            break;
+        }
+    }
+
+    if (it == this->indexes.end()) {
+        vector<uint64_t>::iterator begin (this->columns[selection.colId]);
+        vector<uint64_t>::iterator end (this->columns[selection.colId] + this->size);
+
+        SortedIndex *index = new SortedIndex(selection, {begin, end});
+
+        assert(lck.owns_lock());
+
+        this->indexes.emplace_back(index);
+
+        lck.unlock();
+
+        index->buildIndex();
+
+        this->syncPair->second.notify_all();
+    } else if (!(*it)->isStatusReady()) {
+        // Index status is either `building` or `uninitialized`.
+        // Should wait for other thread to finish building.
+
+        while (!(*it)->isStatusReady()) {
+            // this->indexConditionVar->wait(lck);
+            this->syncPair->second.wait(lck);
+
+            // In the mean time the vector could have relocated.
+            // We should check the position again...
+            for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+                if (selection.logicalEq((*it)->selection)) {
+                    break;
+                }
+            }
+
+            assert(it != this->indexes.end());
+        }
+
+        assert(lck.owns_lock());
+
+        lck.unlock();
+    } else {
+        assert(lck.owns_lock());
+        lck.unlock();
     }
 }
 //---------------------------------------------------------------------------
@@ -149,7 +230,8 @@ void Relation::loadRelation(const char* fileName)
     }
 }
 //---------------------------------------------------------------------------
-Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), relId(relId)
+Relation::Relation(RelationId relId, const char* fileName) :
+    ownsMemory(false), relId(relId)
 // Constructor that loads relation from disk
 {
     loadRelation(fileName);
@@ -160,6 +242,10 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
     for (unsigned c = 0; c < this->columns.size(); ++c) {
         this->columnsInfo.emplace_back(relId, 0, c);
     }
+    // Reserve memory for indexes.
+    this->indexes.reserve(this->columns.size());
+
+    this->syncPair = make_unique<SyncPair>();
 
 #ifndef NDEBUG
     this->label = "r" + to_string(this->relId);
@@ -168,11 +254,15 @@ Relation::Relation(RelationId relId, const char* fileName) : ownsMemory(false), 
 }
 //---------------------------------------------------------------------------
 Relation::~Relation()
-  // Destructor
 {
     if (ownsMemory) {
         for (auto c : columns)
             delete[] c;
+    }
+
+    vector<SortedIndex*>::iterator it;
+    for (it = this->indexes.begin(); it != this->indexes.end(); ++it) {
+        delete (*it);
     }
 }
 //---------------------------------------------------------------------------

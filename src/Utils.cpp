@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include "Mixins.hpp"
 #include "Utils.hpp"
 #include "Parser.hpp"
 //---------------------------------------------------------------------------
@@ -22,6 +23,7 @@ Relation Utils::createRelation(RelationId relId, uint64_t size,uint64_t numColum
   for (unsigned i=0;i<numColumns;++i) {
     createColumn(columns,size);
   }
+
   return Relation(relId, size,move(columns));
 }
 //---------------------------------------------------------------------------

@@ -3,6 +3,8 @@
 #include "Relation.hpp"
 #include "Utils.hpp"
 //---------------------------------------------------------------------------
+using namespace std;
+//---------------------------------------------------------------------------
 static void ASSERT_RELATION_EQ(Relation& r1,Relation& r2)
 {
   ASSERT_EQ(r1.size,r2.size);
@@ -17,6 +19,7 @@ TEST(Relation,LoadAndStore) {
 
   r1.storeRelation("r1");
   // Load it back from disk
+
   Relation r2(1, "r1");
 
   ASSERT_RELATION_EQ(r1,r2);

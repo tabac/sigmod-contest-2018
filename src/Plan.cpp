@@ -5,8 +5,13 @@
 #include <iostream>
 #include <optional>
 #include <algorithm>
+#include <tbb/parallel_sort.h>
 #include "Plan.hpp"
 #include "Mixins.hpp"
+#include "Index.hpp"
+#include "Relation.hpp"
+#include "Executor.hpp"
+#include "Parallel.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -58,7 +63,7 @@ void ResultInfo::printResults(const vector<ResultInfo> resultsInfo)
 void AbstractNode::resetStatus()
 {
     this->visited = 0;
-    this->status = fresh;
+    this->status = NodeStatus::fresh;
 
     this->inAdjList.clear();
     this->outAdjList.clear();
@@ -101,15 +106,22 @@ void DataNode::execute(vector<thread> &)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Data" + this->label);
+
+    cerr << "ColumnsInfo:" << endl;
+    for (auto c : this->columnsInfo) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // If so set status to `processed`.
     if (allInProcessed) {
         this->setStatus(processed);
+
+        Executor::notify();
     }
 }
 //---------------------------------------------------------------------------
-// optional<IteratorPair> DataNode::getIdsIterator(SelectInfo& selectInfo, FilterInfo* filterInfo)
 optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const FilterInfo* )
 // Returns `nullopt` for a `DataNode`. The ids are the indices
 // in the case of a column.
@@ -118,7 +130,7 @@ optional<IteratorPair> DataNode::getIdsIterator(const SelectInfo& , const Filter
 }
 //---------------------------------------------------------------------------
 optional<IteratorPair> DataNode::getValuesIterator(const SelectInfo& selectInfo,
-                                                   const FilterInfo* filterInfo) const
+                                                   const FilterInfo* filterInfo)
 {
     {
         // Should not be called with some filter condition.
@@ -186,28 +198,31 @@ void JoinOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
-    const AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
+    AbstractDataNode *inLeftNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get sorted vector<{rowIndex, rowValue}> for left column.
-    vector<uint64Pair> leftPairs;
-    JoinOperatorNode::getValuesIndexedSorted(leftPairs, this->info.left, inLeftNode);
+    pair<bool, vector<uint64Pair>*> leftPairs;
+    leftPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.left, inLeftNode);
 
     // Get sorted vector<{rowIndex, rowValue}> for right column.
-    vector<uint64Pair> rightPairs;
-    JoinOperatorNode::getValuesIndexedSorted(rightPairs, this->info.right, inRightNode);
+    pair<bool, vector<uint64Pair>*> rightPairs;
+    rightPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.right, inRightNode);
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
     vector<uint64Pair> indexPairs;
-    JoinOperatorNode::mergeJoin(leftPairs, rightPairs, indexPairs);
-
-    // sort(indexPairs.begin(), indexPairs.end(),
-         // [&](const uint64Pair &a, const uint64Pair &b) { return a.first < b.first; });
+    JoinOperatorNode::mergeJoin(*leftPairs.second, *rightPairs.second, indexPairs);
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
@@ -238,8 +253,18 @@ void JoinOperatorNode::executeAsync(void)
 
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);
 
+    // Free pairs memory if it's owned by them (not an index).
+    if (leftPairs.first) {
+        delete leftPairs.second;
+    }
+    if (rightPairs.first) {
+        delete rightPairs.second;
+    }
+
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
@@ -268,7 +293,7 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
 template <size_t I>
 void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
                                           const vector<uint64Pair> &indices,
-                                          const AbstractDataNode *inNode,
+                                          AbstractDataNode *inNode,
                                           DataNode *outNode)
 {
     {
@@ -285,8 +310,8 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
     vector<SelectInfo>::const_iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
         // Skip columns already inserted.
-        vector<SelectInfo>::const_iterator jt = find(outNode->columnsInfo.begin(),
-                                               outNode->columnsInfo.end(), (*it));
+        vector<SelectInfo>::const_iterator jt = find(
+            outNode->columnsInfo.begin(), outNode->columnsInfo.end(), (*it));
         if (jt != outNode->columnsInfo.end()) {
             continue;
         }
@@ -320,24 +345,40 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
     }
 }
 //---------------------------------------------------------------------------
-void JoinOperatorNode::getValuesIndexedSorted(vector<uint64Pair> &pairs,
-                                              SelectInfo &selection,
-                                              const AbstractDataNode* inNode)
+pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
+    SelectInfo &selection, AbstractDataNode* inNode)
 {
-    // Reserve memory for pairs.
-    pairs.reserve(inNode->getSize());
+    SortedIndex *index = inNode->getIndex(selection);
+    if (INDEXES_ON && index != NULL) {
+        return {false, index->getValuesIndexedSorted()};
+    } else {
+        if (INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
+            // Ugly mother coming up...
+            Relation *relation = (Relation *) inNode;
 
-    optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
+            relation->createIndex(selection);
 
-    assert(option.has_value());
-    const IteratorPair valIter = option.value();
+            return JoinOperatorNode::getValuesIndexedSorted(selection, inNode);
+        } else {
+            // Reserve memory for pairs.
+            vector<uint64Pair> *pairs = new vector<uint64Pair>();
+            pairs->reserve(inNode->getSize());
 
-    // Get pairs of the form `{rowIndex, rowValue}`.
-    JoinOperatorNode::getValuesIndexed(valIter, pairs);
+            optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
-    // Sort by `rowValue`.
-    sort(pairs.begin(), pairs.end(),
-         [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+            assert(option.has_value());
+            const IteratorPair valIter = option.value();
+
+            // Get pairs of the form `{rowIndex, rowValue}`.
+            JoinOperatorNode::getValuesIndexed(valIter, *pairs);
+
+            // Sort by `rowValue`.
+            tbb::parallel_sort(pairs->begin(), pairs->end(),
+                 [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+
+            return {true, pairs};
+        }
+    }
 }
 //---------------------------------------------------------------------------
 void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
@@ -381,20 +422,50 @@ void FilterOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
-    // Get id, values iterators for the filter column.
-    optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn, NULL);
-    assert(option.has_value());
-    const IteratorPair valIter = option.value();
-
-    // Get indices that satisfy the given filter condition.
     vector<uint64Pair> indices;
-    this->info.getFilteredIndices(valIter, indices);
+    optional<IteratorPair> idsOption;
+    SortedIndex *index = inNode->getIndex(this->info.filterColumn);
+    if (INDEXES_ON && index != NULL) {
+        // Get {ids, values} iterator for the filter column.
+        optional<IteratorDoublePair> option = index->getIdsValuesIterator(
+            this->info.filterColumn, &this->info);
+
+        assert(option.has_value());
+        IteratorDoublePair idValIter = option.value();
+
+        // Reserve memory for indices.
+        indices.reserve(idValIter.second -  idValIter.first);
+
+        // Get indices that satisfy the given filter condition.
+        this->info.getFilteredIndices(idValIter, indices);
+    } else {
+        // Get values iterator for the filter column.
+        optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
+                                                                  NULL);
+        assert(option.has_value());
+        IteratorPair valIter = option.value();
+
+        // Get ids iterator for the filter column.
+        idsOption = inNode->getIdsIterator(this->info.filterColumn, NULL);
+
+        // TODO: Think of something better.
+        indices.reserve((valIter.second - valIter.first) / 2);
+
+        // Get indices that satisfy the given filter condition.
+        this->info.getFilteredIndices(valIter, idsOption, indices);
+    }
 
     // Reserve memory for ids, column names, column values.
     outNode->columnsInfo.reserve(this->selections.size());
@@ -407,6 +478,8 @@ void FilterOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void FilterJoinOperatorNode::execute(vector<thread> &threads)
@@ -440,10 +513,16 @@ void FilterJoinOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join Filter." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Get values iterator for the left column.
@@ -478,6 +557,8 @@ void FilterJoinOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 void AggregateOperatorNode::execute(vector<thread> &threads)
@@ -509,10 +590,16 @@ void AggregateOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Aggregate." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
-    const AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
+    AbstractDataNode *inNode = (AbstractDataNode *) this->inAdjList[0];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
     // Reserve memory for results.
@@ -536,12 +623,7 @@ void AggregateOperatorNode::executeAsync(void)
             IteratorPair valIter = option.value();
 
             // Calculate sum for column.
-            uint64_t sum = 0;
-            vector<uint64_t>::const_iterator jt;
-            for (jt = valIter.first; jt != valIter.second; ++jt) {
-                sum += (*jt);
-            }
-
+            uint64_t sum = calcParallelSum(valIter);
             outNode->dataValues.push_back(sum);
         }
     }
@@ -552,6 +634,8 @@ void AggregateOperatorNode::executeAsync(void)
 
     // Set status to processed.
     this->setStatus(processed);
+
+    Executor::notify();
 }
 //---------------------------------------------------------------------------
 Plan::~Plan()
