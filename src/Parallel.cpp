@@ -3,6 +3,8 @@
 #include "Parallel.hpp"
 #include "Mixins.hpp"
 //---------------------------------------------------------------------------
+using namespace std;
+//---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter)
 {
     const uint64_t *values = &(*valIter.first);
@@ -36,6 +38,9 @@ void ParallelMerge::mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rig
                               size_t size, size_t begin, size_t end, uint64VecCc &indexPairs) const
 {
     size_t l = begin, r = 0;
+    vector<uint64Pair> indexPairsLoc;
+
+    indexPairsLoc.reserve(end - begin);
 
     while (l < end && r < size) {
         uint64_t left = leftPairs[l].second;
@@ -48,11 +53,13 @@ void ParallelMerge::mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rig
         } else {
             uint64_t leftIndex = leftPairs[l].first;
             for (size_t t = r; t < size && left == rightPairs[t].second; ++t) {
-                indexPairs.emplace_back(leftIndex, rightPairs[t].first);
+                indexPairsLoc.emplace_back(leftIndex, rightPairs[t].first);
             }
 
             ++l;
         }
     }
+
+    indexPairs.grow_by(indexPairsLoc.begin(), indexPairsLoc.end());
 }
 //---------------------------------------------------------------------------

@@ -35,22 +35,12 @@ class ParallelSum {
 template <size_t I, typename T>
 class ParallelPush {
     private:
-    /*
-    const uint64Pair *indices;
-    const IteratorPair &valIter;
-    std::vector<uint64_t> &outValues;
-    */
     const uint64_t *inValues;
     const T &indices;
     uint64_t *outValues;
 
     public:
-
     void operator()(const tbb::blocked_range<size_t> &range) const {
-        /*
-        const uint64Pair *indicesLoc = this->indices;
-        const uint64_t *inValuesLoc = &(*valIter.first);
-        */
         const uint64_t *inValuesLoc = this->inValues;
         uint64_t *outValuesLoc = this->outValues;
 
@@ -59,12 +49,10 @@ class ParallelPush {
         __builtin_prefetch(&inValuesLoc[range.begin()], 0, 0);
         __builtin_prefetch(&outValuesLoc[range.begin()], 1, 0);
         for(size_t i = range.begin(); i != end; ++i) {
-            // outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
             outValuesLoc[i] = inValuesLoc[std::get<I>(indices[i])];
         }
     }
 
-    // ParallelPush(const IteratorPair &valIter, const T &indices, std::vector<uint64_t> &outValues) :
     ParallelPush(const uint64_t *inValues, const T &indices, uint64_t *outValues) :
         inValues(inValues), indices(indices), outValues(outValues) { }
 };

@@ -302,7 +302,6 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
 //---------------------------------------------------------------------------
 template <size_t I, typename T>
 void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
-                                          // const vector<uint64Pair> &indices,
                                           const T &indices,
                                           AbstractDataNode *inNode,
                                           DataNode *outNode)
@@ -344,7 +343,6 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
 //---------------------------------------------------------------------------
 template <size_t I, typename T>
 void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
-                                             // const vector<uint64Pair> &indices,
                                              const T &indices,
                                              DataNode *outNode)
 {
@@ -353,9 +351,8 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
     size_t outValuesOffset = (outNode->columnsInfo.size() - 1) * indices.size();
     uint64_t *outValuesPtr = &outNode->dataValues[outValuesOffset];
 
-    ParallelPush<I, T> p(inValuesPtr, indices, outValuesPtr);
-
     // ParallelPush<I, T> p(valIter, indices, outNode->dataValues);
+    ParallelPush<I, T> p(inValuesPtr, indices, outValuesPtr);
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, indices.size(), PAIRS_GRAIN_SIZE), p);
 }
@@ -478,7 +475,8 @@ void FilterOperatorNode::executeAsync(void)
     // Set the size of the new relation.
     outNode->size = indices.size();
 
-    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+        this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -557,7 +555,8 @@ void FilterJoinOperatorNode::executeAsync(void)
     outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+        this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
