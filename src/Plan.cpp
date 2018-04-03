@@ -333,15 +333,6 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
                                              const vector<uint64Pair> &indices,
                                              DataNode *outNode)
 {
-    /*
-    vector<uint64Pair>::const_iterator it;
-    for (it = indices.begin(); it != indices.end(); ++it) {
-        assert(valIter.first + get<I>((*it)) < valIter.second);
-
-        outNode->dataValues.emplace_back(*(valIter.first + get<I>((*it))));
-    }
-    */
-
     const uint64_t *inValuesPtr = &(*valIter.first);
     const uint64Pair *indicesPtr = &indices[0];
 
