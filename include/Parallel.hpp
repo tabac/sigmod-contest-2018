@@ -41,15 +41,15 @@ class ParallelPush {
 
     public:
 
-    void operator()(const tbb::blocked_range<size_t> &r) const {
-        const uint64_t *inValues = this->inValues;
-        const uint64Pair *indices = this->indices;
-        uint64_t *outValues = this->outValues;
+    void operator()(const tbb::blocked_range<size_t> &range) const {
+        const uint64_t *inValuesLoc = this->inValues;
+        const uint64Pair *indicesLoc = this->indices;
+        uint64_t *outValuesLoc = this->outValues;
 
-        size_t end = r.end();
+        size_t end = range.end();
 
-        for(size_t i = r.begin(); i != end; ++i) {
-            outValues[i] = inValues[std::get<I>(indices[i])];
+        for(size_t i = range.begin(); i != end; ++i) {
+            outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
         }
     }
 
