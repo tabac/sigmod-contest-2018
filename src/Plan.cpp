@@ -101,6 +101,12 @@ void DataNode::execute(vector<thread> &)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Data" + this->label);
+
+    cerr << "ColumnsInfo:" << endl;
+    for (auto c : this->columnsInfo) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // If so set status to `processed`.
@@ -185,6 +191,12 @@ void JoinOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
@@ -403,6 +415,12 @@ void FilterOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Filter." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
@@ -488,6 +506,12 @@ void FilterJoinOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Join Filter." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...
@@ -559,6 +583,12 @@ void AggregateOperatorNode::executeAsync(void)
 
 #ifndef NDEBUG
     DEBUGLN("Executing Aggregate." + this->label);
+
+    cerr << "Selections:" << endl;
+    for (auto c : this->selections) {
+        cerr << c.dumpLabel() << " ";
+    }
+    cerr << endl;
 #endif
 
     // Ugly castings...

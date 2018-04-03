@@ -34,8 +34,8 @@ void Planner::updateAttached(unordered_map<unsignedPair, AbstractNode *> &lastAt
     }
 }
 //---------------------------------------------------------------------------
-static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
-                               const SelectInfo &selection, unsigned count)
+static unsigned propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
+                                   const SelectInfo &selection, unsigned count)
 {
     assert(o->hasBinding(selection.binding));
     if (Utils::contains(query.selections, selection)) {
@@ -50,7 +50,7 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
                 --count;
             }
 
-            if (count != 0) {
+            if (count > 0) {
                 o->selections.emplace_back(selection);
 
                 o = (AbstractOperatorNode *) o->outAdjList[0]->outAdjList[0];
@@ -59,6 +59,8 @@ static void propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
             }
         }
     }
+
+    return count;
 }
 //---------------------------------------------------------------------------
 static Relation *findRelationBySelection(Plan &plan, const SelectInfo &selection)
@@ -83,7 +85,7 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
 
     query.getSelectionsMap(selectionsMap);
 
-    unordered_map<SelectInfo, unsigned>::const_iterator it;
+    unordered_map<SelectInfo, unsigned>::iterator it;
     for (it = selectionsMap.begin(); it != selectionsMap.end(); ++it) {
         Relation *r = (Relation *) findRelationBySelection(plan, it->first);
 
@@ -92,7 +94,9 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
 
             if ((o->queryId == query.queryId) && o->hasBinding(it->first.binding)) {
-                propagateSelection(query, o, it->first, it->second);
+                unsigned count = propagateSelection(query, o, it->first, it->second);
+
+                it->second -= count;
             }
         }
     }
