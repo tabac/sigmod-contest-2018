@@ -244,6 +244,10 @@ void JoinOperatorNode::executeAsync(void)
                                              inRightNode, outNode);
     }
 
+    // TODO: This is because sometimes the selections have duplicates.
+    //       We should fix `setQuerySelections` and remove this.
+    outNode->dataValues.resize(outNode->columnsInfo.size() * outNode->size);
+
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);
 
     // Free pairs memory if it's owned by them (not an index).
