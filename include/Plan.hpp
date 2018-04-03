@@ -148,7 +148,7 @@ class AbstractOperatorNode : public AbstractNode {
     template <size_t I>
     static void pushValuesByIndex(const IteratorPair &valIter,
                                   const std::vector<uint64Pair> &indices,
-                                  std::vector<uint64_t> &outValues);
+                                  DataNode *outNode);
 
     virtual bool hasBinding(const unsigned binding) const = 0;
 
