@@ -32,29 +32,60 @@ class ParallelSum {
     ParallelSum(const uint64_t a[] ) : my_a(a), my_sum(0) { }
 };
 //---------------------------------------------------------------------------
-template <size_t I>
+template <size_t I, typename T>
 class ParallelPush {
     private:
-    const uint64_t *inValues;
+    /*
     const uint64Pair *indices;
+    const IteratorPair &valIter;
+    std::vector<uint64_t> &outValues;
+    */
+    const uint64_t *inValues;
+    const T &indices;
     uint64_t *outValues;
 
     public:
 
     void operator()(const tbb::blocked_range<size_t> &range) const {
-        const uint64_t *inValuesLoc = this->inValues;
+        /*
         const uint64Pair *indicesLoc = this->indices;
+        const uint64_t *inValuesLoc = &(*valIter.first);
+        */
+        const uint64_t *inValuesLoc = this->inValues;
         uint64_t *outValuesLoc = this->outValues;
 
         size_t end = range.end();
 
         for(size_t i = range.begin(); i != end; ++i) {
-            outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
+            // outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
+            outValuesLoc[i] = inValuesLoc[std::get<I>(indices[i])];
         }
     }
 
-    ParallelPush(const uint64_t *inValues, const uint64Pair *indices, uint64_t *outValues) :
+    // ParallelPush(const IteratorPair &valIter, const T &indices, std::vector<uint64_t> &outValues) :
+    ParallelPush(const uint64_t *inValues, const T &indices, uint64_t *outValues) :
         inValues(inValues), indices(indices), outValues(outValues) { }
+};
+//---------------------------------------------------------------------------
+class ParallelMerge {
+    private:
+    const uint64Pair *leftPairs, *rightPairs;
+    size_t pairsSize;
+    uint64VecCc &indexPairs;
+
+    public:
+
+    void operator()(const tbb::blocked_range<size_t> &range) const {
+        ParallelMerge::mergeJoin(this->leftPairs, this->rightPairs, pairsSize,
+                                 range.begin(), range.end(), indexPairs);
+    }
+
+    void mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
+                   size_t size, size_t begin, size_t end, uint64VecCc &indexPairs) const;
+
+    ParallelMerge(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
+                  size_t pairsSize, uint64VecCc &indexPairs) :
+        leftPairs(leftPairs), rightPairs(rightPairs), pairsSize(pairsSize), indexPairs(indexPairs) { }
 };
 //---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);

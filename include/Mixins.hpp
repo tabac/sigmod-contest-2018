@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <condition_variable>
+#include <tbb/tbb.h>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
@@ -16,6 +17,8 @@ using RelationId = unsigned;
 using uint64Pair = std::pair<uint64_t, uint64_t>;
 //---------------------------------------------------------------------------
 using unsignedPair = std::pair<unsigned, unsigned>;
+//---------------------------------------------------------------------------
+using uint64VecCc = tbb::concurrent_vector<uint64Pair>;
 //---------------------------------------------------------------------------
 using SyncPair = std::pair<std::mutex, std::condition_variable>;
 //---------------------------------------------------------------------------

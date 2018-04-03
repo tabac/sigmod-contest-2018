@@ -14,3 +14,27 @@ uint64_t calcParallelSum(IteratorPair valIter)
     return s.getSum();
 }
 //---------------------------------------------------------------------------
+void ParallelMerge::mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
+                              size_t size, size_t begin, size_t end, uint64VecCc &indexPairs) const
+{
+    size_t l = begin, r = 0;
+
+    while (l < end && r < size) {
+        uint64_t left = leftPairs[l].second;
+        uint64_t right = rightPairs[r].second;
+
+        if (left < right) {
+            ++l;
+        } else if (left > right) {
+            ++r;
+        } else {
+            uint64_t leftIndex = leftPairs[l].first;
+            for (size_t t = r; t < size && left == rightPairs[t].second; ++t) {
+                indexPairs.emplace_back(leftIndex, rightPairs[t].first);
+            }
+
+            ++l;
+        }
+    }
+}
+//---------------------------------------------------------------------------

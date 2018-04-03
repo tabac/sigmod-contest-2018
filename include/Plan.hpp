@@ -137,17 +137,19 @@ class AbstractOperatorNode : public AbstractNode {
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
     /// in `selections`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushSelections(const std::vector<SelectInfo> &selections,
-                               const std::vector<uint64Pair> &indices,
+                               // const std::vector<uint64Pair> &indices,
+                               const T &indices,
                                AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushValuesByIndex(const IteratorPair &valIter,
-                                  const std::vector<uint64Pair> &indices,
+                                  const T &indices,
+                                  // const std::vector<uint64Pair> &indices,
                                   DataNode *outNode);
 
     virtual bool hasBinding(const unsigned binding) const = 0;
@@ -172,9 +174,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
     void executeAsync(void);
 
     /// Performs merge join between `leftPairs` and `rightPairs`.
+    template <typename T>
     static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
                           const std::vector<uint64Pair> &rightPairs,
-                          std::vector<uint64Pair> &indexPairs);
+                          T &indexPairs);
+                          // std::vector<uint64Pair> &indexPairs);
 
     /// Returns a tuple with a boolean and pairs of the form
     /// `{rowIndex, rowValue}` sorted by value. The boolean
