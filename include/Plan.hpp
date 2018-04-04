@@ -129,11 +129,6 @@ class AbstractOperatorNode : public AbstractNode {
     /// Frees any resources allocated by the node.
     void freeResources() { this->selections.clear(); }
 
-    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
-    /// for the values in `values`.
-    static void getValuesIndexed(const IteratorPair &values,
-                                 std::vector<uint64Pair> &pairs);
-
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
     /// in `selections`.

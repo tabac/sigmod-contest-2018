@@ -271,6 +271,8 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
     vector<uint64Pair>::const_iterator lt = leftPairs.begin();
     vector<uint64Pair>::const_iterator rt = rightPairs.begin();
 
+    __builtin_prefetch(&leftPairs[0], 0, 0);
+    __builtin_prefetch(&rightPairs[0], 0, 0);
     while (lt != leftPairs.end() && rt != rightPairs.end()) {
         if ((*lt).second < (*rt).second) {
             ++lt;
@@ -359,34 +361,23 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
 
             return JoinOperatorNode::getValuesIndexedSorted(selection, inNode);
         } else {
-            // Reserve memory for pairs.
-            vector<uint64Pair> *pairs = new vector<uint64Pair>();
-            pairs->reserve(inNode->getSize());
-
             optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
             assert(option.has_value());
             const IteratorPair valIter = option.value();
 
-            // Get pairs of the form `{rowIndex, rowValue}`.
-            JoinOperatorNode::getValuesIndexed(valIter, *pairs);
+            vector<uint64Pair> *pairs = new vector<uint64Pair>();
+            if (valIter.second - valIter.first != 0) {
+                // Get pairs of the form `{rowIndex, rowValue}`.
+                getValuesIndexedParallel(valIter, *pairs);
 
-            // Sort by `rowValue`.
-            tbb::parallel_sort(pairs->begin(), pairs->end(),
-                 [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+                // Sort by `rowValue`.
+                tbb::parallel_sort(pairs->begin(), pairs->end(),
+                     [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+            }
 
             return {true, pairs};
         }
-    }
-}
-//---------------------------------------------------------------------------
-void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
-                                            vector<uint64Pair> &pairs)
-{
-    uint64_t i;
-    vector<uint64_t>::const_iterator it;
-    for (i = 0, it = values.first; it != values.second; ++it, ++i) {
-        pairs.push_back({i, (*it)});
     }
 }
 //---------------------------------------------------------------------------

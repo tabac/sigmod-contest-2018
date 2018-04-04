@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <tbb/parallel_sort.h>
 #include "Index.hpp"
+#include "Parallel.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -12,22 +13,20 @@ void SortedIndex::buildIndex(void)
 {
     this->setStatus(IndexStatus::building);
 
-    this->idValuePairs.reserve(valIter.second - valIter.first);
+    const size_t valuesSize = this->valIter.second- this->valIter.first;
 
-    uint64_t i;
-    vector<uint64_t>::const_iterator it;
-    for (i = 0, it = valIter.first; it != valIter.second; ++i, ++it) {
-        this->idValuePairs.emplace_back(i, (*it));
-    }
+    if (valuesSize != 0) {
+        getValuesIndexedParallel(this->valIter, this->idValuePairs);
 
-    tbb::parallel_sort(this->idValuePairs.begin(), this->idValuePairs.end(),
-         [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+        tbb::parallel_sort(this->idValuePairs.begin(), this->idValuePairs.end(),
+             [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
 
-    this->values.reserve(this->idValuePairs.size());
+        this->values.reserve(this->idValuePairs.size());
 
-    vector<uint64Pair>::iterator jt;
-    for (jt = this->idValuePairs.begin(); jt != this->idValuePairs.end(); ++jt) {
-        this->values.emplace_back(jt->second);
+        vector<uint64Pair>::iterator jt;
+        for (jt = this->idValuePairs.begin(); jt != this->idValuePairs.end(); ++jt) {
+            this->values.emplace_back(jt->second);
+        }
     }
 
     this->setStatus(IndexStatus::ready);
