@@ -45,3 +45,27 @@ void ParallelMerge::mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rig
     indexPairs.grow_by(indexPairsLoc.begin(), indexPairsLoc.end());
 }
 //---------------------------------------------------------------------------
+void ParallelMergeR::mergeJoin(size_t begin, size_t end)
+{
+    size_t l = begin, r = 0, size = this->pairsSize;
+
+    this->indexPairs.reserve(end - begin);
+
+    while (l < end && r < size) {
+        uint64_t left = this->leftPairs[l].second;
+        uint64_t right = this->rightPairs[r].second;
+
+        if (left < right) {
+            ++l;
+        } else if (left > right) {
+            ++r;
+        } else {
+            uint64_t leftIndex = this->leftPairs[l].first;
+            for (size_t t = r; t < size && left == this->rightPairs[t].second; ++t) {
+                this->indexPairs.emplace_back(leftIndex, this->rightPairs[t].first);
+            }
+
+            ++l;
+        }
+    }
+}
