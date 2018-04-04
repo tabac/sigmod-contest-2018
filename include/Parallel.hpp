@@ -78,6 +78,7 @@ class ParallelIndex {
 
     ParallelIndex(const uint64_t *values, uint64Pair *pairs) :
         values(values), pairs(pairs) { }
+};
 //---------------------------------------------------------------------------
 class ParallelMerge {
     private:

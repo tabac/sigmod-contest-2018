@@ -33,6 +33,8 @@ void getValuesIndexedParallel(const IteratorPair valIter, std::vector<uint64Pair
         ParallelIndex i(valuesPtr, pairsPtr);
 
         tbb::parallel_for(tbb::blocked_range<size_t>(0, valuesSize, PAIRS_GRAIN_SIZE), i);
+    }
+}
 //---------------------------------------------------------------------------
 void ParallelMerge::mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
                               size_t size, size_t begin, size_t end, uint64VecCc &indexPairs) const
