@@ -104,5 +104,52 @@ class ParallelMergeR {
         leftPairs(leftPairs), rightPairs(rightPairs), pairsSize(pairsSize) { }
 };
 //---------------------------------------------------------------------------
+template <typename T>
+class ParallelMergeV {
+    private:
+    const uint64Pair *leftPairs, *rightPairs;
+    size_t pairsSize;
+    T &indexPairs;
+
+    public:
+    void operator()(const tbb::blocked_range<size_t> &range) const {
+        ParallelMergeV::mergeJoin(this->leftPairs, this->rightPairs, pairsSize,
+                                 range.begin(), range.end(), indexPairs);
+    }
+
+    void mergeJoin(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
+                   size_t size, size_t begin, size_t end, T &indexPairs) const
+    {
+        size_t l = begin, r = 0;
+        std::vector<uint64Pair> *indexPairsLoc = new std::vector<uint64Pair>();
+
+        indexPairsLoc->reserve(end - begin);
+
+        while (l < end && r < size) {
+            uint64_t left = leftPairs[l].second;
+            uint64_t right = rightPairs[r].second;
+
+            if (left < right) {
+                ++l;
+            } else if (left > right) {
+                ++r;
+            } else {
+                uint64_t leftIndex = leftPairs[l].first;
+                for (size_t t = r; t < size && left == rightPairs[t].second; ++t) {
+                    indexPairsLoc->emplace_back(leftIndex, rightPairs[t].first);
+                }
+
+                ++l;
+            }
+        }
+
+        indexPairs.push_back(indexPairsLoc);
+    }
+
+    ParallelMergeV(const uint64Pair *leftPairs, const uint64Pair *rightPairs,
+                  size_t pairsSize, T &indexPairs) :
+        leftPairs(leftPairs), rightPairs(rightPairs), pairsSize(pairsSize), indexPairs(indexPairs) { }
+};
+//---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);
 //---------------------------------------------------------------------------

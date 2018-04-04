@@ -214,40 +214,56 @@ void JoinOperatorNode::executeAsync(void)
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
-    vector<uint64Pair> indexPairs;
+    // vector<uint64Pair> indexPairs;
     // uint64VecCc indexPairs;
-    JoinOperatorNode::mergeJoin<vector<uint64Pair>>(*leftPairs.second, *rightPairs.second, indexPairs);
+    uint64DVecCc indexPairs;
+    // JoinOperatorNode::mergeJoin<vector<uint64Pair>>(*leftPairs.second, *rightPairs.second, indexPairs);
     // JoinOperatorNode::mergeJoin<uint64VecCc>(*leftPairs.second, *rightPairs.second, indexPairs);
+    JoinOperatorNode::mergeJoin<uint64DVecCc>(*leftPairs.second, *rightPairs.second, indexPairs);
 
     // Set out DataNode size.
-    outNode->size = indexPairs.size();
+    // outNode->size = indexPairs.size();
+
+    size_t size = 0;
+    for (vector<uint64Pair> *p : indexPairs) {
+        size += p->size();
+    }
+    outNode->size = size;
 
     if (inLeftNode->isBaseRelation()) {
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
         // AbstractOperatorNode::pushSelections<1, uint64VecCc>(this->selections,
-        AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(this->selections,
+        // AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(this->selections,
+        AbstractOperatorNode::pushSelections<1, uint64DVecCc>(this->selections,
                                              indexPairs,
                                              inRightNode, outNode);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
         // AbstractOperatorNode::pushSelections<0, uint64VecCc>(this->selections,
-        AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections,
+        // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections,
+        AbstractOperatorNode::pushSelections<0, uint64DVecCc>(this->selections,
                                              indexPairs,
                                              inLeftNode, outNode);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
         // AbstractOperatorNode::pushSelections<0, uint64VecCc>(this->selections,
-        AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections,
+        // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(this->selections,
+        AbstractOperatorNode::pushSelections<0, uint64DVecCc>(this->selections,
                                              indexPairs,
                                              inLeftNode, outNode);
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
         // AbstractOperatorNode::pushSelections<1, uint64VecCc>(this->selections,
-        AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(this->selections,
+        // AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(this->selections,
+        AbstractOperatorNode::pushSelections<1, uint64DVecCc>(this->selections,
                                              indexPairs,
                                              inRightNode, outNode);
+    }
+
+    for (vector<uint64Pair> *p : indexPairs) {
+        delete p;
     }
 
     // TODO: This is because sometimes the selections have duplicates.
@@ -299,13 +315,16 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
     ParallelMerge m(&leftPairs[0], &rightPairs[0], rightPairs.size(), indexPairs);
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, leftPairs.size()), m);
-    */
 
     ParallelMergeR m(&leftPairs[0], &rightPairs[0], rightPairs.size());
 
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, leftPairs.size()), m);
 
     indexPairs = move(m.getIndexPairs());
+    */
+    ParallelMergeV<T> m(&leftPairs[0], &rightPairs[0], rightPairs.size(), indexPairs);
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, leftPairs.size()), m);
 }
 //---------------------------------------------------------------------------
 template <size_t I, typename T>
@@ -322,9 +341,16 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         assert(inNode != NULL && outNode != NULL);
     }
 
-    outNode->columnsInfo.reserve(selections.size());
-    outNode->dataValues.resize(selections.size() * indices.size());
+    size_t indicesSize = 0;
+    for (vector<uint64Pair> *p : indices) {
+        indicesSize += p->size();
+    }
 
+    outNode->columnsInfo.reserve(selections.size());
+    // outNode->dataValues.resize(selections.size() * indices.size());
+    outNode->dataValues.resize(selections.size() * indicesSize);
+
+    size_t offset = outNode->columnsInfo.size() * indicesSize;
     vector<SelectInfo>::const_iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
         // Skip columns already inserted.
@@ -345,19 +371,27 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         outNode->columnsInfo.emplace_back((*it));
 
         // Push values by `indices` to next `DataNode`.
-        AbstractOperatorNode::pushValuesByIndex<I, T>(valIter, indices, outNode);
+        // AbstractOperatorNode::pushValuesByIndex<I, T>(valIter, indices, outNode);
+
+        for (vector<uint64Pair> *p : indices) {
+            AbstractOperatorNode::pushValuesByIndex<I, vector<uint64Pair>>(
+                valIter, *p, outNode, offset);
+
+            offset += p->size();
+        }
     }
 }
 //---------------------------------------------------------------------------
 template <size_t I, typename T>
 void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
-                                             const T &indices,
-                                             DataNode *outNode)
+                                             const T &indices, DataNode *outNode,
+                                             const size_t offset)
 {
     const uint64_t *inValuesPtr = &(*valIter.first);
 
-    size_t outValuesOffset = (outNode->columnsInfo.size() - 1) * indices.size();
-    uint64_t *outValuesPtr = &outNode->dataValues[outValuesOffset];
+    // size_t outValuesOffset = (outNode->columnsInfo.size() - 1) * indices.size();
+    // uint64_t *outValuesPtr = &outNode->dataValues[outValuesOffset + offset];
+    uint64_t *outValuesPtr = &outNode->dataValues[offset];
 
     // ParallelPush<I, T> p(valIter, indices, outNode->dataValues);
     ParallelPush<I, T> p(inValuesPtr, indices, outValuesPtr);
@@ -494,8 +528,13 @@ void FilterOperatorNode::executeAsync(void)
     // Set the size of the new relation.
     outNode->size = indices.size();
 
-    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        this->selections, indices, inNode, outNode);
+    vector<vector<uint64Pair>*> container;
+    container.push_back(&indices);
+
+    // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+    //     this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<vector<uint64Pair>*>>(
+        this->selections, container, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -574,8 +613,13 @@ void FilterJoinOperatorNode::executeAsync(void)
     outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        this->selections, indices, inNode, outNode);
+    vector<vector<uint64Pair>*> container;
+    container.push_back(&indices);
+
+    // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+    //     this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<vector<uint64Pair>*>>(
+        this->selections, container, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);

@@ -146,9 +146,8 @@ class AbstractOperatorNode : public AbstractNode {
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
     template <size_t I, typename T>
-    static void pushValuesByIndex(const IteratorPair &valIter,
-                                  const T &indices,
-                                  DataNode *outNode);
+    static void pushValuesByIndex(const IteratorPair &valIter, const T &indices,
+                                  DataNode *outNode, const size_t offset);
 
     virtual bool hasBinding(const unsigned binding) const = 0;
 

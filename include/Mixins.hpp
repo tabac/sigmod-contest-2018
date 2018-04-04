@@ -20,6 +20,8 @@ using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
 using uint64VecCc = tbb::concurrent_vector<uint64Pair>;
 //---------------------------------------------------------------------------
+using uint64DVecCc = tbb::concurrent_vector<std::vector<uint64Pair>*>;
+//---------------------------------------------------------------------------
 using SyncPair = std::pair<std::mutex, std::condition_variable>;
 //---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator,
