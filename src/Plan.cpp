@@ -341,7 +341,7 @@ void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
 
     ParallelPush<I> p(inValuesPtr, indicesPtr, outValuesPtr);
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, indices.size()), p);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, indices.size(), PAIRS_GRAIN_SIZE), p);
 }
 //---------------------------------------------------------------------------
 pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
@@ -351,7 +351,7 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
     if (INDEXES_ON && index != NULL) {
         return {false, index->getValuesIndexedSorted()};
     } else {
-        if (INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
+        if (INDEXES_ON && INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
             // Ugly mother coming up...
             Relation *relation = (Relation *) inNode;
 

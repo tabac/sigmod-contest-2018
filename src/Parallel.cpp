@@ -9,7 +9,7 @@ uint64_t calcParallelSum(IteratorPair valIter)
 
     ParallelSum s(values);
 
-    tbb::parallel_reduce(tbb::blocked_range<size_t>(0, size), s);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(0, size, SINGLES_GRAIN_SIZE), s);
 
     return s.getSum();
 }

@@ -25,8 +25,10 @@ using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator,
 using IteratorDoublePair = std::pair<std::vector<uint64Pair>::const_iterator,
                                      std::vector<uint64Pair>::const_iterator>;
 //---------------------------------------------------------------------------
-const bool INDEXES_ON = true;
-const bool INDEXES_CREATE_ON_MERGE = true;
+static const bool INDEXES_ON = true;
+static const bool INDEXES_CREATE_ON_MERGE = true;
+static const size_t PAIRS_GRAIN_SIZE = 512;
+static const size_t SINGLES_GRAIN_SIZE = 1024;
 //---------------------------------------------------------------------------
 class DataReaderMixin {
     // TODO: Would be nice not to pass `filterInfo` and then ignore it...
