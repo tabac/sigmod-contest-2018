@@ -9,12 +9,12 @@ class ParallelSum {
     uint64_t my_sum;
 
     public:
-
     void operator()(const tbb::blocked_range<size_t>& r) {
         const uint64_t *a = my_a;
         uint64_t sum = my_sum;
         size_t end = r.end();
 
+        __builtin_prefetch(&a[r.begin()], 0, 0);
         for(size_t i = r.begin(); i != end; ++i) {
             sum += a[i];
         }
@@ -48,6 +48,8 @@ class ParallelPush {
 
         size_t end = range.end();
 
+        __builtin_prefetch(&inValuesLoc[range.begin()], 0, 0);
+        __builtin_prefetch(&outValuesLoc[range.begin()], 1, 0);
         for(size_t i = range.begin(); i != end; ++i) {
             outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
         }
@@ -57,5 +59,30 @@ class ParallelPush {
         inValues(inValues), indices(indices), outValues(outValues) { }
 };
 //---------------------------------------------------------------------------
+class ParallelIndex {
+    private:
+    const uint64_t* values;
+    uint64Pair *pairs;
+
+    public:
+    void operator()(const tbb::blocked_range<size_t>& range) const {
+        const uint64_t *values = this->values;
+        uint64Pair *pairs = this->pairs;
+
+        size_t end = range.end();
+
+        __builtin_prefetch(&values[range.begin()], 0, 0);
+        __builtin_prefetch(&pairs[range.begin()], 1, 0);
+        for(size_t i = range.begin(); i != end; ++i) {
+            pairs[i] = {i, values[i]};
+        }
+    }
+
+    ParallelIndex(const uint64_t *values, uint64Pair *pairs) :
+        values(values), pairs(pairs) { }
+};
+//---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);
+//---------------------------------------------------------------------------
+void getValuesIndexedParallel(const IteratorPair valIter, std::vector<uint64Pair> &pairs);
 //---------------------------------------------------------------------------

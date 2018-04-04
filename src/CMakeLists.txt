@@ -25,6 +25,6 @@ add_executable(rocket main.cpp ${SOURCE_FILES})
 target_link_libraries(rocket database pthread tbb jemalloc)
 
 # Interactive command line tool to translate our query format to SQL queries
-add_executable(Query2SQL Query2SQL.cpp ${SOURCE_FILES})
-target_link_libraries(Query2SQL pthread tbb jemalloc)
+# add_executable(Query2SQL Query2SQL.cpp ${SOURCE_FILES})
+# target_link_libraries(Query2SQL pthread tbb jemalloc)
 
