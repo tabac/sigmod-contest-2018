@@ -100,6 +100,34 @@ class ParallelMerge {
         leftPairs(leftPairs), rightPairs(rightPairs), pairsSize(pairsSize), indexPairs(indexPairs) { }
 };
 //---------------------------------------------------------------------------
+class ParallelMergeR {
+    public:
+    const uint64Pair *leftPairs, *rightPairs;
+    size_t pairsSize;
+    std::vector<uint64Pair> indexPairs;
+
+    void operator()(const tbb::blocked_range<size_t>& range) {
+        mergeJoin(range.begin(), range.end());
+    }
+
+    void mergeJoin(size_t begin, size_t end);
+
+    void join(const ParallelMergeR &o) {
+        this->indexPairs.reserve(this->indexPairs.size() + o.indexPairs.size());
+
+        this->indexPairs.insert(this->indexPairs.end(),
+                                o.indexPairs.begin(), o.indexPairs.end());
+    }
+
+    std::vector<uint64Pair> getIndexPairs(void) { return this->indexPairs; }
+
+    ParallelMergeR(ParallelMergeR& x, tbb::split) :
+        leftPairs(x.leftPairs), rightPairs(x.rightPairs), pairsSize(x.pairsSize) { }
+
+    ParallelMergeR(const uint64Pair *leftPairs, const uint64Pair *rightPairs, size_t pairsSize) :
+        leftPairs(leftPairs), rightPairs(rightPairs), pairsSize(pairsSize) { }
+};
+//---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);
 //---------------------------------------------------------------------------
 void getValuesIndexedParallel(const IteratorPair valIter, std::vector<uint64Pair> &pairs);
