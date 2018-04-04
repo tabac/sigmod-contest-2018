@@ -71,18 +71,23 @@ void ParallelMergeR::mergeJoin(size_t begin, size_t end)
 
     this->indexPairs.reserve(end - begin);
 
+    const uint64Pair *leftPtr = &this->leftPairs[0];
+    const uint64Pair *rightPtr = &this->rightPairs[0];
+
+    __builtin_prefetch(&leftPtr[begin], 0, 0);
+    __builtin_prefetch(&rightPtr[0], 0, 0);
     while (l < end && r < size) {
-        uint64_t left = this->leftPairs[l].second;
-        uint64_t right = this->rightPairs[r].second;
+        uint64_t left = leftPtr[l].second;
+        uint64_t right = rightPtr[r].second;
 
         if (left < right) {
             ++l;
         } else if (left > right) {
             ++r;
         } else {
-            uint64_t leftIndex = this->leftPairs[l].first;
-            for (size_t t = r; t < size && left == this->rightPairs[t].second; ++t) {
-                this->indexPairs.emplace_back(leftIndex, this->rightPairs[t].first);
+            uint64_t leftIndex = leftPtr[l].first;
+            for (size_t t = r; t < size && left == rightPtr[t].second; ++t) {
+                this->indexPairs.emplace_back(leftIndex, rightPtr[t].first);
             }
 
             ++l;
