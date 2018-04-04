@@ -1,7 +1,6 @@
 #include <queue>
 #include <future>
 #include <vector>
-#include <variant>
 #include <cstdint>
 #include <cassert>
 #include <iostream>

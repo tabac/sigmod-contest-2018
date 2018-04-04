@@ -2,7 +2,7 @@
 #include <mutex>
 #include <vector>
 #include <cstdint>
-#include <optional>
+#include <experimental/optional>
 #include <condition_variable>
 #include <tbb/tbb.h>
 //---------------------------------------------------------------------------
@@ -11,6 +11,9 @@ struct SelectInfo;
 //---------------------------------------------------------------------------
 #define DEBUG(x) do { std::cerr << x ; } while (0)
 #define DEBUGLN(x) do { std::cerr << x << std::endl; } while (0)
+//---------------------------------------------------------------------------
+#define optional std::experimental::optional
+#define nullopt  std::experimental::nullopt
 //---------------------------------------------------------------------------
 using RelationId = unsigned;
 //---------------------------------------------------------------------------
@@ -44,7 +47,7 @@ class DataReaderMixin {
     /// In the first two cases `filterInfo` is ignored, in the
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of ids.
-    virtual std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
+    virtual optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
                                                        const FilterInfo* filterInfo) = 0;
 
     /// Should be implemented by any class intended as a data storer
@@ -55,7 +58,7 @@ class DataReaderMixin {
     /// In the first two cases `filterInfo` is ignored, in the
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of values.
-    virtual std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+    virtual optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                           const FilterInfo* filterInfo) = 0;
 
     virtual ~DataReaderMixin() { }

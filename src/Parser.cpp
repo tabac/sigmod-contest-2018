@@ -7,6 +7,10 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
+constexpr const char SelectInfo::delimiterSQL[];
+constexpr const char FilterInfo::delimiterSQL[];
+constexpr const char PredicateInfo::delimiterSQL[];
+//---------------------------------------------------------------------------
 void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
                                     const optional<IteratorPair> &idsOption,
                                     vector<uint64Pair> &indices) const
@@ -17,7 +21,7 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
 
     switch (this->comparison) {
         case FilterInfo::Comparison::Less:
-            if (idsOption.has_value()) {
+            if (idsOption) {
                 const IteratorPair idsIter = idsOption.value();
 
                 assert(valIter.second - valIter.first == idsIter.second - idsIter.first);
@@ -36,7 +40,7 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
             }
             break;
         case FilterInfo::Comparison::Equal:
-            if (idsOption.has_value()) {
+            if (idsOption) {
                 const IteratorPair idsIter = idsOption.value();
 
                 assert(valIter.second - valIter.first == idsIter.second - idsIter.first);
@@ -55,7 +59,7 @@ void FilterInfo::getFilteredIndices(const IteratorPair &valIter,
             }
             break;
         case FilterInfo::Comparison::Greater:
-            if (idsOption.has_value()) {
+            if (idsOption) {
                 const IteratorPair idsIter = idsOption.value();
 
                 assert(valIter.second - valIter.first == idsIter.second - idsIter.first);

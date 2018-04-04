@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
-#include <optional>
+#include <experimental/optional>
 #include <string>
 #include "Mixins.hpp"
 #include "Parser.hpp"
@@ -14,7 +14,7 @@ enum NodeStatus { fresh, processing, processed };
 class ResultInfo {
     public:
     /// Query results.
-    std::vector<std::optional<uint64_t>> results;
+    std::vector<optional<uint64_t>> results;
 
     ResultInfo(std::vector<uint64_t> results, unsigned size);
     /// Prints the `results` vector to stdout.
@@ -99,12 +99,12 @@ class DataNode : public AbstractDataNode {
 
     /// Returns `nullopt` for a `DataNode`. The ids are the indices
     /// in the case of a column.
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
+    optional<IteratorPair> getIdsIterator(const SelectInfo&,
                                                const FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+    optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
                                                   const FilterInfo* filterInfo);
 
     /// Returns the size, that is the number of tuples.
