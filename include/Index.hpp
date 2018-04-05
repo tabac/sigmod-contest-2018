@@ -45,14 +45,14 @@ class SortedIndex : public AbstractIndex, public DataReaderMixin {
     const IteratorPair valIter;
 
     // Returns the ids that match the filterInfo.
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
-                                               const FilterInfo* filterInfo);
+    optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
+                                          const FilterInfo* filterInfo);
     //Returns the values that match filterInfo.
-    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo);
+    optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+                                             const FilterInfo* filterInfo);
 
-    std::optional<IteratorDoublePair> getIdsValuesIterator(const SelectInfo& selectInfo,
-                                                           const FilterInfo* filterInfo);
+    optional<IteratorDoublePair> getIdsValuesIterator(const SelectInfo& selectInfo,
+                                                      const FilterInfo* filterInfo);
 
     std::vector<uint64Pair> *getValuesIndexedSorted(void);
 

@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <cassert>
 #include <iostream>
-#include <optional>
 #include <algorithm>
 #include <tbb/parallel_sort.h>
+#include <experimental/optional>
 #include "Plan.hpp"
 #include "Mixins.hpp"
 #include "Index.hpp"
@@ -15,7 +15,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-using joinPairsContainer = vector<uint64Pair>; // uint64VecCc;
+// using joinPairsContainer = uint64VecCc;
+using joinPairsContainer = vector<uint64Pair>;
 //---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
@@ -39,14 +40,14 @@ void ResultInfo::printResultInfo() const
 {
     vector<optional<uint64_t>>::const_iterator it;
     for (it = this->results.begin(); it != this->results.end() - 1; ++it) {
-        if ((*it).has_value()) {
+        if (*it) {
             cout << (*it).value() << " ";
         } else {
             cout << "NULL ";
         }
     }
 
-    if ((*it).has_value()) {
+    if (*it) {
         cout << (*it).value();
     } else {
         cout << "NULL";
@@ -520,7 +521,7 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         }
 
         optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
-        if (!option.has_value()) {
+        if (!option) {
             // Skip column if not in `inNode->columnsInfo`.
             continue;
         }
@@ -585,7 +586,7 @@ void JoinOperatorNode::getValuesIndexed(const SelectInfo &selection,
 {
     optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
 
-    assert(option.has_value());
+    assert(option);
     const IteratorPair valIter = option.value();
 
     if (valIter.second - valIter.first != 0) {
@@ -648,7 +649,7 @@ void FilterOperatorNode::executeAsync(void)
         optional<IteratorDoublePair> option = index->getIdsValuesIterator(
             this->info.filterColumn, &this->info);
 
-        assert(option.has_value());
+        assert(option);
         IteratorDoublePair idValIter = option.value();
 
         // Reserve memory for indices.
@@ -660,7 +661,7 @@ void FilterOperatorNode::executeAsync(void)
         // Get values iterator for the filter column.
         optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
                                                                   NULL);
-        assert(option.has_value());
+        assert(option);
         IteratorPair valIter = option.value();
 
         // Get ids iterator for the filter column.
@@ -734,12 +735,12 @@ void FilterJoinOperatorNode::executeAsync(void)
 
     // Get values iterator for the left column.
     optional<IteratorPair> option = inNode->getValuesIterator(this->info.left, NULL);
-    assert(option.has_value());
+    assert(option);
     const IteratorPair leftIter = option.value();
 
     // Get values iterator for the right column.
     option = inNode->getValuesIterator(this->info.right, NULL);
-    assert(option.has_value());
+    assert(option);
     const IteratorPair rightIter = option.value();
 
     uint64_t i;
@@ -825,7 +826,7 @@ void AggregateOperatorNode::executeAsync(void)
 
         if (inNode->getSize() != 0) {
             optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
-            if (!option.has_value()) {
+            if (!option) {
                 continue;
             }
             IteratorPair valIter = option.value();

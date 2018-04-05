@@ -53,7 +53,7 @@ struct FilterInfo {
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter,
-                            const std::optional<IteratorPair> &idsOption,
+                            const optional<IteratorPair> &idsOption,
                             std::vector<uint64Pair> &indices) const;
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorDoublePair &idValIter,
