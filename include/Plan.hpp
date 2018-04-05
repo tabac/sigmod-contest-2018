@@ -176,6 +176,11 @@ class JoinOperatorNode : public AbstractOperatorNode {
                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
                             std::vector<uint64Pair> &indexPairs);
 
+    /// Performs hash join between `leftPairs` and `rightPairs` (in parallel).
+    static void hashJoinPar(const SelectInfo &left, const SelectInfo &right,
+                            AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                            std::vector<uint64Pair> &indexPairs);
+
     /// Returns a tuple with a boolean and pairs of the form
     /// `{rowIndex, rowValue}` sorted by value. The boolean
     /// indicates whether the memory has to be freed or not.

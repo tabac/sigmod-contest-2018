@@ -210,6 +210,11 @@ void JoinOperatorNode::executeAsync(void)
     JoinOperatorNode::mergeJoinSeq(this->info.left, this->info.right,
                                    inLeftNode, inRightNode, indexPairs);
 
+    /*
+    JoinOperatorNode::hashJoinSeq(this->info.left, this->info.right,
+                                 inLeftNode, inRightNode, indexPairs);
+    */
+
     // Set out DataNode size.
     outNode->size = indexPairs.size();
 
@@ -261,8 +266,14 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
     pair<bool, vector<uint64Pair>*> rightPairsOption;
     rightPairsOption = JoinOperatorNode::getValuesIndexedSorted(right, rightNode);
 
-    const vector<uint64Pair> &leftPairs = *leftPairsOption.second;
-    const vector<uint64Pair> &rightPairs = *rightPairsOption.second;
+    // Keep the smaller column on the left.
+    bool swapPairs = leftPairsOption.second->size() > rightPairsOption.second->size();
+    if (swapPairs) {
+        swap(leftPairsOption, rightPairsOption);
+    }
+
+    vector<uint64Pair> &leftPairs = *leftPairsOption.second;
+    vector<uint64Pair> &rightPairs = *rightPairsOption.second;
 
     vector<uint64Pair>::const_iterator lt = leftPairs.begin();
     vector<uint64Pair>::const_iterator rt = rightPairs.begin();
@@ -271,18 +282,36 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
     //       Look at other branches for solution.
     __builtin_prefetch(&leftPairs[0], 0, 0);
     __builtin_prefetch(&rightPairs[0], 0, 0);
-    while (lt != leftPairs.end() && rt != rightPairs.end()) {
-        if ((*lt).second < (*rt).second) {
-            ++lt;
-        } else if ((*lt).second > (*rt).second) {
-            ++rt;
-        } else {
-            vector<uint64Pair>::const_iterator tt;
-            for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
-                indexPairs.emplace_back(lt->first, tt->first);
-            }
 
-            ++lt;
+    if (!swapPairs) {
+        while (lt != leftPairs.end() && rt != rightPairs.end()) {
+            if ((*lt).second < (*rt).second) {
+                ++lt;
+            } else if ((*lt).second > (*rt).second) {
+                ++rt;
+            } else {
+                vector<uint64Pair>::const_iterator tt;
+                for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
+                    indexPairs.emplace_back(lt->first, tt->first);
+                }
+
+                ++lt;
+            }
+        }
+    } else {
+        while (lt != leftPairs.end() && rt != rightPairs.end()) {
+            if ((*lt).second < (*rt).second) {
+                ++lt;
+            } else if ((*lt).second > (*rt).second) {
+                ++rt;
+            } else {
+                vector<uint64Pair>::const_iterator tt;
+                for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
+                    indexPairs.emplace_back(tt->first, lt->first);
+                }
+
+                ++lt;
+            }
         }
     }
 
@@ -299,6 +328,96 @@ void JoinOperatorNode::hashJoinSeq(const SelectInfo &left, const SelectInfo &rig
                                    AbstractDataNode *leftNode, AbstractDataNode *rightNode,
                                    vector<uint64Pair> &indexPairs)
 {
+    vector<uint64Pair> leftPairs, rightPairs;
+
+    JoinOperatorNode::getValuesIndexed(left, leftNode, leftPairs);
+
+    JoinOperatorNode::getValuesIndexed(right, rightNode, rightPairs);
+
+    // Keep the smaller column on the left.
+    bool swapPairs = leftPairs.size() > rightPairs.size();
+    if (swapPairs) {
+        swap(leftPairs, rightPairs);
+    }
+
+    unordered_map<uint64_t, vector<uint64_t>> map;
+    map.reserve(leftPairs.size());
+
+    // Hash-Join: Build Face.
+    vector<uint64Pair>::const_iterator it;
+    for (it = leftPairs.begin(); it != leftPairs.end(); ++it) {
+        map[it->second].push_back(it->first);
+    }
+
+    // Hash-Join: Probe Face.
+    if (!swapPairs) {
+        for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
+            try {
+                const vector<uint64_t> &bucket = map.at(it->second);
+
+                vector<uint64_t>::const_iterator jt;
+                for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                    indexPairs.emplace_back((*jt), it->first);
+                }
+            }
+            catch (const out_of_range& oor) {
+                continue;
+            }
+        }
+    } else {
+        for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
+            try {
+                const vector<uint64_t> &bucket = map.at(it->second);
+
+                vector<uint64_t>::const_iterator jt;
+                for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                    indexPairs.emplace_back(it->first, (*jt));
+                }
+            }
+            catch (const out_of_range& oor) {
+                continue;
+            }
+        }
+    }
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::hashJoinPar(const SelectInfo &left, const SelectInfo &right,
+                                   AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                   vector<uint64Pair> &indexPairs)
+{
+    vector<uint64Pair> leftPairs, rightPairs;
+
+    JoinOperatorNode::getValuesIndexed(left, leftNode, leftPairs);
+
+    JoinOperatorNode::getValuesIndexed(right, rightNode, rightPairs);
+
+    // TODO: Move to `tbb:concurrent_hash_map`.
+    unordered_map<uint64_t, vector<uint64_t>> map;
+    map.reserve(leftPairs.size() * 2);
+
+    // TODO: Parallel implementation inserting into the map above.
+    // Hash-Join: Build Face.
+    vector<uint64Pair>::const_iterator it;
+    for (it = leftPairs.begin(); it != leftPairs.end(); ++it) {
+        map[it->second].push_back(it->first);
+    }
+
+    // TODO: Parallel implementation reading the map above and
+    //       storing to a `concurrent_vector`.
+    // Hash-Join: Probe Face.
+    for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
+        try {
+            const vector<uint64_t> &bucket = map.at(it->second);
+
+            vector<uint64_t>::const_iterator jt;
+            for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                indexPairs.emplace_back((*jt), it->first);
+            }
+        }
+        catch (const out_of_range& oor) {
+            continue;
+        }
+    }
 }
 //---------------------------------------------------------------------------
 template <size_t I>
@@ -398,6 +517,9 @@ void JoinOperatorNode::getValuesIndexed(const SelectInfo &selection,
     const IteratorPair valIter = option.value();
 
     if (valIter.second - valIter.first != 0) {
+        // Reserve memory for pairs.
+        pairs.reserve(valIter.second - valIter.first);
+
         // Get pairs of the form `{rowIndex, rowValue}`.
         getValuesIndexedParallel(valIter, pairs);
     }
