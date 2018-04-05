@@ -132,17 +132,17 @@ class AbstractOperatorNode : public AbstractNode {
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
     /// in `selections`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushSelections(const std::vector<SelectInfo> &selections,
-                               const std::vector<uint64Pair> &indices,
+                               const T &indices,
                                AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushValuesByIndex(const IteratorPair &valIter,
-                                  const std::vector<uint64Pair> &indices,
+                                  const T &indices,
                                   DataNode *outNode);
 
     virtual bool hasBinding(const unsigned binding) const = 0;
@@ -177,9 +177,18 @@ class JoinOperatorNode : public AbstractOperatorNode {
                             std::vector<uint64Pair> &indexPairs);
 
     /// Performs hash join between `leftPairs` and `rightPairs` (in parallel).
+    template <typename T>
     static void hashJoinPar(const SelectInfo &left, const SelectInfo &right,
                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
-                            std::vector<uint64Pair> &indexPairs);
+                            T &indexPairs);
+
+    static void hashJoinBuildPar(const std::vector<uint64Pair> &pairs,
+                                 uint64VecMapCc &map);
+
+    template <bool B, typename T>
+    static void hashJoinProbePar(const std::vector<uint64Pair> &pairs,
+                                 const uint64VecMapCc &map,
+                                 T &indexPairs);
 
     /// Returns a tuple with a boolean and pairs of the form
     /// `{rowIndex, rowValue}` sorted by value. The boolean

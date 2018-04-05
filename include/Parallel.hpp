@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <cstdint>
 #include <tbb/tbb.h>
 #include "Mixins.hpp"
@@ -32,30 +33,28 @@ class ParallelSum {
     ParallelSum(const uint64_t a[] ) : my_a(a), my_sum(0) { }
 };
 //---------------------------------------------------------------------------
-template <size_t I>
+template <size_t I, typename T>
 class ParallelPush {
     private:
     const uint64_t *inValues;
-    const uint64Pair *indices;
+    const T &indices;
     uint64_t *outValues;
-
     public:
 
     void operator()(const tbb::blocked_range<size_t> &range) const {
         const uint64_t *inValuesLoc = this->inValues;
-        const uint64Pair *indicesLoc = this->indices;
+        const T &indicesLoc = this->indices;
         uint64_t *outValuesLoc = this->outValues;
 
         size_t end = range.end();
 
-        __builtin_prefetch(&inValuesLoc[range.begin()], 0, 0);
-        __builtin_prefetch(&outValuesLoc[range.begin()], 1, 0);
+        __builtin_prefetch(&indicesLoc[range.begin()], 0, 0);
         for(size_t i = range.begin(); i != end; ++i) {
             outValuesLoc[i] = inValuesLoc[std::get<I>(indicesLoc[i])];
         }
     }
 
-    ParallelPush(const uint64_t *inValues, const uint64Pair *indices, uint64_t *outValues) :
+    ParallelPush(const uint64_t *inValues, const T &indices, uint64_t *outValues) :
         inValues(inValues), indices(indices), outValues(outValues) { }
 };
 //---------------------------------------------------------------------------
@@ -80,6 +79,85 @@ class ParallelIndex {
 
     ParallelIndex(const uint64_t *values, uint64Pair *pairs) :
         values(values), pairs(pairs) { }
+};
+//---------------------------------------------------------------------------
+class ParallelMapBuild {
+    private:
+    uint64VecMapCc  &map;
+    const uint64Pair *pairs;
+
+    public:
+    void operator()(const tbb::blocked_range<size_t>& range) const {
+        const uint64Pair *pairsLoc = this->pairs;
+        uint64VecMapCc &mapLoc = this->map;
+
+        size_t end = range.end();
+
+        __builtin_prefetch(&pairsLoc[range.begin()], 0, 0);
+        for(size_t i = range.begin(); i != end; ++i) {
+            mapLoc[pairsLoc[i].second].push_back(pairsLoc[i].first);
+        }
+    }
+
+    ParallelMapBuild(const uint64Pair *pairs, uint64VecMapCc &map) : map(map), pairs(pairs) { }
+};
+//---------------------------------------------------------------------------
+template <bool B>
+class ParallelMapProbe {
+    private:
+    const uint64Pair *pairs;
+    const uint64VecMapCc  &map;
+    uint64VecCc &indexPairs;
+
+    public:
+
+    void operator()(const tbb::blocked_range<size_t> &range) const {
+        const uint64Pair *pairsLoc = this->pairs;
+        const uint64VecMapCc &mapLoc = this->map;
+
+        std::vector<uint64Pair> indexPairsLoc;
+        indexPairsLoc.reserve(range.end() - range.begin());
+
+        size_t end = range.end();
+
+        if (!B) {
+            __builtin_prefetch(&pairsLoc[range.begin()], 0, 0);
+            for(size_t i = range.begin(); i != end; ++i) {
+
+                const uint64VecMapCc::const_iterator kv = mapLoc.find(pairsLoc[i].second);
+
+                if (kv != mapLoc.end()) {
+                    const tbb::concurrent_vector<uint64_t> &bucket = kv->second;
+
+                    tbb::concurrent_vector<uint64_t>::const_iterator jt;
+                    for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                        indexPairsLoc.emplace_back((*jt), pairsLoc[i].first);
+                    }
+                }
+            }
+        } else {
+            __builtin_prefetch(&pairsLoc[range.begin()], 0, 0);
+            for(size_t i = range.begin(); i != end; ++i) {
+
+                const uint64VecMapCc::const_iterator kv = mapLoc.find(pairsLoc[i].second);
+
+                if (kv != mapLoc.end()) {
+                    const tbb::concurrent_vector<uint64_t> &bucket = kv->second;
+
+                    tbb::concurrent_vector<uint64_t>::const_iterator jt;
+                    for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                        indexPairsLoc.emplace_back(pairsLoc[i].first, (*jt));
+                    }
+                }
+            }
+        }
+
+        this->indexPairs.grow_by(indexPairsLoc.begin(), indexPairsLoc.end());
+    }
+
+
+    ParallelMapProbe(const uint64Pair *pairs, const uint64VecMapCc &map, uint64VecCc &indexPairs) :
+        pairs(pairs), map(map), indexPairs(indexPairs) { }
 };
 //---------------------------------------------------------------------------
 uint64_t calcParallelSum(IteratorPair valIter);

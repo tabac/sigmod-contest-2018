@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <condition_variable>
+#include <tbb/tbb.h>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
@@ -19,13 +20,17 @@ using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
 using SyncPair = std::pair<std::mutex, std::condition_variable>;
 //---------------------------------------------------------------------------
+using uint64VecCc = tbb::concurrent_vector<uint64Pair>;
+//---------------------------------------------------------------------------
+using uint64VecMapCc = tbb::concurrent_unordered_map<uint64_t, tbb::concurrent_vector<uint64_t>>;
+//---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator,
                                std::vector<uint64_t>::const_iterator>;
 //---------------------------------------------------------------------------
 using IteratorDoublePair = std::pair<std::vector<uint64Pair>::const_iterator,
                                      std::vector<uint64Pair>::const_iterator>;
 //---------------------------------------------------------------------------
-static const bool INDEXES_ON = true;
+static const bool INDEXES_ON = false;
 static const bool INDEXES_CREATE_ON_MERGE = true;
 static const size_t PAIRS_GRAIN_SIZE = 256;
 static const size_t SINGLES_GRAIN_SIZE = 512;
