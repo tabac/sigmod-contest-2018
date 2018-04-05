@@ -166,16 +166,26 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     void executeAsync(void);
 
-    /// Performs merge join between `leftPairs` and `rightPairs`.
-    static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
-                          const std::vector<uint64Pair> &rightPairs,
-                          std::vector<uint64Pair> &indexPairs);
+    /// Performs sort-merge join between `leftPairs` and `rightPairs`.
+    static void mergeJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                             std::vector<uint64Pair> &indexPairs);
+
+    /// Performs hash join between `leftPairs` and `rightPairs`.
+    static void hashJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                            AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                            std::vector<uint64Pair> &indexPairs);
 
     /// Returns a tuple with a boolean and pairs of the form
     /// `{rowIndex, rowValue}` sorted by value. The boolean
     /// indicates whether the memory has to be freed or not.
     static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
-        SelectInfo &selection, AbstractDataNode* inNode);
+        const SelectInfo &selection, AbstractDataNode* inNode);
+
+    /// Populates `pairs` with pairs of the form `{rowIndex, rowValue}`.
+    static void getValuesIndexed(const SelectInfo &selection,
+                                 AbstractDataNode *inNode,
+                                 std::vector<uint64Pair> &pairs);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding || this->info.right.binding == binding;
