@@ -10,7 +10,7 @@ include_directories(include)
 
 add_subdirectory(src)
 
-OPTION(FORCE_TESTS "Build tests, regardless of build type." ON)
-if (CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]" OR FORCE_TESTS)
-    add_subdirectory(test)
-endif()
+# OPTION(FORCE_TESTS "Build tests, regardless of build type." ON)
+# if (CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]" OR FORCE_TESTS)
+#     add_subdirectory(test)
+# endif()

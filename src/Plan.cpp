@@ -297,7 +297,7 @@ void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
 
     ParallelMerge m(&leftPairs[0], &rightPairs[0], rightPairs.size(), indexPairs);
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, leftPairs.size()), m);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
 }
 //---------------------------------------------------------------------------
 template <size_t I, typename T>

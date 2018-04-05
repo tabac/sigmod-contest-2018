@@ -9,19 +9,18 @@ class ParallelSum {
     uint64_t my_sum;
 
     public:
-
     void operator()(const tbb::blocked_range<size_t>& r) {
         const uint64_t *a = my_a;
         uint64_t sum = my_sum;
         size_t end = r.end();
 
+        __builtin_prefetch(&a[r.begin()], 0, 0);
         for(size_t i = r.begin(); i != end; ++i) {
             sum += a[i];
         }
 
         my_sum = sum;
     }
-
 
     void join(const ParallelSum &y) { my_sum += y.my_sum; }
 
@@ -42,10 +41,12 @@ class ParallelPush {
     public:
     void operator()(const tbb::blocked_range<size_t> &range) const {
         const uint64_t *inValuesLoc = this->inValues;
+        const T &indicesLoc = this->indices;
         uint64_t *outValuesLoc = this->outValues;
 
         size_t end = range.end();
 
+        __builtin_prefetch(&indicesLoc[range.begin()], 0, 0);
         for(size_t i = range.begin(); i != end; ++i) {
             outValuesLoc[i] = inValuesLoc[std::get<I>(indices[i])];
         }
