@@ -207,13 +207,13 @@ void JoinOperatorNode::executeAsync(void)
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
     vector<uint64Pair> indexPairs;
+    /*
     JoinOperatorNode::mergeJoinSeq(this->info.left, this->info.right,
                                    inLeftNode, inRightNode, indexPairs);
+    */
 
-    /*
     JoinOperatorNode::hashJoinSeq(this->info.left, this->info.right,
                                  inLeftNode, inRightNode, indexPairs);
-    */
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
@@ -352,30 +352,28 @@ void JoinOperatorNode::hashJoinSeq(const SelectInfo &left, const SelectInfo &rig
     // Hash-Join: Probe Face.
     if (!swapPairs) {
         for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
-            try {
-                const vector<uint64_t> &bucket = map.at(it->second);
+            const unordered_map<uint64_t, vector<uint64_t>>::iterator kv = map.find(it->second);
+
+            if (kv != map.end()) {
+                const vector<uint64_t> &bucket = kv->second;
 
                 vector<uint64_t>::const_iterator jt;
                 for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
                     indexPairs.emplace_back((*jt), it->first);
                 }
             }
-            catch (const out_of_range& oor) {
-                continue;
-            }
         }
     } else {
         for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
-            try {
-                const vector<uint64_t> &bucket = map.at(it->second);
+            const unordered_map<uint64_t, vector<uint64_t>>::iterator kv = map.find(it->second);
+
+            if (kv != map.end()) {
+                const vector<uint64_t> &bucket = kv->second;
 
                 vector<uint64_t>::const_iterator jt;
                 for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
                     indexPairs.emplace_back(it->first, (*jt));
                 }
-            }
-            catch (const out_of_range& oor) {
-                continue;
             }
         }
     }
