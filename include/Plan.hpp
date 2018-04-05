@@ -167,14 +167,16 @@ class JoinOperatorNode : public AbstractOperatorNode {
     void executeAsync(void);
 
     /// Performs sort-merge join between `leftPairs` and `rightPairs`.
+    template <typename T>
     static void mergeJoinSeq(const SelectInfo &left, const SelectInfo &right,
                              AbstractDataNode *leftNode, AbstractDataNode *rightNode,
-                             std::vector<uint64Pair> &indexPairs);
+                             T &indexPairs);
 
     /// Performs hash join between `leftPairs` and `rightPairs`.
+    template <typename T>
     static void hashJoinSeq(const SelectInfo &left, const SelectInfo &right,
                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
-                            std::vector<uint64Pair> &indexPairs);
+                            T &indexPairs);
 
     /// Performs hash join between `leftPairs` and `rightPairs` (in parallel).
     template <typename T>

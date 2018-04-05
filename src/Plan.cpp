@@ -15,6 +15,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
+using joinPairsContainer = vector<uint64Pair>; // uint64VecCc;
+//---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
 {
@@ -206,16 +208,18 @@ void JoinOperatorNode::executeAsync(void)
 
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
-    // vector<uint64Pair> indexPairs;
-    uint64VecCc indexPairs;
-    /*
-    JoinOperatorNode::mergeJoinSeq(this->info.left, this->info.right,
-                                   inLeftNode, inRightNode, indexPairs);
-    */
+    joinPairsContainer indexPairs;
 
-    // JoinOperatorNode::hashJoinPar<vector<uint64Pair>>(
-    JoinOperatorNode::hashJoinPar<uint64VecCc>(
+    JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    /*
+    JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    JoinOperatorNode::hashJoinPar<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+    */
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
@@ -223,24 +227,20 @@ void JoinOperatorNode::executeAsync(void)
     if (inLeftNode->isBaseRelation()) {
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        // AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(
-        AbstractOperatorNode::pushSelections<1, uint64VecCc>(
+        AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
             this->selections, indexPairs, inRightNode, outNode);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        AbstractOperatorNode::pushSelections<0, uint64VecCc>(
+        AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
             this->selections, indexPairs, inLeftNode, outNode);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        // AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        AbstractOperatorNode::pushSelections<0, uint64VecCc>(
+        AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
             this->selections, indexPairs, inLeftNode, outNode);
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        // AbstractOperatorNode::pushSelections<1, vector<uint64Pair>>(
-        AbstractOperatorNode::pushSelections<1, uint64VecCc>(
+        AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
             this->selections, indexPairs, inRightNode, outNode);
     }
 
@@ -256,17 +256,36 @@ void JoinOperatorNode::executeAsync(void)
     Executor::notify();
 }
 //---------------------------------------------------------------------------
+template <typename T>
 void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &right,
                                     AbstractDataNode *leftNode, AbstractDataNode *rightNode,
-                                    vector<uint64Pair> &indexPairs)
+                                    T &indexPairs)
 {
     // Get sorted vector<{rowIndex, rowValue}> for left column.
     pair<bool, vector<uint64Pair>*> leftPairsOption;
     leftPairsOption = JoinOperatorNode::getValuesIndexedSorted(left, leftNode);
 
+    // Early exit if the left column has no values.
+    if (leftPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+
+        return;
+    }
+
     // Get sorted vector<{rowIndex, rowValue}> for right column.
     pair<bool, vector<uint64Pair>*> rightPairsOption;
     rightPairsOption = JoinOperatorNode::getValuesIndexedSorted(right, rightNode);
+
+    // Early exit if the right column has no values.
+    if (rightPairsOption.second->empty()) {
+        if (rightPairsOption.first) {
+            delete rightPairsOption.second;
+        }
+
+        return;
+    }
 
     // Keep the smaller column on the left.
     bool swapPairs = leftPairsOption.second->size() > rightPairsOption.second->size();
@@ -280,39 +299,78 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
     vector<uint64Pair>::const_iterator lt = leftPairs.begin();
     vector<uint64Pair>::const_iterator rt = rightPairs.begin();
 
-    // TODO: Rewrite this in a more cache friendly way. Loop left, then right.
-    //       Look at other branches for solution.
+    vector<uint64Pair>::const_iterator ltend = leftPairs.end();
+    vector<uint64Pair>::const_iterator rtend = rightPairs.end();
+
     __builtin_prefetch(&leftPairs[0], 0, 0);
     __builtin_prefetch(&rightPairs[0], 0, 0);
 
     if (!swapPairs) {
-        while (lt != leftPairs.end() && rt != rightPairs.end()) {
-            if ((*lt).second < (*rt).second) {
-                ++lt;
-            } else if ((*lt).second > (*rt).second) {
-                ++rt;
-            } else {
+        uint64_t left = lt->second;
+        uint64_t right = rt->second;
+
+        for ( ;; ) {
+            while (left < right && lt != ltend) {
+                left = (++lt)->second;
+            }
+            if (lt == ltend) {
+                break;
+            }
+
+            while (right < left && rt != rtend) {
+                right = (++rt)->second;
+            }
+            if (rt == rtend) {
+                break;
+            }
+
+            if (left == right) {
+                uint64_t leftIndex = lt->first;
                 vector<uint64Pair>::const_iterator tt;
-                for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
-                    indexPairs.emplace_back(lt->first, tt->first);
+                for (tt = rt; tt != rtend && left == tt->second; ++tt) {
+                    indexPairs.emplace_back(leftIndex, tt->first);
                 }
 
                 ++lt;
+                if (lt == ltend) {
+                    break;
+                } else {
+                    left = lt->second;
+                }
             }
         }
     } else {
-        while (lt != leftPairs.end() && rt != rightPairs.end()) {
-            if ((*lt).second < (*rt).second) {
-                ++lt;
-            } else if ((*lt).second > (*rt).second) {
-                ++rt;
-            } else {
+        uint64_t left = lt->second;
+        uint64_t right = rt->second;
+
+        for ( ;; ) {
+            while (left < right && lt != ltend) {
+                left = (++lt)->second;
+            }
+            if (lt == ltend) {
+                break;
+            }
+
+            while (right < left && rt != rtend) {
+                right = (++rt)->second;
+            }
+            if (rt == rtend) {
+                break;
+            }
+
+            if (left == right) {
+                uint64_t leftIndex = lt->first;
                 vector<uint64Pair>::const_iterator tt;
-                for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
-                    indexPairs.emplace_back(tt->first, lt->first);
+                for (tt = rt; tt != rtend && left == tt->second; ++tt) {
+                    indexPairs.emplace_back(tt->first, leftIndex);
                 }
 
                 ++lt;
+                if (lt == ltend) {
+                    break;
+                } else {
+                    left = lt->second;
+                }
             }
         }
     }
@@ -326,9 +384,10 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
     }
 }
 //---------------------------------------------------------------------------
+template <typename T>
 void JoinOperatorNode::hashJoinSeq(const SelectInfo &left, const SelectInfo &right,
                                    AbstractDataNode *leftNode, AbstractDataNode *rightNode,
-                                   vector<uint64Pair> &indexPairs)
+                                   T &indexPairs)
 {
     vector<uint64Pair> leftPairs, rightPairs;
 

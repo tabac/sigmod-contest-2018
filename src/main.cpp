@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+#include <tbb/tbb.h>
 #include "Planner.hpp"
 #include "Executor.hpp"
 #include "Relation.hpp"
@@ -29,6 +30,8 @@ int main(void)
     // engine.createSortedIndexes();
 
     // The test harness will send the first query after 1 second.
+
+    tbb::task_scheduler_init scheduler();
 
     vector<QueryInfo> queries;
     vector<ResultInfo> resultsInfo;
