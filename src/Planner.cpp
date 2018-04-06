@@ -514,6 +514,113 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
     Planner::addAggregate(plan, query, lastAttached);
 }
 //---------------------------------------------------------------------------
+/// Merges two filters on the same column
+static FilterInfo* mergeFilters(FilterInfo& a, FilterInfo& b){
+    FilterInfo* lowBound;
+    FilterInfo* upperBound;
+    if(a.constant <= b.constant ){
+        lowBound = &a;
+        upperBound = &b;
+    }else{
+        lowBound = &b;
+        upperBound = &a;
+    }
+
+    if(lowBound->comparison == FilterInfo::Comparison::Less){
+        if(upperBound->comparison == FilterInfo::Comparison::Less){
+            return lowBound;
+        }else{
+            return NULL;
+        }
+    }else if(lowBound->comparison == FilterInfo::Comparison::Greater){
+        if(upperBound->comparison == FilterInfo::Comparison::Less){
+            lowBound->frange = optional<uint64Pair>{{lowBound->constant,upperBound->constant}};
+            //cout << "HERE MOFO" << endl;
+            return lowBound;
+        }else{
+            return upperBound;
+        }
+    }else{
+        if(upperBound->comparison == FilterInfo::Comparison::Less ||
+                (upperBound->comparison == FilterInfo::Comparison::Equal && lowBound->constant == upperBound->constant)){
+            return lowBound;
+        }else {
+            return NULL;
+        }
+    }
+}
+//---------------------------------------------------------------------------
+// returns false if the query cannot be satisfied
+static bool mergeCommonFilters(Plan& plan, QueryInfo& q){
+#ifndef  NDEBUG
+    cout << "OLD FILTERS:" << endl;
+    for(vector<FilterInfo>::iterator ft = q.filters.begin();ft != q.filters.end(); ft++){
+        cout << ft->dumpText() << endl;
+    }
+#endif
+
+    unordered_map<pair<RelationId , unsigned >, vector<FilterInfo>> cfilters;
+    for(vector<FilterInfo>::iterator ft = q.filters.begin();ft != q.filters.end(); ft++){
+        pair<RelationId , unsigned > index = make_pair(ft->filterColumn.relId, ft->filterColumn.colId);
+        try {
+            cfilters.at(index).push_back(*ft);
+#ifndef NDEBUG
+            cout << "COMMON FILTER ON QUERY DETECTED" << endl;
+#endif
+        }
+        catch (const out_of_range &) {
+            vector<FilterInfo> newVec;
+            newVec.push_back(*ft);
+            cfilters[index] = newVec;
+        }
+    }
+    unordered_map<pair<RelationId , unsigned >, vector<FilterInfo>>::iterator fmiter;
+    for(fmiter=cfilters.begin(); fmiter!=cfilters.end(); fmiter++){
+        // if more than one filters on the same column exist in this query
+        if((fmiter->second).size() > 1){
+            // merge the filters by keeping the intersection of the requested ranges.
+            // Create a new FilterInfo with the new compound condition.
+            // Remove original filters from query
+            FilterInfo* updatedFilter = &(*(fmiter->second).begin());
+            //cout << "Beginner " << updatedFilter->dumpText() << endl;
+            for(vector<FilterInfo>::iterator cft = (fmiter->second).begin()+1; cft != (fmiter->second).end(); cft++){
+                //cout << "Compare with " << (*cft).dumpText() << endl;
+                updatedFilter = mergeFilters(*updatedFilter, *cft);
+                if(updatedFilter==NULL){
+                    if(!Utils::contains(plan.unsatisfiedQueries, q)) {
+                        plan.unsatisfiedQueries.push_back(q);
+                    }
+                    //cout << "Unsatisfied" << endl;
+                    return false;
+                }else{
+                    //cout << "Merged Filter" << endl;
+                }
+            }
+
+            for(vector<FilterInfo>::iterator ft = q.filters.begin();ft != q.filters.end();){
+                //cout << "COmpare " << (ft->filterColumn).dumpLabel() << " to " << (updatedFilter->filterColumn).dumpLabel() << endl;
+                if(ft->filterColumn == updatedFilter->filterColumn){
+                    ft = q.filters.erase(ft);
+                }else{
+                    ++ft;
+                }
+            }
+
+            q.filters.push_back(*updatedFilter);
+
+        }
+    }
+
+#ifndef NDEBUG
+    cout << "NEW FILTERS:" << endl;
+    for(vector<FilterInfo>::iterator ft = q.filters.begin();ft != q.filters.end(); ft++){
+       cout << ft->dumpText() << endl;
+    }
+#endif
+
+    return true;
+}
+//---------------------------------------------------------------------------
 vector<PredicateInfo> Planner::findCommonJoins(vector<QueryInfo> &batch)
 {
     CommonJoinCounter commonJoins;
@@ -567,32 +674,42 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     plan->nodes.push_back(root);
     plan->root = root;
 
-    plan->commonJoins = Planner::findCommonJoins(queries);
+    //plan->commonJoins = Planner::findCommonJoins(queries);
 
     // first add shared joins
     OriginTracker lastAttached;
     vector<QueryInfo>::iterator it;
     for(it = queries.begin(); it != queries.end(); ++it) {
+        if(!mergeCommonFilters(*plan, *it)){
+            // TODO: put something to exit nodes maybe
+            //cout << "Skip Query" << endl;
+            DataNode *dataNode =  new DataNode();
+            dataNode->columnsInfo = (*it).selections;
+            //dataNode->columnsInfo.reserve((*it).selections.size());
+            //cout << "Dummy exit node size = " << dataNode->columnsInfo.size()<< endl;
+            plan->exitNodes.push_back(dataNode);
+            continue;
+        }
         connectQueryBaseRelations(*plan, *it, lastAttached);
 
-        if(!(plan->commonJoins).empty())
-        {
-            // check if this query contains one of the shared joins and push it first
-            for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
-                if (*pt == (plan->commonJoins).back()) {
-                    //cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
-                    Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
-                }
-            }
-        }
-//        Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
-//        setQuerySelections(*plan, *it);
-    }
-
-
-    for(it = queries.begin(); it != queries.end(); ++it) {
+//        if(!(plan->commonJoins).empty())
+//        {
+//            // check if this query contains one of the shared joins and push it first
+//            for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
+//                if (*pt == (plan->commonJoins).back()) {
+//                    //cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
+//                    Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
+//                }
+//            }
+//        }
         Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
+        setQuerySelections(*plan, *it);
     }
+
+
+//    for(it = queries.begin(); it != queries.end(); ++it) {
+//        Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
+//    }
 
 
 #ifndef NDEBUG
@@ -606,9 +723,9 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
     printPlan(plan);
 #endif
 
-    for(it = queries.begin(); it != queries.end(); ++it) {
-        setQuerySelections(*plan, *it);
-    }
+//    for(it = queries.begin(); it != queries.end(); ++it) {
+//        setQuerySelections(*plan, *it);
+//    }
 
     return plan;
 }

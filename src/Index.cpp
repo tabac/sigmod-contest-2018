@@ -134,6 +134,10 @@ uint64Pair SortedIndex::estimateIndexes(const FilterInfo *filterInfo)
 {
     uint64Pair range;
 
+    if((filterInfo->frange).has_value()){
+        return (filterInfo->frange).value();
+    }
+
     if (filterInfo->comparison == FilterInfo::Comparison::Less){
         range = {0, this->findElement(filterInfo->constant)};
     } else if (filterInfo->comparison == FilterInfo::Comparison::Greater){

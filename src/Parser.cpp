@@ -264,7 +264,14 @@ string SelectInfo::dumpLabel() const
 string FilterInfo::dumpText()
 // Dump text format
 {
-    return filterColumn.dumpText()+static_cast<char>(comparison)+to_string(constant);
+    if(frange.has_value()){
+        uint64Pair v = frange.value();
+
+        return filterColumn.dumpText() + static_cast<char>(Comparison::Greater) + to_string(v.first) +" and "+
+                static_cast<char>(Comparison::Less) + to_string(v.second);
+    }else {
+        return filterColumn.dumpText() + static_cast<char>(comparison) + to_string(constant);
+    }
 }
 //---------------------------------------------------------------------------
 string FilterInfo::dumpLabel() const
@@ -474,6 +481,10 @@ bool PredicateInfo::operator==(const PredicateInfo& o) const {
     }
 
     return false;
+}
+//---------------------------------------------------------------------------
+bool QueryInfo::operator==(const QueryInfo& o) const {
+    return this->queryId == o.queryId;
 }
 //---------------------------------------------------------------------------
 

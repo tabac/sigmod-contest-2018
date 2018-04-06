@@ -405,6 +405,8 @@ class Plan {
     /// All the exit nodes of the plan(s).
     std::vector<DataNode *> exitNodes;
 
+    std::vector<QueryInfo> unsatisfiedQueries;
+
     std::vector<PredicateInfo> commonJoins;
     std::unordered_map<PredicateInfo, SharedJoinOperatorNode *> sharedJoins;
 

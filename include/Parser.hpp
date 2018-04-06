@@ -44,7 +44,7 @@ struct FilterInfo {
     /// Comparison type
     Comparison comparison;
     /// range for compound condition -- [a, b)
-    //optional<uint64Pair> frange;
+    std::optional<uint64Pair> frange = std::nullopt;
     /// Dump SQL
     std::string dumpSQL();
 
@@ -54,6 +54,8 @@ struct FilterInfo {
     std::string dumpText();
     /// Dump label graph in text format
     std::string dumpLabel() const;
+
+    FilterInfo(const FilterInfo& o) : filterColumn(o.filterColumn), constant(o.constant), comparison(o.comparison), frange(o.frange) {}
 
     /// Returns the indices of `valIter` that satisfy `this` condition.
     void getFilteredIndices(const IteratorPair &valIter,
@@ -130,7 +132,7 @@ class QueryInfo {
 
     void getSelectionsMap(std::unordered_map<SelectInfo, unsigned> &selectionsMap) const;
 
-
+    bool operator==(const QueryInfo& o) const;
     /// The empty constructor
     QueryInfo() {}
     QueryInfo(unsigned queryId) : queryId(queryId) { }
