@@ -222,6 +222,9 @@ void JoinOperatorNode::executeAsync(void)
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
     */
 
+    // Update sorted selections.
+    updateSelectionsSorted();
+
     // Set out DataNode size.
     outNode->size = indexPairs.size();
 
@@ -565,7 +568,10 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
 
             JoinOperatorNode::getValuesIndexed(selection, inNode, *pairs);
 
-            if (!pairs->empty()) {
+            bool selectionSorted = JoinOperatorNode::isSelectionSorted(
+                selection, inNode);
+
+            if (!pairs->empty() && !selectionSorted) {
                 // Sort by `rowValue`.
                 tbb::parallel_sort(pairs->begin(), pairs->end(),
                      [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
@@ -592,6 +598,38 @@ void JoinOperatorNode::getValuesIndexed(const SelectInfo &selection,
         // Get pairs of the form `{rowIndex, rowValue}`.
         getValuesIndexedParallel(valIter, pairs);
     }
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::updateSelectionsSorted(void)
+{
+    vector<SelectInfo>::iterator it;
+    for (it = this->selections.begin(); it != this->selections.end(); ++it) {
+        if ((*it) == this->info.left) {
+            it->sorted = true;
+            break;
+        }
+    }
+    for (it = this->selections.begin(); it != this->selections.end(); ++it) {
+        if ((*it) == this->info.right) {
+            it->sorted = true;
+            break;
+        }
+    }
+}
+//---------------------------------------------------------------------------
+bool JoinOperatorNode::isSelectionSorted(const SelectInfo &selection,
+                                         const AbstractDataNode *inNode)
+{
+    vector<SelectInfo>::const_iterator it;
+    for (it = inNode->columnsInfo.begin(); it != inNode->columnsInfo.end(); ++it) {
+        if (selection == (*it)) {
+            return it->sorted;
+        }
+    }
+
+    assert(false);
+
+    return false;
 }
 //---------------------------------------------------------------------------
 void FilterOperatorNode::execute(vector<thread> &threads)

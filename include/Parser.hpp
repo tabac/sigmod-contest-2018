@@ -14,8 +14,12 @@ struct SelectInfo {
     unsigned binding;
     /// Column id
     unsigned colId;
+    /// Column values sorted.
+    bool sorted;
     /// The constructor
-    SelectInfo(RelationId relId,unsigned b,unsigned colId) : relId(relId), binding(b), colId(colId){};
+    SelectInfo(RelationId relId,unsigned b,unsigned colId, bool sorted = false) :
+        relId(relId), binding(b), colId(colId), sorted(sorted) { }
+
     /// Equality operator
     bool operator==(const SelectInfo& o) const;
     /// Dump text format

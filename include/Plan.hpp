@@ -203,6 +203,13 @@ class JoinOperatorNode : public AbstractOperatorNode {
                                  AbstractDataNode *inNode,
                                  std::vector<uint64Pair> &pairs);
 
+    /// Updates `this->selections` sets the predicate's
+    /// selections to `sorted == true`.
+    void updateSelectionsSorted(void);
+
+    static bool isSelectionSorted(const SelectInfo &selection,
+                                  const AbstractDataNode *inNode);
+
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding || this->info.right.binding == binding;
     }
