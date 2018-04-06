@@ -281,6 +281,9 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
 
     // Early exit if the right column has no values.
     if (rightPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
         if (rightPairsOption.first) {
             delete rightPairsOption.second;
         }
@@ -309,21 +312,22 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
     if (!swapPairs) {
         uint64_t left = lt->second;
         uint64_t right = rt->second;
-
         for ( ;; ) {
-            while (left < right && lt != ltend) {
-                left = (++lt)->second;
+            while (lt != ltend && lt->second < right) {
+                ++lt;
             }
             if (lt == ltend) {
                 break;
             }
+            left = lt->second;
 
-            while (right < left && rt != rtend) {
-                right = (++rt)->second;
+            while (rt != rtend && rt->second < left) {
+                ++rt;
             }
             if (rt == rtend) {
                 break;
             }
+            right = rt->second;
 
             if (left == right) {
                 uint64_t leftIndex = lt->first;
@@ -333,11 +337,6 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
                 }
 
                 ++lt;
-                if (lt == ltend) {
-                    break;
-                } else {
-                    left = lt->second;
-                }
             }
         }
     } else {
@@ -345,19 +344,21 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
         uint64_t right = rt->second;
 
         for ( ;; ) {
-            while (left < right && lt != ltend) {
-                left = (++lt)->second;
+            while (lt != ltend && lt->second < right) {
+                ++lt;
             }
             if (lt == ltend) {
                 break;
             }
+            left = lt->second;
 
-            while (right < left && rt != rtend) {
-                right = (++rt)->second;
+            while (rt != rtend && rt->second < left) {
+                ++rt;
             }
             if (rt == rtend) {
                 break;
             }
+            right = rt->second;
 
             if (left == right) {
                 uint64_t leftIndex = lt->first;
@@ -367,11 +368,6 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
                 }
 
                 ++lt;
-                if (lt == ltend) {
-                    break;
-                } else {
-                    left = lt->second;
-                }
             }
         }
     }
