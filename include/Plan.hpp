@@ -171,63 +171,10 @@ class AbstractOperatorNode : public AbstractNode {
     ~AbstractOperatorNode() { }
 };
 ////---------------------------------------------------------------------------
-//class JoinOperatorNode : public AbstractOperatorNode {
-//public:
-//    /// Reference to the corresponding `PredicateInfo` instance.
-//    PredicateInfo &info;
-//
-//    /// Joins the two input `DataNode` instances.
-//    void execute(std::vector<std::thread> &threads);
-//
-//    void executeAsync(void);
-//
-//    /// Performs merge join between `leftPairs` and `rightPairs`.
-//    static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
-//                          const std::vector<uint64Pair> &rightPairs,
-//                          std::vector<uint64Pair> &indexPairs);
-//
-//    /// Returns a tuple with a boolean and pairs of the form
-//    /// `{rowIndex, rowValue}` sorted by value. The boolean
-//    /// indicates whether the memory has to be freed or not.
-//    static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
-//            SelectInfo &selection, AbstractDataNode* inNode);
-//
-//    bool hasBinding(const unsigned binding) const {
-//        return this->info.left.binding == binding || this->info.right.binding == binding;
-//    }
-//
-//    bool hasSelection(const SelectInfo &selection) const {
-//        return this->info.left == selection || this->info.right == selection;
-//    }
-//
-//    JoinOperatorNode(PredicateInfo &info) : info(info) {}
-//
-////    /// Constructor.
-////    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
-////            AbstractOperatorNode(queryId), info(info) { }
-////    /// Disable copy constructor.
-////    JoinOperatorNode(const JoinOperatorNode&)=delete;
-////    /// Destructor.
-//    ~JoinOperatorNode() { }
-//};
-////---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
-    public:
+public:
     /// Reference to the corresponding `PredicateInfo` instance.
-
-    /// Since the same join operator can be shared among different queries, we have to preserve a list
-    /// with all the specified bindings for its predicates
-
-    PredicateInfo& info;
-
-    /// All these `SelectInfo` objects should have the same (relationID, colID) with either `info.left`
-    /// or `info.right`. What differs is only the binding as the same join may be expressed with different
-    /// bindings depending on the query.
-    //TODO: add set for more efficient lookup?
-    //std::vector<SelectInfo> boundSelections;
-
+    PredicateInfo &info;
 
     /// Joins the two input `DataNode` instances.
     void execute(std::vector<std::thread> &threads);
@@ -243,8 +190,29 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// `{rowIndex, rowValue}` sorted by value. The boolean
     /// indicates whether the memory has to be freed or not.
     static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
-        SelectInfo &selection, AbstractDataNode* inNode);
+            SelectInfo &selection, AbstractDataNode* inNode);
 
+    bool hasBinding(const unsigned binding) const {
+        return this->info.left.binding == binding || this->info.right.binding == binding;
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return this->info.left == selection || this->info.right == selection;
+    }
+
+    JoinOperatorNode(PredicateInfo &info) : info(info) {}
+
+//    /// Constructor.
+//    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+//            AbstractOperatorNode(queryId), info(info) { }
+//    /// Disable copy constructor.
+//    JoinOperatorNode(const JoinOperatorNode&)=delete;
+//    /// Destructor.
+    ~JoinOperatorNode() { }
+};
+//---------------------------------------------------------------------------
+class SharedJoinOperatorNode : public JoinOperatorNode {
+    public:
 
     void updateBindings(PredicateInfo& p){
 
@@ -328,7 +296,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
     }
 
 
-    JoinOperatorNode(PredicateInfo &info) : info(info) {}
+    SharedJoinOperatorNode(PredicateInfo &info) : JoinOperatorNode(info) {}
 
 
 //=======
@@ -339,7 +307,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
 //    JoinOperatorNode(const JoinOperatorNode&)=delete;
 //    /// Destructor.
 //>>>>>>> devel
-    ~JoinOperatorNode() { }
+    ~SharedJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
 class FilterOperatorNode : public AbstractOperatorNode {
@@ -438,7 +406,7 @@ class Plan {
     std::vector<DataNode *> exitNodes;
 
     std::vector<PredicateInfo> commonJoins;
-    std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
+    std::unordered_map<PredicateInfo, SharedJoinOperatorNode *> sharedJoins;
 
     ~Plan();
 };

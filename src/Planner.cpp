@@ -9,7 +9,7 @@
 #include "Relation.hpp"
 #include "Utils.hpp"
 
-#define FILTER_SELECT_THRES 0.8
+#define FILTER_SELECT_THRES 0.5
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -377,7 +377,7 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
 void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
 
-    JoinOperatorNode* joinNode;
+    SharedJoinOperatorNode* joinNode;
     DataNode *dataNode;
 
     OTKey leftPair = {predicate.left.relId, predicate.left.binding,query.queryId};
@@ -392,7 +392,7 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         dataNode = (DataNode*) joinNode->outAdjList[0];
     }
     catch (const out_of_range &) {
-        joinNode = new JoinOperatorNode(predicate);
+        joinNode = new SharedJoinOperatorNode(predicate);
         (joinNode->sharedQueries).push_back(query.queryId);
         dataNode = new DataNode();
 
@@ -522,6 +522,17 @@ vector<PredicateInfo> Planner::findCommonJoins(vector<QueryInfo> &batch)
         for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
             // if it is a pure join and not a filter join
             if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
+                // check if there is a filter on the left or right relation
+                bool skip = false;
+                for(vector<FilterInfo>::iterator ft = (*it).filters.begin();ft != (*it).filters.end(); ft++){
+                    if(ft->filterColumn == (*pt).left || ft->filterColumn == (*pt).right){
+                        // join is filtered and should not be considered as joined
+                        skip = true;
+                    }
+                }
+
+                if(skip) continue;
+
                 try {
                     commonJoins.at(*pt) += 1;
                 }
