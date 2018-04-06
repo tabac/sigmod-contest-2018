@@ -45,6 +45,8 @@ struct FilterInfo {
     uint64_t constant;
     /// Comparison type
     Comparison comparison;
+    /// range for compound condition -- [a, b)
+    //optional<uint64Pair> frange;
     /// Dump SQL
     std::string dumpSQL();
 

@@ -66,7 +66,7 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                    if (o->queryId == (short) query.queryId) {
+                    if (o->queryId == query.queryId) {
                         q.push(o);
                     }
                 }
@@ -90,7 +90,7 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                     vector<AbstractNode *>::iterator jt;
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                        if (o->queryId == (short) query.queryId){
+                        if (o->queryId == query.queryId){
                             q.push(o);
                         }
                      }
@@ -100,7 +100,16 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                 while (!q.empty()) {
                     AbstractOperatorNode *cur = q.front();
                     q.pop();
-                    cur->selections.emplace_back(selection);
+                    if (!cur->outAdjList[0]->outAdjList.empty()) {
+
+                        if (cur->hasSelection(selection)) {
+                            --count;
+                        }
+
+                        if (count != 0) {
+                            cur->selections.emplace_back(selection);
+                        }
+                    }
                 }
             }
         }
@@ -168,10 +177,12 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
             //cout << "TRYING TO ADD SELECTION "<< (it->first).dumpLabel() << " to Q"<<query.queryId << " in operator "<<(*o).label<<endl;
 
-            if ((o->queryId == (short) query.queryId || Utils::contains(o->sharedQueries, query.queryId))
-                && o->hasBinding(it->first.binding)) {
+            //if ((o->queryId == query.queryId && o->hasBinding(it->first.binding))) { //|| Utils::contains(o->sharedQueries, query.queryId))
+
+            if ((o->queryId == query.queryId || Utils::contains(o->sharedQueries, query.queryId)) && o->hasBinding(it->first.binding)){
 
                 unsigned count;
+                //count = propagateSelection(query, o, it->first, it->second);
                if(o->sharedQueries.empty()){
                     count = propagateSelection(query, o, it->first, it->second);
                 }else{
@@ -499,6 +510,7 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
+    //Planner::addJoins(plan, query, lastAttached);
     Planner::addAggregate(plan, query, lastAttached);
 }
 //---------------------------------------------------------------------------
@@ -562,6 +574,8 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
                 }
             }
         }
+//        Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
+//        setQuerySelections(*plan, *it);
     }
 
 
