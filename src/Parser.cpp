@@ -412,6 +412,57 @@ void QueryInfo::getSelectionsMap(unordered_map<SelectInfo, unsigned> &selections
     }
 }
 //---------------------------------------------------------------------------
+void QueryInfo::sortPredicatesByCount(void)
+{
+    uint64Pair pair;
+    unsigned aCount, bCount;
+    unordered_map<uint64Pair, unsigned> relationsMap;
+
+    vector<PredicateInfo>::const_iterator pt;
+    for (pt = this->predicates.begin(); pt != this->predicates.end(); ++pt) {
+        pair.first = pt->left.relId;
+        pair.second = pt->left.binding;
+
+        relationsMap[pair] += 1;
+
+        pair.first = pt->right.relId;
+        pair.second = pt->right.binding;
+
+        relationsMap[pair] += 1;
+    }
+
+    vector<SelectInfo>::const_iterator st;
+    for (st = this->selections.begin(); st != this->selections.end(); ++st) {
+        pair.first = st->relId;
+        pair.second = st->binding;
+
+        relationsMap[pair] += 1;
+    }
+
+    sort(this->predicates.begin(), this->predicates.end(),
+         [&] (const PredicateInfo &a, const PredicateInfo &b) {
+            pair.first = a.left.relId;
+            pair.second = a.left.binding;
+            aCount = relationsMap[pair];
+
+            pair.first = a.right.relId;
+            pair.second = a.right.binding;
+            aCount += relationsMap[pair];
+
+            pair.first = b.left.relId;
+            pair.second = b.left.binding;
+            bCount = relationsMap[pair];
+
+            pair.first = b.right.relId;
+            pair.second = b.right.binding;
+            bCount += relationsMap[pair];
+
+            return aCount < bCount;
+         }
+    );
+
+}
+//---------------------------------------------------------------------------
 QueryInfo::QueryInfo(string rawQuery) { parseQuery(rawQuery); }
 //---------------------------------------------------------------------------
 bool SelectInfo::operator==(const SelectInfo& o) const {

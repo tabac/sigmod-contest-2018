@@ -132,6 +132,10 @@ void Planner::addFilters(Plan &plan, QueryInfo& query,
 void Planner::addJoins(Plan& plan, QueryInfo& query,
                        unordered_map<unsignedPair, AbstractNode *> &lastAttached)
 {
+    if (PREDICATES_SORTED_BY_COUNT) {
+        query.sortPredicatesByCount();
+    }
+
     vector<PredicateInfo>::iterator pt, qt;
     for(pt = query.predicates.begin(); pt != query.predicates.end(); ++pt) {
         // Check if the symmetric predicate is already added.
@@ -155,7 +159,8 @@ void Planner::addJoins(Plan& plan, QueryInfo& query,
                 unsignedPair rightPair = {(*pt).right.relId,
                                           (*pt).right.binding};
 
-                if (lastAttached[leftPair] == lastAttached[rightPair]) {
+                if ((lastAttached[leftPair] == lastAttached[rightPair]) &&
+                    (!lastAttached[leftPair]->isBaseRelation())) {
                     Planner::addFilterJoin(plan, (*pt), query, lastAttached);
                 } else {
                     // If predicate refers to different tables
@@ -213,6 +218,7 @@ void Planner::addFilterJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
     AbstractNode::connectNodes(joinNode, dataNode);
 
     Planner::updateAttached(lastAttached, leftPair, dataNode);
+    Planner::updateAttached(lastAttached, rightPair, dataNode);
 
     plan.nodes.push_back((AbstractNode *) joinNode);
     plan.nodes.push_back((AbstractNode *) dataNode);

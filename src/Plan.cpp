@@ -212,19 +212,19 @@ void JoinOperatorNode::executeAsync(void)
     joinPairsContainer indexPairs;
 
 
-    /*
     JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
+    /*
     JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
     JoinOperatorNode::hashJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
-    */
 
     JoinOperatorNode::mergeJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+    */
 
     if (CHECK_SORTED_SELECTIONS) {
         // Update sorted selections.
@@ -238,20 +238,24 @@ void JoinOperatorNode::executeAsync(void)
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
         AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
-            this->selections, indexPairs, inRightNode, outNode);
+            this->selections, indexPairs, inRightNode, outNode,
+            this->info.right.binding);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
         AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
-            this->selections, indexPairs, inLeftNode, outNode);
+            this->selections, indexPairs, inLeftNode, outNode,
+            this->info.left.binding);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
         AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
-            this->selections, indexPairs, inLeftNode, outNode);
+            this->selections, indexPairs, inLeftNode, outNode,
+            this->info.left.binding);
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
         AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
-            this->selections, indexPairs, inRightNode, outNode);
+            this->selections, indexPairs, inRightNode, outNode,
+            this->info.right.binding);
     }
 
     // TODO: This is because sometimes the selections have duplicates.
@@ -569,7 +573,8 @@ template <size_t I, typename T>
 void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
                                           const T &indices,
                                           AbstractDataNode *inNode,
-                                          DataNode *outNode)
+                                          DataNode *outNode,
+                                          unsigned binding)
 {
     {
         // Should pass on at least one column.
@@ -578,6 +583,8 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         // Should be called for allocated objects.
         assert(inNode != NULL && outNode != NULL);
     }
+
+    bool inNodeIsRelation = inNode->isBaseRelation();
 
     outNode->columnsInfo.reserve(selections.size());
     outNode->dataValues.resize(selections.size() * indices.size());
@@ -591,6 +598,11 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
             continue;
         }
 
+        // Skip column if `inNode` is a `Relation` and the selection's
+        // binding does not match `binding.
+        if (inNodeIsRelation && it->binding != binding) {
+            continue;
+        }
         optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
         if (!option) {
             // Skip column if not in `inNode->columnsInfo`.
@@ -791,7 +803,8 @@ void FilterOperatorNode::executeAsync(void)
     outNode->size = indices.size();
 
     AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        this->selections, indices, inNode, outNode);
+        this->selections, indices, inNode, outNode,
+        this->info.filterColumn.binding);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -871,7 +884,7 @@ void FilterJoinOperatorNode::executeAsync(void)
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
     AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
-        this->selections, indices, inNode, outNode);
+        this->selections, indices, inNode, outNode, this->info.left.binding);
 
     // Set status to processed.
     this->setStatus(processed);
