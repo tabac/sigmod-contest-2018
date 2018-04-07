@@ -172,6 +172,13 @@ class JoinOperatorNode : public AbstractOperatorNode {
                              AbstractDataNode *leftNode, AbstractDataNode *rightNode,
                              T &indexPairs);
 
+    /// Performs sort-merge join between `leftPairs` and `rightPairs`.
+    /// Does so in parallel using a `tbb::concurrent_vector`.
+    template <typename T>
+    static void mergeJoinPar(const SelectInfo &left, const SelectInfo &right,
+                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                             T &indexPairs);
+
     /// Performs hash join between `leftPairs` and `rightPairs`.
     template <typename T>
     static void hashJoinSeq(const SelectInfo &left, const SelectInfo &right,

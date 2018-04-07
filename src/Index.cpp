@@ -23,6 +23,7 @@ void SortedIndex::buildIndex(void)
 
         this->values.reserve(this->idValuePairs.size());
 
+        // TODO: This in parallel too...
         vector<uint64Pair>::iterator jt;
         for (jt = this->idValuePairs.begin(); jt != this->idValuePairs.end(); ++jt) {
             this->values.emplace_back(jt->second);

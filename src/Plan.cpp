@@ -15,8 +15,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-// using joinPairsContainer = uint64VecCc;
-using joinPairsContainer = vector<uint64Pair>;
+using joinPairsContainer = uint64VecCc;
+// using joinPairsContainer = vector<uint64Pair>;
 //---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
@@ -211,10 +211,11 @@ void JoinOperatorNode::executeAsync(void)
     // {vector<leftIndices>, vector<rightIndex>}.
     joinPairsContainer indexPairs;
 
+
+    /*
     JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
-    /*
     JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
@@ -222,8 +223,13 @@ void JoinOperatorNode::executeAsync(void)
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
     */
 
-    // Update sorted selections.
-    updateSelectionsSorted();
+    JoinOperatorNode::mergeJoinPar<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    if (CHECK_SORTED_SELECTIONS) {
+        // Update sorted selections.
+        updateSelectionsSorted();
+    }
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
@@ -373,6 +379,72 @@ void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &ri
                 ++lt;
             }
         }
+    }
+
+    // Free pairs memory if it's owned by them (not an index).
+    if (leftPairsOption.first) {
+        delete leftPairsOption.second;
+    }
+    if (rightPairsOption.first) {
+        delete rightPairsOption.second;
+    }
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void JoinOperatorNode::mergeJoinPar(const SelectInfo &left, const SelectInfo &right,
+                                    AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                    T &indexPairs)
+{
+    // Get sorted vector<{rowIndex, rowValue}> for left column.
+    pair<bool, vector<uint64Pair>*> leftPairsOption;
+    leftPairsOption = JoinOperatorNode::getValuesIndexedSorted(left, leftNode);
+
+    // Early exit if the left column has no values.
+    if (leftPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Get sorted vector<{rowIndex, rowValue}> for right column.
+    pair<bool, vector<uint64Pair>*> rightPairsOption;
+    rightPairsOption = JoinOperatorNode::getValuesIndexedSorted(right, rightNode);
+
+    // Early exit if the right column has no values.
+    if (rightPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+        if (rightPairsOption.first) {
+            delete rightPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Keep the smaller column on the right.
+    bool swapPairs = leftPairsOption.second->size() < rightPairsOption.second->size();
+    if (swapPairs) {
+        swap(leftPairsOption, rightPairsOption);
+    }
+
+    vector<uint64Pair> &leftPairs = *leftPairsOption.second;
+    vector<uint64Pair> &rightPairs = *rightPairsOption.second;
+
+    if (swapPairs) {
+        ParallelMerge<true> m(&leftPairs[0], &rightPairs[0],
+                              rightPairs.size(), indexPairs);
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+    } else {
+        ParallelMerge<false> m(&leftPairs[0], &rightPairs[0],
+                               rightPairs.size(), indexPairs);
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
     }
 
     // Free pairs memory if it's owned by them (not an index).
@@ -568,8 +640,11 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
 
             JoinOperatorNode::getValuesIndexed(selection, inNode, *pairs);
 
-            bool selectionSorted = JoinOperatorNode::isSelectionSorted(
-                selection, inNode);
+            bool selectionSorted = false;
+            if (CHECK_SORTED_SELECTIONS) {
+                selectionSorted = JoinOperatorNode::isSelectionSorted(
+                    selection, inNode);
+            }
 
             if (!pairs->empty() && !selectionSorted) {
                 // Sort by `rowValue`.
