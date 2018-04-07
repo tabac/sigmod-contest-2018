@@ -3,14 +3,18 @@
 #include <vector>
 #include <cstdint>
 #include <optional>
-#include <tuple>
 #include <condition_variable>
+#include <experimental/optional>
+#include <tbb/tbb.h>
 //---------------------------------------------------------------------------
 struct FilterInfo;
 struct SelectInfo;
 //---------------------------------------------------------------------------
 #define DEBUG(x) do { std::cerr << x ; } while (0)
 #define DEBUGLN(x) do { std::cerr << x << std::endl; } while (0)
+//---------------------------------------------------------------------------
+#define optional std::experimental::optional
+#define nullopt  std::experimental::nullopt
 //---------------------------------------------------------------------------
 using RelationId = unsigned;
 //---------------------------------------------------------------------------
@@ -20,14 +24,21 @@ using unsignedPair = std::pair<unsigned, unsigned>;
 //---------------------------------------------------------------------------
 using SyncPair = std::pair<std::mutex, std::condition_variable>;
 //---------------------------------------------------------------------------
+using uint64VecCc = tbb::concurrent_vector<uint64Pair>;
+//---------------------------------------------------------------------------
+using uint64VecMapCc = tbb::concurrent_unordered_map<uint64_t, tbb::concurrent_vector<uint64_t>>;
+//---------------------------------------------------------------------------
 using IteratorPair = std::pair<std::vector<uint64_t>::const_iterator,
                                std::vector<uint64_t>::const_iterator>;
 //---------------------------------------------------------------------------
 using IteratorDoublePair = std::pair<std::vector<uint64Pair>::const_iterator,
                                      std::vector<uint64Pair>::const_iterator>;
 //---------------------------------------------------------------------------
-const bool INDEXES_ON = true;
-const bool INDEXES_CREATE_ON_MERGE = true;
+static const bool INDEXES_ON = true;
+static const bool INDEXES_CREATE_ON_MERGE = true;
+static const bool CHECK_SORTED_SELECTIONS = false;
+static const size_t PAIRS_GRAIN_SIZE = 256;
+static const size_t SINGLES_GRAIN_SIZE = 512;
 //---------------------------------------------------------------------------
 class DataReaderMixin {
     // TODO: Would be nice not to pass `filterInfo` and then ignore it...
@@ -40,8 +51,8 @@ class DataReaderMixin {
     /// In the first two cases `filterInfo` is ignored, in the
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of ids.
-    virtual std::optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
-                                                       const FilterInfo* filterInfo) = 0;
+    virtual optional<IteratorPair> getIdsIterator(const SelectInfo& selectInfo,
+                                                  const FilterInfo* filterInfo) = 0;
 
     /// Should be implemented by any class intended as a data storer
     /// and return the values of the column specified by `selectInfo
@@ -51,8 +62,8 @@ class DataReaderMixin {
     /// In the first two cases `filterInfo` is ignored, in the
     /// later the `index` should use `filterInfo` to narrow down the
     /// return range of values.
-    virtual std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                          const FilterInfo* filterInfo) = 0;
+    virtual optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+                                                     const FilterInfo* filterInfo) = 0;
 
     virtual ~DataReaderMixin() { }
 };

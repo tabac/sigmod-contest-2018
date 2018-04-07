@@ -1,13 +1,12 @@
 #pragma once
-
 #include <iostream>
 #include <future>
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
 #include <cassert>
-#include <optional>
 #include <string>
+#include <experimental/optional>
 #include "Mixins.hpp"
 #include "Parser.hpp"
 #include "Index.hpp"
@@ -17,7 +16,7 @@ enum NodeStatus { fresh, processing, processed };
 class ResultInfo {
     public:
     /// Query results.
-    std::vector<std::optional<uint64_t>> results;
+    std::vector<optional<uint64_t>> results;
 
     ResultInfo(std::vector<uint64_t> results, unsigned size);
     /// Prints the `results` vector to stdout.
@@ -102,13 +101,13 @@ class DataNode : public AbstractDataNode {
 
     /// Returns `nullopt` for a `DataNode`. The ids are the indices
     /// in the case of a column.
-    std::optional<IteratorPair> getIdsIterator(const SelectInfo&,
-                                               const FilterInfo* filterInfo);
+    optional<IteratorPair> getIdsIterator(const SelectInfo&,
+                                          const FilterInfo* filterInfo);
     /// Returns an `IteratorPair` over all the `DataNode`'s values
     /// of the column specified by `selectInfo`.
     /// Ignores `filterInfo`, requires it being `NULL`.
-    std::optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
-                                                  const FilterInfo* filterInfo);
+    optional<IteratorPair> getValuesIterator(const SelectInfo& selectInfo,
+                                             const FilterInfo* filterInfo);
 
     /// Returns the size, that is the number of tuples.
     uint64_t getSize() const { return this->size; }
@@ -135,26 +134,21 @@ class AbstractOperatorNode : public AbstractNode {
     /// Frees any resources allocated by the node.
     void freeResources() { this->selections.clear(); }
 
-    /// Pushes to `pairs`, pairs of the form `{rowIndex, rowValue}`
-    /// for the values in `values`.
-    static void getValuesIndexed(const IteratorPair &values,
-                                 std::vector<uint64Pair> &pairs);
-
     /// Pushes from `inNode.dataValues` to `outNodes.dataValues` the
     /// values specified by `indices` for the specified columns
     /// in `selections`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushSelections(const std::vector<SelectInfo> &selections,
-                               const std::vector<uint64Pair> &indices,
+                               const T &indices,
                                AbstractDataNode *inNode,
                                DataNode *outNode);
 
     /// Pushes the values specifies by `indices` of the `valIter`
     /// iterator to `outValues`.
-    template <size_t I>
+    template <size_t I, typename T>
     static void pushValuesByIndex(const IteratorPair &valIter,
-                                  const std::vector<uint64Pair> &indices,
-                                  std::vector<uint64_t> &outValues);
+                                  const T &indices,
+                                  DataNode *outNode);
 
     virtual bool hasBinding(const unsigned binding) const = 0;
 
@@ -162,12 +156,6 @@ class AbstractOperatorNode : public AbstractNode {
 
     bool isBaseRelation() const { return false; }
 
-//<<<<<<< HEAD
-    AbstractOperatorNode() { };
-//=======
-    //AbstractOperatorNode(const unsigned queryId) : queryId(queryId) { }
-//
-//>>>>>>> devel
     ~AbstractOperatorNode() { }
 };
 ////---------------------------------------------------------------------------
@@ -181,16 +169,56 @@ public:
 
     void executeAsync(void);
 
-    /// Performs merge join between `leftPairs` and `rightPairs`.
-    static void mergeJoin(const std::vector<uint64Pair> &leftPairs,
-                          const std::vector<uint64Pair> &rightPairs,
-                          std::vector<uint64Pair> &indexPairs);
+    /// Performs sort-merge join between `leftPairs` and `rightPairs`.
+    template <typename T>
+    static void mergeJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                             T &indexPairs);
+
+    /// Performs sort-merge join between `leftPairs` and `rightPairs`.
+    /// Does so in parallel using a `tbb::concurrent_vector`.
+    template <typename T>
+    static void mergeJoinPar(const SelectInfo &left, const SelectInfo &right,
+                             AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                             T &indexPairs);
+
+    /// Performs hash join between `leftPairs` and `rightPairs`.
+    template <typename T>
+    static void hashJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                            AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                            T &indexPairs);
+
+    /// Performs hash join between `leftPairs` and `rightPairs` (in parallel).
+    template <typename T>
+    static void hashJoinPar(const SelectInfo &left, const SelectInfo &right,
+                            AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                            T &indexPairs);
+
+    static void hashJoinBuildPar(const std::vector<uint64Pair> &pairs,
+                                 uint64VecMapCc &map);
+
+    template <bool B, typename T>
+    static void hashJoinProbePar(const std::vector<uint64Pair> &pairs,
+                                 const uint64VecMapCc &map,
+                                 T &indexPairs);
 
     /// Returns a tuple with a boolean and pairs of the form
     /// `{rowIndex, rowValue}` sorted by value. The boolean
     /// indicates whether the memory has to be freed or not.
     static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
-            SelectInfo &selection, AbstractDataNode* inNode);
+        const SelectInfo &selection, AbstractDataNode* inNode);
+
+    /// Populates `pairs` with pairs of the form `{rowIndex, rowValue}`.
+    static void getValuesIndexed(const SelectInfo &selection,
+                                 AbstractDataNode *inNode,
+                                 std::vector<uint64Pair> &pairs);
+
+    /// Updates `this->selections` sets the predicate's
+    /// selections to `sorted == true`.
+    void updateSelectionsSorted(void);
+
+    static bool isSelectionSorted(const SelectInfo &selection,
+                                  const AbstractDataNode *inNode);
 
     bool hasBinding(const unsigned binding) const {
         return this->info.left.binding == binding || this->info.right.binding == binding;
@@ -299,14 +327,6 @@ class SharedJoinOperatorNode : public JoinOperatorNode {
     SharedJoinOperatorNode(PredicateInfo &info) : JoinOperatorNode(info) {}
 
 
-//=======
-//    /// Constructor.
-//    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
-//        AbstractOperatorNode(queryId), info(info) { }
-//    /// Disable copy constructor.
-//    JoinOperatorNode(const JoinOperatorNode&)=delete;
-//    /// Destructor.
-//>>>>>>> devel
     ~SharedJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -331,14 +351,6 @@ class FilterOperatorNode : public AbstractOperatorNode {
 
     FilterOperatorNode(FilterInfo &info) : info(info) {}
 
-//=======
-//    /// Constructor.
-//    FilterOperatorNode(const unsigned queryId, FilterInfo &info) :
-//        AbstractOperatorNode(queryId), info(info) { }
-//    /// Disable copy constructor.
-//    FilterOperatorNode(const FilterOperatorNode&)=delete;
-//    /// Destructor.
-//>>>>>>> devel
     ~FilterOperatorNode() { }
 };
 //---------------------------------------------------------------------------
@@ -362,14 +374,6 @@ class FilterJoinOperatorNode : public AbstractOperatorNode {
 
     FilterJoinOperatorNode(PredicateInfo &info) : info(info) {}
 
-//=======
-//    /// Constructor.
-//    FilterJoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
-//        AbstractOperatorNode(queryId), info(info) { }
-//    /// Disable copy constructor.
-//    FilterJoinOperatorNode(const FilterJoinOperatorNode&)=delete;
-//    /// Destructor.
-//>>>>>>> devel
     ~FilterJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------

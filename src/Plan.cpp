@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <cassert>
 #include <iostream>
-#include <optional>
 #include <algorithm>
 #include <tbb/parallel_sort.h>
+#include <experimental/optional>
 #include "Plan.hpp"
 #include "Mixins.hpp"
 #include "Index.hpp"
@@ -14,6 +14,9 @@
 #include "Parallel.hpp"
 //---------------------------------------------------------------------------
 using namespace std;
+//---------------------------------------------------------------------------
+using joinPairsContainer = uint64VecCc;
+// using joinPairsContainer = vector<uint64Pair>;
 //---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
@@ -37,14 +40,14 @@ void ResultInfo::printResultInfo() const
 {
     vector<optional<uint64_t>>::const_iterator it;
     for (it = this->results.begin(); it != this->results.end() - 1; ++it) {
-        if ((*it).has_value()) {
+        if (*it) {
             cout << (*it).value() << " ";
         } else {
             cout << "NULL ";
         }
     }
 
-    if ((*it).has_value()) {
+    if (*it) {
         cout << (*it).value();
     } else {
         cout << "NULL";
@@ -83,14 +86,9 @@ void DataNode::execute(vector<thread> &)
 
         // Sould have only one incoming edge.
         assert(this->inAdjList.size() == 1);
-
         // Sould have one or zero outgoing edges.
-        ///Deprecated assertion. A shared operator can have more than one outputs.
-        ///With shared nodes, operators of different queries can be applied on the same
-        ///datanode. Thus, this datanode can have more than one outputs.
         // assert(this->outAdjList.size() < 2);
 
-        //TODO: check how to modify this assertion
         if (this->outAdjList.size() == 1) {
             // Should not be processed yet.
             assert(this->outAdjList[0]->isStatusFresh());
@@ -167,8 +165,6 @@ void JoinOperatorNode::execute(vector<thread> &threads)
 
         // Sould have only two incoming edges.
         assert(this->inAdjList.size() == 2);
-
-
         // Sould have only one outgoing edge.
         assert(this->outAdjList.size() == 1);
 
@@ -211,18 +207,29 @@ void JoinOperatorNode::executeAsync(void)
     AbstractDataNode *inRightNode = (AbstractDataNode *) this->inAdjList[1];
     DataNode *outNode = (DataNode *) this->outAdjList[0];
 
-    // Get sorted vector<{rowIndex, rowValue}> for left column.
-    pair<bool, vector<uint64Pair>*> leftPairs;
-    leftPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.left, inLeftNode);
-
-    // Get sorted vector<{rowIndex, rowValue}> for right column.
-    pair<bool, vector<uint64Pair>*> rightPairs;
-    rightPairs = JoinOperatorNode::getValuesIndexedSorted(this->info.right, inRightNode);
-
     // Merge the two vectors and get a pair of vectors:
     // {vector<leftIndices>, vector<rightIndex>}.
-    vector<uint64Pair> indexPairs;
-    JoinOperatorNode::mergeJoin(*leftPairs.second, *rightPairs.second, indexPairs);
+    joinPairsContainer indexPairs;
+
+
+    /*
+    JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    JoinOperatorNode::hashJoinPar<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+    */
+
+    JoinOperatorNode::mergeJoinPar<joinPairsContainer>(
+        this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+
+    if (CHECK_SORTED_SELECTIONS) {
+        // Update sorted selections.
+        updateSelectionsSorted();
+    }
 
     // Set out DataNode size.
     outNode->size = indexPairs.size();
@@ -230,36 +237,28 @@ void JoinOperatorNode::executeAsync(void)
     if (inLeftNode->isBaseRelation()) {
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections<1>(this->selections,
-                                             indexPairs,
-                                             inRightNode, outNode);
+        AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
+            this->selections, indexPairs, inRightNode, outNode);
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections<0>(this->selections,
-                                             indexPairs,
-                                             inLeftNode, outNode);
+        AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
+            this->selections, indexPairs, inLeftNode, outNode);
     } else {
         // Get ouput columns for left relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections<0>(this->selections,
-                                             indexPairs,
-                                             inLeftNode, outNode);
+        AbstractOperatorNode::pushSelections<0, joinPairsContainer>(
+            this->selections, indexPairs, inLeftNode, outNode);
         // Get ouput columns for right relation and push
         // values to the next `DataNode`.
-        AbstractOperatorNode::pushSelections<1>(this->selections,
-                                             indexPairs,
-                                             inRightNode, outNode);
+        AbstractOperatorNode::pushSelections<1, joinPairsContainer>(
+            this->selections, indexPairs, inRightNode, outNode);
     }
+
+    // TODO: This is because sometimes the selections have duplicates.
+    //       We should fix `setQuerySelections` and remove this.
+    outNode->dataValues.resize(outNode->columnsInfo.size() * outNode->size);
 
     assert(outNode->dataValues.size() == outNode->columnsInfo.size() * outNode->size);
-
-    // Free pairs memory if it's owned by them (not an index).
-    if (leftPairs.first) {
-        delete leftPairs.second;
-    }
-    if (rightPairs.first) {
-        delete rightPairs.second;
-    }
 
     // Set status to processed.
     this->setStatus(processed);
@@ -267,32 +266,308 @@ void JoinOperatorNode::executeAsync(void)
     Executor::notify();
 }
 //---------------------------------------------------------------------------
-void JoinOperatorNode::mergeJoin(const vector<uint64Pair> &leftPairs,
-                                 const vector<uint64Pair> &rightPairs,
-                                 vector<uint64Pair> &indexPairs)
+template <typename T>
+void JoinOperatorNode::mergeJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                                    AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                    T &indexPairs)
 {
+    // Get sorted vector<{rowIndex, rowValue}> for left column.
+    pair<bool, vector<uint64Pair>*> leftPairsOption;
+    leftPairsOption = JoinOperatorNode::getValuesIndexedSorted(left, leftNode);
+
+    // Early exit if the left column has no values.
+    if (leftPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Get sorted vector<{rowIndex, rowValue}> for right column.
+    pair<bool, vector<uint64Pair>*> rightPairsOption;
+    rightPairsOption = JoinOperatorNode::getValuesIndexedSorted(right, rightNode);
+
+    // Early exit if the right column has no values.
+    if (rightPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+        if (rightPairsOption.first) {
+            delete rightPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Keep the smaller column on the left.
+    bool swapPairs = leftPairsOption.second->size() > rightPairsOption.second->size();
+    if (swapPairs) {
+        swap(leftPairsOption, rightPairsOption);
+    }
+
+    vector<uint64Pair> &leftPairs = *leftPairsOption.second;
+    vector<uint64Pair> &rightPairs = *rightPairsOption.second;
+
     vector<uint64Pair>::const_iterator lt = leftPairs.begin();
     vector<uint64Pair>::const_iterator rt = rightPairs.begin();
 
-    while (lt != leftPairs.end() && rt != rightPairs.end()) {
-        if ((*lt).second < (*rt).second) {
-            ++lt;
-        } else if ((*lt).second > (*rt).second) {
-            ++rt;
-        } else {
-            vector<uint64Pair>::const_iterator tt;
-            for (tt = rt; tt != rightPairs.end() && (*lt).second == (*tt).second; ++tt) {
-                indexPairs.emplace_back(lt->first, tt->first);
-            }
+    vector<uint64Pair>::const_iterator ltend = leftPairs.end();
+    vector<uint64Pair>::const_iterator rtend = rightPairs.end();
 
-            ++lt;
+    __builtin_prefetch(&leftPairs[0], 0, 0);
+    __builtin_prefetch(&rightPairs[0], 0, 0);
+
+    if (!swapPairs) {
+        uint64_t left = lt->second;
+        uint64_t right = rt->second;
+        for ( ;; ) {
+            while (lt != ltend && lt->second < right) {
+                ++lt;
+            }
+            if (lt == ltend) {
+                break;
+            }
+            left = lt->second;
+
+            while (rt != rtend && rt->second < left) {
+                ++rt;
+            }
+            if (rt == rtend) {
+                break;
+            }
+            right = rt->second;
+
+            if (left == right) {
+                uint64_t leftIndex = lt->first;
+                vector<uint64Pair>::const_iterator tt;
+                for (tt = rt; tt != rtend && left == tt->second; ++tt) {
+                    indexPairs.emplace_back(leftIndex, tt->first);
+                }
+
+                ++lt;
+            }
+        }
+    } else {
+        uint64_t left = lt->second;
+        uint64_t right = rt->second;
+
+        for ( ;; ) {
+            while (lt != ltend && lt->second < right) {
+                ++lt;
+            }
+            if (lt == ltend) {
+                break;
+            }
+            left = lt->second;
+
+            while (rt != rtend && rt->second < left) {
+                ++rt;
+            }
+            if (rt == rtend) {
+                break;
+            }
+            right = rt->second;
+
+            if (left == right) {
+                uint64_t leftIndex = lt->first;
+                vector<uint64Pair>::const_iterator tt;
+                for (tt = rt; tt != rtend && left == tt->second; ++tt) {
+                    indexPairs.emplace_back(tt->first, leftIndex);
+                }
+
+                ++lt;
+            }
+        }
+    }
+
+    // Free pairs memory if it's owned by them (not an index).
+    if (leftPairsOption.first) {
+        delete leftPairsOption.second;
+    }
+    if (rightPairsOption.first) {
+        delete rightPairsOption.second;
+    }
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void JoinOperatorNode::mergeJoinPar(const SelectInfo &left, const SelectInfo &right,
+                                    AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                    T &indexPairs)
+{
+    // Get sorted vector<{rowIndex, rowValue}> for left column.
+    pair<bool, vector<uint64Pair>*> leftPairsOption;
+    leftPairsOption = JoinOperatorNode::getValuesIndexedSorted(left, leftNode);
+
+    // Early exit if the left column has no values.
+    if (leftPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Get sorted vector<{rowIndex, rowValue}> for right column.
+    pair<bool, vector<uint64Pair>*> rightPairsOption;
+    rightPairsOption = JoinOperatorNode::getValuesIndexedSorted(right, rightNode);
+
+    // Early exit if the right column has no values.
+    if (rightPairsOption.second->empty()) {
+        if (leftPairsOption.first) {
+            delete leftPairsOption.second;
+        }
+        if (rightPairsOption.first) {
+            delete rightPairsOption.second;
+        }
+
+        return;
+    }
+
+    // Keep the smaller column on the right.
+    bool swapPairs = leftPairsOption.second->size() < rightPairsOption.second->size();
+    if (swapPairs) {
+        swap(leftPairsOption, rightPairsOption);
+    }
+
+    vector<uint64Pair> &leftPairs = *leftPairsOption.second;
+    vector<uint64Pair> &rightPairs = *rightPairsOption.second;
+
+    if (swapPairs) {
+        ParallelMerge<true> m(&leftPairs[0], &rightPairs[0],
+                              rightPairs.size(), indexPairs);
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+    } else {
+        ParallelMerge<false> m(&leftPairs[0], &rightPairs[0],
+                               rightPairs.size(), indexPairs);
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+    }
+
+    // Free pairs memory if it's owned by them (not an index).
+    if (leftPairsOption.first) {
+        delete leftPairsOption.second;
+    }
+    if (rightPairsOption.first) {
+        delete rightPairsOption.second;
+    }
+}
+//---------------------------------------------------------------------------
+template <typename T>
+void JoinOperatorNode::hashJoinSeq(const SelectInfo &left, const SelectInfo &right,
+                                   AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                   T &indexPairs)
+{
+    vector<uint64Pair> leftPairs, rightPairs;
+
+    JoinOperatorNode::getValuesIndexed(left, leftNode, leftPairs);
+
+    JoinOperatorNode::getValuesIndexed(right, rightNode, rightPairs);
+
+    // Keep the smaller column on the left.
+    bool swapPairs = leftPairs.size() > rightPairs.size();
+    if (swapPairs) {
+        swap(leftPairs, rightPairs);
+    }
+
+    unordered_map<uint64_t, vector<uint64_t>> map;
+    map.reserve(leftPairs.size());
+
+    // Hash-Join: Build Face.
+    vector<uint64Pair>::const_iterator it;
+    for (it = leftPairs.begin(); it != leftPairs.end(); ++it) {
+        map[it->second].push_back(it->first);
+    }
+
+    // Hash-Join: Probe Face.
+    if (!swapPairs) {
+        for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
+            const unordered_map<uint64_t, vector<uint64_t>>::iterator kv = map.find(it->second);
+
+            if (kv != map.end()) {
+                const vector<uint64_t> &bucket = kv->second;
+
+                vector<uint64_t>::const_iterator jt;
+                for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                    indexPairs.emplace_back((*jt), it->first);
+                }
+            }
+        }
+    } else {
+        for (it = rightPairs.begin(); it != rightPairs.end(); ++it) {
+            const unordered_map<uint64_t, vector<uint64_t>>::iterator kv = map.find(it->second);
+
+            if (kv != map.end()) {
+                const vector<uint64_t> &bucket = kv->second;
+
+                vector<uint64_t>::const_iterator jt;
+                for (jt = bucket.begin(); jt != bucket.end(); ++jt) {
+                    indexPairs.emplace_back(it->first, (*jt));
+                }
+            }
         }
     }
 }
 //---------------------------------------------------------------------------
-template <size_t I>
+template <typename T>
+void JoinOperatorNode::hashJoinPar(const SelectInfo &left, const SelectInfo &right,
+                                   AbstractDataNode *leftNode, AbstractDataNode *rightNode,
+                                   T &indexPairs)
+{
+    vector<uint64Pair> leftPairs, rightPairs;
+
+    JoinOperatorNode::getValuesIndexed(left, leftNode, leftPairs);
+
+    JoinOperatorNode::getValuesIndexed(right, rightNode, rightPairs);
+
+    // Keep the smaller column on the left.
+    bool swapPairs = leftPairs.size() > rightPairs.size();
+    if (swapPairs) {
+        swap(leftPairs, rightPairs);
+    }
+
+    // Create concurrent unordered map.
+    uint64VecMapCc  map;
+
+    // Hash-Join: Build Face.
+    JoinOperatorNode::hashJoinBuildPar(leftPairs, map);
+
+    // Hash-Join: Probe Face.
+    if (swapPairs) {
+        JoinOperatorNode::hashJoinProbePar<true, T>(rightPairs, map, indexPairs);
+    } else {
+        JoinOperatorNode::hashJoinProbePar<false, T>(rightPairs, map, indexPairs);
+    }
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::hashJoinBuildPar(const vector<uint64Pair> &pairs,
+                                        uint64VecMapCc &map)
+{
+    const uint64Pair *pairsPtr = &pairs[0];
+
+    ParallelMapBuild m(pairsPtr, map);
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, pairs.size(), PAIRS_GRAIN_SIZE), m);
+}
+//---------------------------------------------------------------------------
+template <bool B, typename T>
+void JoinOperatorNode::hashJoinProbePar(const vector<uint64Pair> &pairs,
+                                       const uint64VecMapCc &map,
+                                       T &indexPairs)
+{
+    const uint64Pair *pairsPtr = &pairs[0];
+
+    ParallelMapProbe<B> p(pairsPtr, map, indexPairs);
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, pairs.size(), PAIRS_GRAIN_SIZE), p);
+}
+//---------------------------------------------------------------------------
+template <size_t I, typename T>
 void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
-                                          const vector<uint64Pair> &indices,
+                                          const T &indices,
                                           AbstractDataNode *inNode,
                                           DataNode *outNode)
 {
@@ -305,7 +580,7 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
     }
 
     outNode->columnsInfo.reserve(selections.size());
-    outNode->dataValues.reserve(selections.size() * indices.size());
+    outNode->dataValues.resize(selections.size() * indices.size());
 
     vector<SelectInfo>::const_iterator it;
     for (it = selections.begin(); it != selections.end(); ++it) {
@@ -317,7 +592,7 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         }
 
         optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
-        if (!option.has_value()) {
+        if (!option) {
             // Skip column if not in `inNode->columnsInfo`.
             continue;
         }
@@ -327,32 +602,33 @@ void AbstractOperatorNode::pushSelections(const vector<SelectInfo> &selections,
         outNode->columnsInfo.emplace_back((*it));
 
         // Push values by `indices` to next `DataNode`.
-        AbstractOperatorNode::pushValuesByIndex<I>(valIter, indices,
-                                                   outNode->dataValues);
+        AbstractOperatorNode::pushValuesByIndex<I, T>(valIter, indices, outNode);
     }
 }
 //---------------------------------------------------------------------------
-template <size_t I>
+template <size_t I, typename T>
 void AbstractOperatorNode::pushValuesByIndex(const IteratorPair &valIter,
-                                             const vector<uint64Pair> &indices,
-                                             vector<uint64_t> &outValues)
+                                             const T &indices,
+                                             DataNode *outNode)
 {
-    vector<uint64Pair>::const_iterator it;
-    for (it = indices.begin(); it != indices.end(); ++it) {
-        assert(valIter.first + get<I>((*it)) < valIter.second);
+    const uint64_t *inValuesPtr = &(*valIter.first);
 
-        outValues.emplace_back(*(valIter.first + get<I>((*it))));
-    }
+    size_t outValuesOffset = (outNode->columnsInfo.size() - 1) * indices.size();
+    uint64_t *outValuesPtr = &outNode->dataValues[outValuesOffset];
+
+    ParallelPush<I, T> p(inValuesPtr, indices, outValuesPtr);
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, indices.size(), PAIRS_GRAIN_SIZE), p);
 }
 //---------------------------------------------------------------------------
 pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
-    SelectInfo &selection, AbstractDataNode* inNode)
+    const SelectInfo &selection, AbstractDataNode* inNode)
 {
     SortedIndex *index = inNode->getIndex(selection);
     if (INDEXES_ON && index != NULL) {
         return {false, index->getValuesIndexedSorted()};
     } else {
-        if (INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
+        if (INDEXES_ON && INDEXES_CREATE_ON_MERGE && inNode->isBaseRelation()) {
             // Ugly mother coming up...
             Relation *relation = (Relation *) inNode;
 
@@ -360,35 +636,75 @@ pair<bool, vector<uint64Pair>*> JoinOperatorNode::getValuesIndexedSorted(
 
             return JoinOperatorNode::getValuesIndexedSorted(selection, inNode);
         } else {
-            // Reserve memory for pairs.
             vector<uint64Pair> *pairs = new vector<uint64Pair>();
-            pairs->reserve(inNode->getSize());
 
-            optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
+            JoinOperatorNode::getValuesIndexed(selection, inNode, *pairs);
 
-            assert(option.has_value());
-            const IteratorPair valIter = option.value();
+            bool selectionSorted = false;
+            if (CHECK_SORTED_SELECTIONS) {
+                selectionSorted = JoinOperatorNode::isSelectionSorted(
+                    selection, inNode);
+            }
 
-            // Get pairs of the form `{rowIndex, rowValue}`.
-            JoinOperatorNode::getValuesIndexed(valIter, *pairs);
-
-            // Sort by `rowValue`.
-            tbb::parallel_sort(pairs->begin(), pairs->end(),
-                 [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+            if (!pairs->empty() && !selectionSorted) {
+                // Sort by `rowValue`.
+                tbb::parallel_sort(pairs->begin(), pairs->end(),
+                     [&](const uint64Pair &a, const uint64Pair &b) { return a.second < b.second; });
+            }
 
             return {true, pairs};
         }
     }
 }
 //---------------------------------------------------------------------------
-void AbstractOperatorNode::getValuesIndexed(const IteratorPair &values,
-                                            vector<uint64Pair> &pairs)
+void JoinOperatorNode::getValuesIndexed(const SelectInfo &selection,
+                                        AbstractDataNode *inNode,
+                                        vector<uint64Pair> &pairs)
 {
-    uint64_t i;
-    vector<uint64_t>::const_iterator it;
-    for (i = 0, it = values.first; it != values.second; ++it, ++i) {
-        pairs.push_back({i, (*it)});
+    optional<IteratorPair> option = inNode->getValuesIterator(selection, NULL);
+
+    assert(option);
+    const IteratorPair valIter = option.value();
+
+    if (valIter.second - valIter.first != 0) {
+        // Reserve memory for pairs.
+        pairs.reserve(valIter.second - valIter.first);
+
+        // Get pairs of the form `{rowIndex, rowValue}`.
+        getValuesIndexedParallel(valIter, pairs);
     }
+}
+//---------------------------------------------------------------------------
+void JoinOperatorNode::updateSelectionsSorted(void)
+{
+    vector<SelectInfo>::iterator it;
+    for (it = this->selections.begin(); it != this->selections.end(); ++it) {
+        if ((*it) == this->info.left) {
+            it->sorted = true;
+            break;
+        }
+    }
+    for (it = this->selections.begin(); it != this->selections.end(); ++it) {
+        if ((*it) == this->info.right) {
+            it->sorted = true;
+            break;
+        }
+    }
+}
+//---------------------------------------------------------------------------
+bool JoinOperatorNode::isSelectionSorted(const SelectInfo &selection,
+                                         const AbstractDataNode *inNode)
+{
+    vector<SelectInfo>::const_iterator it;
+    for (it = inNode->columnsInfo.begin(); it != inNode->columnsInfo.end(); ++it) {
+        if (selection == (*it)) {
+            return it->sorted;
+        }
+    }
+
+    assert(false);
+
+    return false;
 }
 //---------------------------------------------------------------------------
 void FilterOperatorNode::execute(vector<thread> &threads)
@@ -442,7 +758,7 @@ void FilterOperatorNode::executeAsync(void)
         optional<IteratorDoublePair> option = index->getIdsValuesIterator(
             this->info.filterColumn, &this->info);
 
-        assert(option.has_value());
+        assert(option);
         IteratorDoublePair idValIter = option.value();
 
         // Reserve memory for indices.
@@ -454,7 +770,7 @@ void FilterOperatorNode::executeAsync(void)
         // Get values iterator for the filter column.
         optional<IteratorPair> option = inNode->getValuesIterator(this->info.filterColumn,
                                                                   NULL);
-        assert(option.has_value());
+        assert(option);
         IteratorPair valIter = option.value();
 
         // Get ids iterator for the filter column.
@@ -474,7 +790,8 @@ void FilterOperatorNode::executeAsync(void)
     // Set the size of the new relation.
     outNode->size = indices.size();
 
-    AbstractOperatorNode::pushSelections<0>(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+        this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -527,12 +844,12 @@ void FilterJoinOperatorNode::executeAsync(void)
 
     // Get values iterator for the left column.
     optional<IteratorPair> option = inNode->getValuesIterator(this->info.left, NULL);
-    assert(option.has_value());
+    assert(option);
     const IteratorPair leftIter = option.value();
 
     // Get values iterator for the right column.
     option = inNode->getValuesIterator(this->info.right, NULL);
-    assert(option.has_value());
+    assert(option);
     const IteratorPair rightIter = option.value();
 
     uint64_t i;
@@ -553,7 +870,8 @@ void FilterJoinOperatorNode::executeAsync(void)
     outNode->columnsInfo.reserve(this->selections.size());
     outNode->dataValues.reserve(this->selections.size() * outNode->size);
 
-    AbstractOperatorNode::pushSelections<0>(this->selections, indices, inNode, outNode);
+    AbstractOperatorNode::pushSelections<0, vector<uint64Pair>>(
+        this->selections, indices, inNode, outNode);
 
     // Set status to processed.
     this->setStatus(processed);
@@ -617,7 +935,7 @@ void AggregateOperatorNode::executeAsync(void)
 
         if (inNode->getSize() != 0) {
             optional<IteratorPair> option = inNode->getValuesIterator((*it), NULL);
-            if (!option.has_value()) {
+            if (!option) {
                 continue;
             }
             IteratorPair valIter = option.value();
@@ -627,7 +945,6 @@ void AggregateOperatorNode::executeAsync(void)
             outNode->dataValues.push_back(sum);
         }
     }
-
 
     assert(outNode->dataValues.size() == 0 ||
            outNode->columnsInfo.size() == outNode->dataValues.size());
