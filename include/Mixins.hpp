@@ -36,7 +36,7 @@ using IteratorDoublePair = std::pair<std::vector<uint64Pair>::const_iterator,
 //---------------------------------------------------------------------------
 static const bool INDEXES_ON = true;
 static const bool INDEXES_CREATE_ON_MERGE = true;
-static const bool CHECK_SORTED_SELECTIONS = false;
+static const bool CHECK_SORTED_SELECTIONS = true;
 static const size_t PAIRS_GRAIN_SIZE = 256;
 static const size_t SINGLES_GRAIN_SIZE = 512;
 //---------------------------------------------------------------------------
