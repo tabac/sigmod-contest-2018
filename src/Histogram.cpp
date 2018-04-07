@@ -55,27 +55,45 @@ void Histogram::buildEquiWidth(void) {
 }
 //---------------------------------------------------------------------------
 uint64_t Histogram::getEstimatedKeys(optional<uint64_t> lowerBound,
-                                     optional<uint64_t> upperBound)
+                                     optional<uint64_t> upperBound) const
 {
-    map<uint64_t, uint64_t>::const_iterator begin, end;
-    if (!lowerBound) {
-        begin = this->histMap.begin();
-    } else {
-        begin = this->histMap.lower_bound(lowerBound.value());
-    }
-    if (!upperBound) {
-        end = this->histMap.end();
-    } else {
-        end = this->histMap.lower_bound(upperBound.value());
+}
+//---------------------------------------------------------------------------
+void Histogram::mergeHistograms(const Histogram *left, const Histogram *right,
+                                Histogram &output)
+{
+    if (left->minValue > right->minValue) {
+        swap(left, right);
     }
 
-    uint64_t keys = 0;
-    map<uint64_t, uint64_t>::const_iterator it;
-    for (it = begin; it != end; ++it) {
-        keys += it->second;
+    uint64_t minValueLoc = max(left->minValue, right->minValue);
+    uint64_t maxValueLoc = min(left->maxValue, right->maxValue);
+
+    uint64_t bucketCountLoc = max(left->bucketCount, right->bucketCount);
+
+    size_t bucketSize = (maxValueLoc - minValueLoc) / bucketCountLoc + 1;
+    if (bucketSize < 10) {
+        bucketSize = 10;
+
+        bucketCountLoc = (maxValueLoc - minValueLoc) / bucketSize + 1;
     }
 
-    return keys;
+    uint64_t lowerBound = minValueLoc;
+    for (size_t i = 0; i < bucketCountLoc; ++i) {
+        uint64_t leftKeys = left->getEstimatedKeys(lowerBound,
+                                                   lowerBound + bucketSize);
+        uint64_t rightKeys = right->getEstimatedKeys(lowerBound,
+                                                     lowerBound + bucketSize);
+        lowerBound += bucketSize;
+
+        output.histMap[lowerBound] = (leftKeys * rightKeys) / 2;
+    }
+
+    output.minValue = minValueLoc;
+    output.maxValue = maxValueLoc;
+    output.bucketCount = bucketCountLoc;
+
+    assert(output.histMap.size() <= bucketCountLoc);
 }
 //---------------------------------------------------------------------------
 #ifndef NDEBUG
