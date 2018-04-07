@@ -9,7 +9,7 @@
 #include "Relation.hpp"
 #include "Utils.hpp"
 
-#define FILTER_SELECT_THRES 0.8
+#define FILTER_SELECT_THRES 0.5
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
@@ -23,8 +23,6 @@ bool Planner::filterComparator(const FilterInfo& f1, const FilterInfo& f2)
 //---------------------------------------------------------------------------
 bool Planner::predicateComparator(const PredicateInfo& p1, const PredicateInfo& p2)
 {
-//    cout << "COMPARING " << DataEngine::getJoinSelectivity(p1) << " with " << DataEngine::getJoinSelectivity(p2) << endl;
-//    cout << "COMPARING " << DataEngine::getJoinEstimatedTuples(p1) << " with " << DataEngine::getJoinEstimatedTuples(p2) << endl;
 //    return DataEngine::getJoinSelectivity(p1) < DataEngine::getJoinSelectivity(p2);
     return DataEngine::getJoinEstimatedTuples(p1) < DataEngine::getJoinEstimatedTuples(p2);
 }
@@ -66,7 +64,7 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                 vector<AbstractNode *>::iterator jt;
                 for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                     AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                    if (o->queryId == (short) query.queryId) {
+                    if (o->queryId == query.queryId) {
                         q.push(o);
                     }
                 }
@@ -90,7 +88,7 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                     vector<AbstractNode *>::iterator jt;
                     for (jt = cur->outAdjList[0]->outAdjList.begin(); jt != cur->outAdjList[0]->outAdjList.end(); ++jt) {
                         AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-                        if (o->queryId == (short) query.queryId){
+                        if (o->queryId == query.queryId){
                             q.push(o);
                         }
                      }
@@ -100,11 +98,22 @@ static unsigned propagateSharedSelection(QueryInfo &query,AbstractOperatorNode *
                 while (!q.empty()) {
                     AbstractOperatorNode *cur = q.front();
                     q.pop();
-                    cur->selections.emplace_back(selection);
+                    if (!cur->outAdjList[0]->outAdjList.empty()) {
+
+                        if (cur->hasSelection(selection)) {
+                            --count;
+                        }
+
+                        if (count != 0) {
+                            cur->selections.emplace_back(selection);
+                        }
+                    }
                 }
             }
         }
     }
+
+    return count;
 }
 //---------------------------------------------------------------------------
 static unsigned propagateSelection(QueryInfo &query, AbstractOperatorNode *o,
@@ -166,12 +175,12 @@ void Planner::setQuerySelections(Plan &plan, QueryInfo &query)
         vector<AbstractNode *>::iterator jt;
         for (jt = r->outAdjList.begin(); jt != r->outAdjList.end(); ++jt) {
             AbstractOperatorNode *o = (AbstractOperatorNode *) (*jt);
-            //cout << "TRYING TO ADD SELECTION "<< (it->first).dumpLabel() << " to Q"<<query.queryId << " in operator "<<(*o).label<<endl;
+            //if ((o->queryId == query.queryId && o->hasBinding(it->first.binding))) { //|| Utils::contains(o->sharedQueries, query.queryId))
 
-            if ((o->queryId == (short) query.queryId || Utils::contains(o->sharedQueries, query.queryId))
-                && o->hasBinding(it->first.binding)) {
+            if ((o->queryId == query.queryId || Utils::contains(o->sharedQueries, query.queryId)) && o->hasBinding(it->first.binding)){
 
                 unsigned count;
+                //count = propagateSelection(query, o, it->first, it->second);
                if(o->sharedQueries.empty()){
                     count = propagateSelection(query, o, it->first, it->second);
                 }else{
@@ -254,7 +263,7 @@ void Planner::addFilters2(Plan &plan, QueryInfo& query, OriginTracker &lastAttac
 
     }
 #ifndef NDEBUG
-    cout << "Start from counter " << counter << endl;
+    cerr << "Start from counter " << counter << endl;
 #endif
 }
 
@@ -366,7 +375,7 @@ void Planner::addJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& que
 void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInfo& query, OriginTracker &lastAttached)
 {
 
-    JoinOperatorNode* joinNode;
+    SharedJoinOperatorNode* joinNode;
     DataNode *dataNode;
 
     OTKey leftPair = {predicate.left.relId, predicate.left.binding,query.queryId};
@@ -381,7 +390,7 @@ void Planner::addSharedJoin(Plan& plan, PredicateInfo& predicate, const QueryInf
         dataNode = (DataNode*) joinNode->outAdjList[0];
     }
     catch (const out_of_range &) {
-        joinNode = new JoinOperatorNode(predicate);
+        joinNode = new SharedJoinOperatorNode(predicate);
         (joinNode->sharedQueries).push_back(query.queryId);
         dataNode = new DataNode();
 
@@ -499,6 +508,7 @@ void Planner::attachQueryPlanShared(Plan &plan, QueryInfo &query, OriginTracker&
 
     // Push join predicates.
     Planner::addNonSharedJoins(plan, query, lastAttached);
+    //Planner::addJoins(plan, query, lastAttached);
     Planner::addAggregate(plan, query, lastAttached);
 }
 //---------------------------------------------------------------------------
@@ -510,6 +520,17 @@ vector<PredicateInfo> Planner::findCommonJoins(vector<QueryInfo> &batch)
         for(vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++){
             // if it is a pure join and not a filter join
             if (!((*pt).left.relId == (*pt).right.relId && (*pt).left.binding == (*pt).right.binding)){
+                // check if there is a filter on the left or right relation
+                bool skip = false;
+                for(vector<FilterInfo>::iterator ft = (*it).filters.begin();ft != (*it).filters.end(); ft++){
+                    if(ft->filterColumn == (*pt).left || ft->filterColumn == (*pt).right){
+                        // join is filtered and should not be considered as joined
+                        skip = true;
+                    }
+                }
+
+                if(skip) continue;
+
                 try {
                     commonJoins.at(*pt) += 1;
                 }
@@ -534,7 +555,7 @@ vector<PredicateInfo> Planner::findCommonJoins(vector<QueryInfo> &batch)
     }
 
     return sharedJoins;
-};
+}
 //---------------------------------------------------------------------------
 Plan* Planner::generatePlan(vector<QueryInfo> &queries)
 {
@@ -557,11 +578,12 @@ Plan* Planner::generatePlan(vector<QueryInfo> &queries)
             // check if this query contains one of the shared joins and push it first
             for (vector<PredicateInfo>::iterator pt = (*it).predicates.begin(); pt != (*it).predicates.end(); pt++) {
                 if (*pt == (plan->commonJoins).back()) {
-                    //cout << "ADD the Shared " << (*pt).dumpLabel() << endl;
                     Planner::addSharedJoin(*plan, *pt, (*it), lastAttached);
                 }
             }
         }
+//        Planner::attachQueryPlanShared(*plan, (*it), lastAttached);
+//        setQuerySelections(*plan, *it);
     }
 
 

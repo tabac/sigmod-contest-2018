@@ -43,7 +43,7 @@ void Histogram::createEquiHeight(int numberOfBuckets) {
     }
 
     #ifndef NDEBUG
-        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
+        cerr <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
         printHistogram();
     #endif
 
@@ -93,9 +93,9 @@ void Histogram::createEquiWidth(int numberOfBuckets) {
     delete[] sample;
 
     #ifndef NDEBUG
-        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
-        cout << "Width: " << width << endl;
-        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
+        cerr <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
+        cerr << "Width: " << width << endl;
+        cerr << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
         printHistogram();
     #endif
 }
@@ -140,20 +140,16 @@ void Histogram::createExactEquiWidth(int numberOfBuckets) {
     delete[] bucketIndexing;
 
     #ifndef NDEBUG
-        cout <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
-        cout << "Exact Histo" << endl;
-        cout << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
-        cout << "Width: " << width << endl;
+        cerr <<"Hist on r"<< this->r.relId <<",c"<< this->colId <<endl;
+        cerr << "Exact Histo" << endl;
+        cerr << "MinVal: " << minVal << ", MaxVal: " << maxVal << endl;
+        cerr << "Width: " << width << endl;
         printHistogram();
     #endif
 }
 //---------------------------------------------------------------------------
 
 uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
-    #ifndef NDEBUG
-        //cout << "Histo Query: (" << lb << "," << ub << ")\n";
-    #endif
-
     if(ub == UINT64_MAX){
         ub = (--histo.end())->first;
     }
@@ -167,20 +163,12 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
     }
     uint64_t prevKey = (--it)->first;
     for(it = histo.lower_bound(lb); it != histo.lower_bound(ub); it++){
-        #ifndef NDEBUG
-           // cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
-        #endif
-
         selectedKeys+= (it->first-lb)/(float)(it->first-prevKey) * it->second;
         lb = it->first;
         prevKey = it->first;
     }
     it = histo.lower_bound(ub);
     if(it != histo.end()) {
-        #ifndef NDEBUG
-           // cout << "Checking in range: [" << prevKey << "," << it->first << ")\n";
-        #endif
-
         selectedKeys += (ub - prevKey) / (float)(it->first - prevKey) * it->second;
     }
 
@@ -192,7 +180,7 @@ uint64_t Histogram::getEstimatedKeys(uint64_t lb, uint64_t ub) {
 void Histogram::printHistogram() {
     for( const auto& hpair : histo )
     {
-        cout << hpair.first << "-->" << hpair.second << "\n" ;
+        cerr << hpair.first << "-->" << hpair.second << "\n" ;
     }
 }
 #endif

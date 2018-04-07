@@ -43,7 +43,7 @@ void DataEngine::buildCompleteHist(RelationId rid, int sampleRatio, int numOfBuc
     }
 
     #ifndef NDEBUG
-    cout << "Time taken: " << ((double)(clock() - startTime)/CLOCKS_PER_SEC) << endl;
+    cerr << "Time taken: " << ((double)(clock() - startTime)/CLOCKS_PER_SEC) << endl;
     #endif
 }
 //---------------------------------------------------------------------------

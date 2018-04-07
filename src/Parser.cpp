@@ -430,6 +430,7 @@ bool SelectInfo::operator==(const SelectInfo& o) const {
                     return true;
                 }
             }
+            return false;
         }else if(!auxiliaryBindings.empty() && !o.auxiliaryBindings.empty()){
             for(vector<unsigned>::const_iterator ot = auxiliaryBindings.begin();
                 ot != auxiliaryBindings.end(); ot++){

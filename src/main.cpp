@@ -45,9 +45,6 @@ int main(void)
             queries.emplace_back(q++).parseQuery(line);
         } while (getline(cin, line) && line != "F");
 
-#ifndef NDEBUG
-        cout << "NEW BATCH" << endl;
-#endif
         // Reserve memory for results if necessary.
         resultsInfo.reserve(queries.size());
         // Generate an execution plan for all `queries`.

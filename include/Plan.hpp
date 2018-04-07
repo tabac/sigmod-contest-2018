@@ -126,7 +126,7 @@ class DataNode : public AbstractDataNode {
 class AbstractOperatorNode : public AbstractNode {
     public:
 
-    short queryId = -1;
+    unsigned queryId = -1;
 
     std::vector<unsigned> sharedQueries;
 
@@ -170,22 +170,11 @@ class AbstractOperatorNode : public AbstractNode {
 //>>>>>>> devel
     ~AbstractOperatorNode() { }
 };
-//---------------------------------------------------------------------------
+////---------------------------------------------------------------------------
 class JoinOperatorNode : public AbstractOperatorNode {
-    public:
+public:
     /// Reference to the corresponding `PredicateInfo` instance.
-
-    /// Since the same join operator can be shared among different queries, we have to preserve a list
-    /// with all the specified bindings for its predicates
-
-    PredicateInfo& info;
-
-    /// All these `SelectInfo` objects should have the same (relationID, colID) with either `info.left`
-    /// or `info.right`. What differs is only the binding as the same join may be expressed with different
-    /// bindings depending on the query.
-    //TODO: add set for more efficient lookup?
-    //std::vector<SelectInfo> boundSelections;
-
+    PredicateInfo &info;
 
     /// Joins the two input `DataNode` instances.
     void execute(std::vector<std::thread> &threads);
@@ -201,8 +190,29 @@ class JoinOperatorNode : public AbstractOperatorNode {
     /// `{rowIndex, rowValue}` sorted by value. The boolean
     /// indicates whether the memory has to be freed or not.
     static std::pair<bool, std::vector<uint64Pair>*> getValuesIndexedSorted(
-        SelectInfo &selection, AbstractDataNode* inNode);
+            SelectInfo &selection, AbstractDataNode* inNode);
 
+    bool hasBinding(const unsigned binding) const {
+        return this->info.left.binding == binding || this->info.right.binding == binding;
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return this->info.left == selection || this->info.right == selection;
+    }
+
+    JoinOperatorNode(PredicateInfo &info) : info(info) {}
+
+//    /// Constructor.
+//    JoinOperatorNode(const unsigned queryId, PredicateInfo &info) :
+//            AbstractOperatorNode(queryId), info(info) { }
+//    /// Disable copy constructor.
+//    JoinOperatorNode(const JoinOperatorNode&)=delete;
+//    /// Destructor.
+    ~JoinOperatorNode() { }
+};
+//---------------------------------------------------------------------------
+class SharedJoinOperatorNode : public JoinOperatorNode {
+    public:
 
     void updateBindings(PredicateInfo& p){
 
@@ -264,13 +274,29 @@ class JoinOperatorNode : public AbstractOperatorNode {
 
     }
 
-    bool hasSelection(const SelectInfo &selection) const {
+    bool hasLeftBinding(unsigned binding) const{
+        if(info.left.binding == binding){
+            return true;
+        }else{
+            return std::find(info.left.auxiliaryBindings.begin(), info.left.auxiliaryBindings.end(), binding) != info.left.auxiliaryBindings.end();
+        }
+    }
 
-        return info.left.logicalEq(selection) || info.right.logicalEq(selection);
+    bool hasRightBinding(unsigned binding) const{
+        if(info.right.binding == binding){
+            return true;
+        }else{
+            return std::find(info.right.auxiliaryBindings.begin(), info.right.auxiliaryBindings.end(), binding) != info.right.auxiliaryBindings.end();
+        }
+    }
+
+    bool hasSelection(const SelectInfo &selection) const {
+        return (info.left.logicalEq(selection) && hasLeftBinding(selection.binding)) ||
+                (info.right.logicalEq(selection) && hasRightBinding(selection.binding));
     }
 
 
-    JoinOperatorNode(PredicateInfo &info) : info(info) {}
+    SharedJoinOperatorNode(PredicateInfo &info) : JoinOperatorNode(info) {}
 
 
 //=======
@@ -281,7 +307,7 @@ class JoinOperatorNode : public AbstractOperatorNode {
 //    JoinOperatorNode(const JoinOperatorNode&)=delete;
 //    /// Destructor.
 //>>>>>>> devel
-    ~JoinOperatorNode() { }
+    ~SharedJoinOperatorNode() { }
 };
 //---------------------------------------------------------------------------
 class FilterOperatorNode : public AbstractOperatorNode {
@@ -380,7 +406,7 @@ class Plan {
     std::vector<DataNode *> exitNodes;
 
     std::vector<PredicateInfo> commonJoins;
-    std::unordered_map<PredicateInfo, JoinOperatorNode *> sharedJoins;
+    std::unordered_map<PredicateInfo, SharedJoinOperatorNode *> sharedJoins;
 
     ~Plan();
 };

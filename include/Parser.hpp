@@ -20,7 +20,7 @@ struct SelectInfo {
     SelectInfo(RelationId relId,unsigned b,unsigned colId) : relId(relId), binding(b), colId(colId){};
     /// Equality operator
     bool operator==(const SelectInfo& o) const;
-    /// Logical equality: checks only if two `SelectInfo` objects refer to the same join
+    /// Equality operator, ignoring binding information.
     bool logicalEq(const SelectInfo& o) const;
     /// Dump text format
     std::string dumpText();
@@ -28,8 +28,6 @@ struct SelectInfo {
     std::string dumpLabel() const;
     /// Dump SQL
     std::string dumpSQL(bool addSUM=false);
-    /// Equality operator, ignoring binding information.
-    bool equalsRelationColumn(const SelectInfo &o) const;
 
     /// The delimiter used in our text format
     static const char delimiter=' ';
@@ -45,6 +43,8 @@ struct FilterInfo {
     uint64_t constant;
     /// Comparison type
     Comparison comparison;
+    /// range for compound condition -- [a, b)
+    //optional<uint64Pair> frange;
     /// Dump SQL
     std::string dumpSQL();
 
