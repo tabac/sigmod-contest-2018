@@ -15,8 +15,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-using joinPairsContainer = uint64VecCc;
-// using joinPairsContainer = vector<uint64Pair>;
+// using joinPairsContainer = uint64VecCc;
+using joinPairsContainer = vector<uint64Pair>;
 //---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
@@ -212,19 +212,19 @@ void JoinOperatorNode::executeAsync(void)
     joinPairsContainer indexPairs;
 
 
+    /*
     JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
-    /*
     JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
     JoinOperatorNode::hashJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+    */
 
     JoinOperatorNode::mergeJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
-    */
 
     if (CHECK_SORTED_SELECTIONS) {
         // Update sorted selections.
@@ -438,17 +438,35 @@ void JoinOperatorNode::mergeJoinPar(const SelectInfo &left, const SelectInfo &ri
     vector<uint64Pair> &rightPairs = *rightPairsOption.second;
 
     if (swapPairs) {
+        /*
         ParallelMerge<true> m(&leftPairs[0], &rightPairs[0],
                               rightPairs.size(), indexPairs);
 
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+        */
+
+        ParallelMergeR<true> m(&leftPairs[0], &rightPairs[0], rightPairs.size());
+
+        tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+
+        indexPairs = move(m.getIndexPairs());
     } else {
+        /*
         ParallelMerge<false> m(&leftPairs[0], &rightPairs[0],
                                rightPairs.size(), indexPairs);
 
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+        */
+
+        ParallelMergeR<false> m(&leftPairs[0], &rightPairs[0], rightPairs.size());
+
+        tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(0, leftPairs.size(), PAIRS_GRAIN_SIZE), m);
+
+        indexPairs = move(m.getIndexPairs());
     }
 
     // Free pairs memory if it's owned by them (not an index).
