@@ -2,8 +2,8 @@
 
 ## Team
 
-* Tasos Bakogiannis <abk@cslab.ece.ntua.gr>, National Technical University of Athens, School of ECE, Ph.D. candidate.
-* Giagkos Mytilinis <gmytil@cslab.ece.ntua.gr>, National Technical University of Athens, School of ECE, Ph.D. candidate.
+* Tasos Bakogiannis <abk@cslab.ece.ntua.gr>, NTUA, School of ECE, Ph.D. candidate.
+* Giagkos Mytilinis <gmytil@cslab.ece.ntua.gr>, NTUA, School of ECE, Ph.D. candidate.
 
 ## About
 
