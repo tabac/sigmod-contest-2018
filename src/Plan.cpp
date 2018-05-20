@@ -15,8 +15,8 @@
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
-// using joinPairsContainer = uint64VecCc;
-using joinPairsContainer = vector<uint64Pair>;
+using joinPairsContainer = uint64VecCc;
+// using joinPairsContainer = vector<uint64Pair>;
 //---------------------------------------------------------------------------
 ResultInfo::ResultInfo(std::vector<uint64_t> results, unsigned size)
 // TODO: This should be done better.
@@ -212,19 +212,19 @@ void JoinOperatorNode::executeAsync(void)
     joinPairsContainer indexPairs;
 
 
-    /*
     JoinOperatorNode::mergeJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
+    /*
     JoinOperatorNode::hashJoinSeq<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
 
     JoinOperatorNode::hashJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
-    */
 
     JoinOperatorNode::mergeJoinPar<joinPairsContainer>(
         this->info.left, this->info.right, inLeftNode, inRightNode, indexPairs);
+    */
 
     if (CHECK_SORTED_SELECTIONS) {
         // Update sorted selections.
